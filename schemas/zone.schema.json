@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "zone.schema.json",
+  "title": "Zone",
+  "description": "A geographic unit of the crisis world. The zone id is the canonical location key: entities, hazards, signals, and actions all reference zones by id. The zone table is the single place that holds rich geodata (names, coordinates). Zones form a directed graph through downstream_of; hazards propagate along its edges with a delay.",
+  "type": "object",
+  "required": ["id", "name", "population"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique kebab-case identifier. The canonical location reference used by every other object."
+    },
+    "name": {
+      "type": "string",
+      "description": "Local place name as spoken (Paiporta). Used in voice calls, alerts, and the dashboard."
+    },
+    "municipality": {
+      "type": "string",
+      "description": "Municipality the zone belongs to. Often equal to name when the zone is a whole town."
+    },
+    "province": {
+      "type": "string",
+      "description": "Province or region (Valencia). Gives agents administrative context for jurisdiction and escalation."
+    },
+    "country": {
+      "type": "string",
+      "description": "ISO country name (Spain). Relevant for scenario packs outside Spain."
+    },
+    "population": {
+      "type": "integer",
+      "description": "Inhabitants of the zone. Redundant with the population entity total; keep both equal."
+    },
+    "downstream_of": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Zone ids whose hazards propagate into this zone. The edges of the hazard propagation graph. Scenario-agnostic: for a flood the edge means water flows here; for a wildfire it would mean wind carries fire here."
+    },
+    "propagation_delay_min": {
+      "type": "integer",
+      "description": "Minutes for a hazard in an upstream zone to reach this zone. This is the warning window the system must exploit: acting inside this window is the whole point."
+    },
+    "elevation": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Coarse exposure indicator. low elevation means higher flood exposure and more people at risk in garages and ground floors."
+    },
+    "centroid": {
+      "type": "object",
+      "description": "Representative coordinates of the zone. Used for map rendering and as a fallback for rough distance computation. Not a substitute for the propagation graph: straight-line distance misleads in a crisis (the 2024 hazard reached Paiporta through 40 km of rambla, not 6 km of straight line).",
+      "properties": {
+        "lat": {"type": "number", "description": "Latitude, WGS84."},
+        "lng": {"type": "number", "description": "Longitude, WGS84."}
+      }
+    },
+    "geometry": {
+      "type": ["object", "null"],
+      "description": "Optional GeoJSON polygon of the zone boundary, for map rendering only."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-text context injected into agent prompts. Terrain, known choke points, historical behavior."
+    }
+  }
+}

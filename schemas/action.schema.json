@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "action.schema.json",
+  "title": "Action",
+  "description": "One action the agent decides. Written to the shared database by HappyRobot workflows; the simulator applies its effects on the world; the dashboard renders the action log. Actions with real_interaction produce an actual call, email, or SMS. evidence and reasoning are mandatory: they are the transparency the judges score.",
+  "type": "object",
+  "required": ["id", "t", "actor", "verb", "status", "evidence", "reasoning"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique action identifier (act-0007)."
+    },
+    "t": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Decision timestamp in scenario time (ISO 8601)."
+    },
+    "actor": {
+      "type": "string",
+      "description": "Entity id that executes the action. The verb must be in that entity's capabilities and the target zones inside its jurisdiction. The value system is a valid actor for system verbs (register_entity, update_entity)."
+    },
+    "verb": {
+      "type": "string",
+      "description": "The action verb. World verbs are executed by entities: send_es_alert, order_evacuation, close_road, rescue, pump_water, shelter, supplies, wellness_check, request_ume, activate_emergency_level, open_shelter. System verbs are executed by the agent itself: register_entity (create a discovered entity from a signal), update_entity (revise entity attributes from runtime evidence: units lost, status unreachable, trust downgraded)."
+    },
+    "target_zones": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Zone ids the action applies to. Must be inside the actor's jurisdiction."
+    },
+    "params": {
+      "type": "object",
+      "description": "Verb-specific parameters. For send_es_alert: the message text. For rescue: number of units. For register_entity: the full new entity object."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending_approval", "approved", "executed", "rejected", "failed"],
+      "description": "Lifecycle state. Actions whose actor has activation cost high enter pending_approval and wait for a human on the dashboard, with a timeout that auto-escalates. failed records real-world execution errors (call not answered); the agent must then escalate via escalation_to."
+    },
+    "evidence": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Signal ids that justify this action. Mandatory and never empty: every decision must be traceable to observed signals."
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "One or two sentences of agent reasoning for this action, written for a human supervisor (Gauge trend rising plus 4 corroborating reports upstream). Shown verbatim on the dashboard."
+    },
+    "real_interaction": {
+      "type": ["object", "null"],
+      "description": "The real-world contact this action produced, if any. Filled after execution as proof of real interaction (a track requirement).",
+      "properties": {
+        "kind": {"type": "string", "enum": ["voice", "email", "sms"], "description": "Channel used."},
+        "to": {"type": "string", "description": "Address contacted (phone number, email)."}
+      }
+    }
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "signal.schema.json",
+  "title": "Signal",
+  "description": "One piece of incoming information from a data source. The simulator POSTs signals to the HappyRobot ingestion workflow webhook. Signals vary in reliability and precision; the ingestion workflow computes a per-signal confidence and resolves the location to a zone. Noise signals (irrelevant content, no claims) exist on purpose: the agent must discard them.",
+  "type": "object",
+  "required": ["id", "t", "source", "modality", "content", "location"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique signal identifier (sig-0042). Referenced by the evidence field of actions."
+    },
+    "t": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the signal in scenario time (ISO 8601). Confidence decays with age."
+    },
+    "source": {
+      "type": "string",
+      "description": "Entity id of the information source that emitted this signal (aemet, chj-gauges, social-media, local-news, or a 112 caller)."
+    },
+    "source_trust": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "Copy of the source entity trust prior at emission time, so the ingestion workflow does not need a lookup. A prior only: corroboration can make a low-trust signal decisive."
+    },
+    "modality": {
+      "type": "string",
+      "enum": ["text", "call_transcript", "sensor_reading", "broadcast"],
+      "description": "Form of the signal. text: tweet or message. call_transcript: transcription of a phone call (112). sensor_reading: numeric measurement. broadcast: news bulletin."
+    },
+    "content": {
+      "type": "string",
+      "description": "The raw content: the tweet text, the call transcription, the reading (caudal 1200 m3/s y subiendo), or the bulletin. This is what the agent reads."
+    },
+    "claims": {
+      "type": "array",
+      "description": "Structured claims extracted from the content, if any. A signal with no claims and irrelevant content is noise. Extraction can happen at the source (scripted) or at ingestion (by the agent).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "hazard_type": {"type": "string", "description": "Hazard type the claim refers to (flood)."},
+          "severity_hint": {"type": "integer", "minimum": 0, "maximum": 10, "description": "Severity the claim suggests, 0-10."}
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "description": "Location evidence at whatever precision the source provides. A GPS-tagged call carries coords; a tweet may carry only vague text. The agent uses the most precise level available and treats precision itself as decision input (exact coords: dispatch there; zone-level: send reconnaissance first).",
+      "required": ["precision"],
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Raw location as it arrived (garaje de la calle Mestre Serrano, cerca del colegio, en Chiva). May be absent for pure sensor readings."
+        },
+        "coords": {
+          "type": "object",
+          "description": "Coordinates when the source provides them (GPS of a caller, position of a sensor). Absent otherwise.",
+          "properties": {
+            "lat": {"type": "number", "description": "Latitude, WGS84."},
+            "lng": {"type": "number", "description": "Longitude, WGS84."},
+            "accuracy_m": {"type": "number", "description": "Accuracy radius in meters."}
+          }
+        },
+        "zone": {
+          "type": ["string", "null"],
+          "description": "Zone id this signal refers to. Filled at ingestion by resolving text or coords against the zone table. null when unresolvable; unresolved signals are still shown on the dashboard."
+        },
+        "precision": {
+          "type": "string",
+          "enum": ["exact", "street", "zone", "region", "unknown"],
+          "description": "Honest label of location precision. exact: coordinates. street: street-level text. zone: town-level. region: wider than one zone. unknown: no usable location."
+        }
+      }
+    },
+    "confidence": {
+      "type": ["string", "null"],
+      "enum": ["high", "medium", "low", null],
+      "description": "Per-signal credibility, computed at ingestion from source_trust, corroboration count (similar claims, same zone, last 15 min), cross-source consistency, and age. null before ingestion. The inputs to the computation are logged so the dashboard can show why the agent believed the signal."
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "hazard.schema.json",
+  "title": "Hazard",
+  "description": "A dangerous condition in a zone. The simulator owns hazard evolution (the ground truth); the agent never reads hazards directly and only infers them from signals. Hazards propagate along the zone graph edges with the delay defined on zones.",
+  "type": "object",
+  "required": ["id", "type", "zone", "severity", "trend"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique hazard identifier (flood-poyo-chiva)."
+    },
+    "type": {
+      "type": "string",
+      "description": "Hazard type (flood, wildfire, blackout). The core system treats it as an opaque label; only the scenario pack knows its dynamics."
+    },
+    "zone": {
+      "type": "string",
+      "description": "Zone id where the hazard is active."
+    },
+    "severity": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10,
+      "description": "Intensity 0-10. Upstream severity predicts downstream severity after the propagation delay; connecting those dots early is the core system skill."
+    },
+    "trend": {
+      "type": "string",
+      "enum": ["rising", "stable", "falling"],
+      "description": "Direction of change. rising upstream is the earliest actionable evidence for downstream zones."
+    },
+    "propagating": {
+      "type": "boolean",
+      "description": "Whether this hazard travels along the zone graph. A flood propagates; a local building collapse does not."
+    }
+  }
+}

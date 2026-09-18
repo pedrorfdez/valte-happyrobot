@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "entity.schema.json",
+  "title": "Entity",
+  "description": "An actor in the crisis world. Four kinds: information_source (emits signals, cannot act), authority (decides and orders; the system contacts it), responder (acts on the ground with finite units), population (aggregate of civilians per zone; what the system protects).",
+  "type": "object",
+  "required": ["id", "name", "kind", "weight", "trust", "provenance", "status"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique kebab-case identifier. Referenced by signals, actions, and escalation chains."
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name. Used verbatim in voice calls and dashboard labels."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["information_source", "authority", "responder", "population"],
+      "description": "Role of the entity. information_source: only emits signals. authority: can order high-level actions (alerts, evacuations, road closures). responder: executes physical actions with finite units. population: civilian aggregate per zone; the protection target."
+    },
+    "weight": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10,
+      "description": "Authority prior, 1-10. Tiebreaker for who is notified first and whose orders take precedence. Does not replace jurisdiction: an entity with weight 7 and jurisdiction [paiporta] has no authority in torrent."
+    },
+    "trust": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "Prior reliability of what this entity reports. A starting point only: per-signal confidence (computed from corroboration, consistency, and age) is what decisions must use. Runtime evidence can downgrade this prior via the update_entity action."
+    },
+    "jurisdiction": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Zone ids where this entity can act or give orders. Empty array means global jurisdiction."
+    },
+    "channel": {
+      "type": "object",
+      "description": "How the system contacts this entity for real. kind none for entities never contacted (sensors, media).",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["voice", "email", "sms", "none"],
+          "description": "Contact channel. voice: real phone call through HappyRobot. email and sms: real messages. none: not contactable."
+        },
+        "address": {
+          "type": "string",
+          "description": "Phone number, email address, or broadcast target (broadcast:<zone> for population mass alerts)."
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Action verbs this entity can execute. The agent must never assign an action outside this list. Examples: send_es_alert, order_evacuation, close_road, rescue, pump_water, shelter, supplies, wellness_check."
+    },
+    "units": {
+      "type": "object",
+      "description": "Countable resources, only for responders. Scarcity of units is what forces prioritization.",
+      "properties": {
+        "total": {"type": "integer", "description": "Total units this responder owns."},
+        "available": {"type": "integer", "description": "Units not currently assigned. The simulator and actions update this."}
+      }
+    },
+    "population": {
+      "type": "object",
+      "description": "Only for kind population. The civilian state of a zone.",
+      "properties": {
+        "total": {"type": "integer", "description": "Number of inhabitants."},
+        "warned": {"type": "boolean", "description": "True after a mass alert or evacuation order reaches this zone."},
+        "evacuated_pct": {"type": "number", "description": "Share (0-100) of inhabitants evacuated."},
+        "at_risk_pct": {"type": "number", "description": "Share (0-100) in dangerous places (garages, ground floors, vehicles). The main harm driver: warnings and evacuations reduce it. Minimizing this is the system objective."}
+      }
+    },
+    "activation": {
+      "type": "object",
+      "description": "What it takes to make this entity operational.",
+      "properties": {
+        "delay_min": {"type": "integer", "description": "Minutes from request to operational. Long delays (UME: 180) force early requests on incomplete evidence."},
+        "cost": {"type": "string", "enum": ["low", "medium", "high"], "description": "Political or economic cost of activation. high-cost actions require human approval on the dashboard before execution."}
+      }
+    },
+    "escalation_to": {
+      "type": ["string", "null"],
+      "description": "Entity id to contact when this entity is unreachable. null means top of the chain."
+    },
+    "zone": {
+      "type": ["string", "null"],
+      "description": "Current zone id of the entity. null or absent for entities without a physical position. remote for responders outside the map."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["available", "busy", "unreachable"],
+      "description": "Operational state. The simulator can change it mid-run (entities go unreachable during the crisis); the agent must then use escalation_to."
+    },
+    "provenance": {
+      "type": "string",
+      "enum": ["plan", "discovered"],
+      "description": "plan: pre-registered in the scenario pack (the official emergency plan). discovered: created at runtime by the register_entity action when signals reveal a new actor. Discovered entities start with trust low and only low-risk capabilities until a human upgrades them."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-text context about this entity, injected into agent prompts. Use it for operational constraints (Do not send volunteers into active hazard zones) and background."
+    }
+  }
+}
