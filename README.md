@@ -5,6 +5,7 @@ Team Valte's entry for the HappyRobot track at HackSpain 2026 (September
 
 - Track page: https://hackspain2026.happyrobot.ai/
 - Full track brief: [docs/track.md](docs/track.md)
+- API examples: [examples/README.md](examples/README.md)
 - Our proposal: [PROPOSAL.md](PROPOSAL.md)
 
 ## The challenge in one line
