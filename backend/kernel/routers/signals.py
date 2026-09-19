@@ -1,7 +1,7 @@
 """World-facing ingress: normalized signals in, confidence computed,
 tripwires evaluated synchronously, coordinator woken."""
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 from ..auth import require_token
 from ..db import current_run_id, js, q
@@ -13,8 +13,7 @@ router = APIRouter(dependencies=[Depends(require_token)])
 
 
 @router.post("/signals", status_code=201)
-async def ingest(request: Request):
-    signal = await request.json()
+def ingest(signal: dict = Body(...)):
     rid = current_run_id()
     if not rid:
         raise HTTPException(409, "no active run; POST /runs first")

@@ -22,17 +22,23 @@ _lock = threading.Lock()
 _in_flight_since: float | None = None
 
 
+def _dispatch_async():
+    """Never block a request on the webhook call: dispatch in a daemon
+    thread. The sweep loop is the retry backstop if the thread fails."""
+    threading.Thread(target=dispatch_coordinator, daemon=True).start()
+
+
 def emit_event(run_id: str, type_: str, payload: dict, lane: str = "coordinator"):
     q("insert into events (run_id, type, lane, payload) values (%s,%s,%s,%s)",
       (run_id, type_, lane, js(payload)))
-    dispatch_coordinator()  # immediate post-commit attempt
+    _dispatch_async()  # immediate post-commit attempt
 
 
 def mark_agent_responded():
     global _in_flight_since
     with _lock:
         _in_flight_since = None
-    dispatch_coordinator()
+    _dispatch_async()
 
 
 def _gate_open() -> bool:
@@ -46,10 +52,26 @@ def _gate_open() -> bool:
         return False
 
 
+_dispatch_lock = threading.Lock()
+
+
 def dispatch_coordinator():
-    """Coalesce all pending coordinator events into one wake-up POST."""
+    """Coalesce all pending coordinator events into one wake-up POST.
+    Serialized: only one dispatch runs at a time."""
     global _in_flight_since
-    if not settings.hr_webhook_coordinator or not _gate_open():
+    if not settings.hr_webhook_coordinator:
+        return
+    if not _dispatch_lock.acquire(blocking=False):
+        return
+    try:
+        _dispatch_inner()
+    finally:
+        _dispatch_lock.release()
+
+
+def _dispatch_inner():
+    global _in_flight_since
+    if not _gate_open():
         return
     run_id = current_run_id()
     if not run_id:

@@ -6,7 +6,7 @@ POST /signals."""
 
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 from ..auth import require_token
 from ..db import current_run_id, js, q
@@ -37,11 +37,7 @@ def _jsonish(v):
 
 
 @router.post("/perceptions", status_code=201)
-async def ingest_perception(request: Request):
-    try:
-        p = await request.json()
-    except Exception:
-        p = {}
+def ingest_perception(request: Request, p: dict | None = Body(None)):
     if not p:
         # HappyRobot webhook POST actions deliver params as query string
         p = dict(request.query_params)

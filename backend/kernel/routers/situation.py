@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 from ..auth import require_token
 from ..db import current_run_id, js, q
@@ -15,11 +15,7 @@ def get_situation():
 
 
 @router.put("/situation")
-async def put_situation(request: Request):
-    try:
-        doc = await request.json()
-    except Exception:
-        doc = None
+def put_situation(request: Request, doc: dict | None = Body(None)):
     if not doc:
         import json as _json
         raw = request.query_params.get("situation_json", "")

@@ -5,7 +5,7 @@ checked, and rejections explain themselves so the LLM can re-plan."""
 import json
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request
 from psycopg.rows import dict_row
 
 from ..auth import require_token
@@ -26,15 +26,11 @@ def _run() -> str:
     return rid
 
 
-async def _body_or_query(request: Request, json_param: str) -> dict:
+def _body_or_query(request: Request, body: dict | None, json_param: str) -> dict:
     """HappyRobot webhook actions deliver tool arguments as query params;
     accept a JSON document either as the request body or as one param."""
-    try:
-        body = await request.json()
-        if body:
-            return body
-    except Exception:
-        pass
+    if body:
+        return body
     raw = request.query_params.get(json_param)
     if raw:
         import json as _json
@@ -46,9 +42,9 @@ async def _body_or_query(request: Request, json_param: str) -> dict:
 
 
 @router.post("/actions", status_code=201)
-async def create_action(request: Request,
-                        idempotency_key: str | None = Header(default=None)):
-    action = await _body_or_query(request, "action_json")
+def create_action(request: Request, body: dict | None = Body(None),
+                  idempotency_key: str | None = Header(default=None)):
+    action = _body_or_query(request, body, "action_json")
     return submit_action(_run(), action, idempotency_key)
 
 
@@ -81,11 +77,11 @@ def _extract_json_objects(s: str) -> list[str]:
 
 
 @router.post("/decisions", status_code=201)
-async def submit_decisions(request: Request):
+def submit_decisions(request: Request, req_body: dict | None = Body(None)):
     """Batch ingress for the coordinator: one LLM turn returns several
     actions (each a JSON string, strict-schema friendly) plus a situation
     note. Invalid actions are reported per item, valid ones proceed."""
-    body = await _body_or_query(request, "decisions_json")
+    body = _body_or_query(request, req_body, "decisions_json")
     rid = _run()
     raw_actions = body.get("actions") or []
     if isinstance(raw_actions, str):
@@ -213,8 +209,8 @@ def submit_action(rid: str, action: dict, idempotency_key: str | None) -> dict:
 
 
 @router.patch("/actions/{action_id}")
-async def patch_action(action_id: str, request: Request):
-    patch = await _body_or_query(request, "patch_json")
+def patch_action(action_id: str, request: Request, body: dict | None = Body(None)):
+    patch = _body_or_query(request, body, "patch_json")
     if patch.get("real_kind"):  # flattened query form
         patch["real_interaction"] = {"kind": patch.pop("real_kind"),
                                      "to": patch.pop("real_to", "")}

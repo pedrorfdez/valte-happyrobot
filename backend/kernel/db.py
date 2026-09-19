@@ -6,7 +6,7 @@ from psycopg_pool import ConnectionPool
 
 from .config import settings
 
-pool = ConnectionPool(settings.database_url, min_size=1, max_size=8,
+pool = ConnectionPool(settings.database_url, min_size=2, max_size=20,
                       kwargs={"row_factory": dict_row}, open=False)
 
 

@@ -2,7 +2,7 @@
 entity changes that no signal announces. Emits entity_changed so the
 agent reconsiders plans built on the old truth."""
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 from ..auth import require_token
 from ..db import current_run_id, js, q
@@ -13,8 +13,7 @@ router = APIRouter(dependencies=[Depends(require_token)])
 
 
 @router.post("/world/patches")
-async def world_patch(request: Request):
-    body = await request.json()
+def world_patch(body: dict = Body(...)):
     rid = current_run_id()
     if not rid:
         raise HTTPException(409, "no active run")
@@ -39,10 +38,9 @@ async def world_patch(request: Request):
 
 
 @router.post("/world/hazards")
-async def world_hazard(request: Request):
+def world_hazard(hazard: dict = Body(...)):
     """Simulator ground truth for the dashboard's truth-vs-belief view.
     The agent has no endpoint that reads this table."""
-    hazard = await request.json()
     rid = current_run_id()
     if not rid:
         raise HTTPException(409, "no active run")

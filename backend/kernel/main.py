@@ -14,12 +14,17 @@ from .routers import (actions, entities, perceptions, runs, signals, situation,
 from .services import outbox, reflexes
 
 
+def _sweep_once():
+    reflexes.sweep_silence()
+    _fire_due_timers()
+    outbox.sweep()
+
+
 async def sweep_loop():
     while True:
         try:
-            reflexes.sweep_silence()
-            _fire_due_timers()
-            outbox.sweep()
+            # blocking DB and webhook work runs off the event loop
+            await asyncio.to_thread(_sweep_once)
         except Exception as e:  # the sweep must never die
             print(f"sweep error: {e}")
         await asyncio.sleep(settings.sweep_interval_s)
