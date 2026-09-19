@@ -24,7 +24,8 @@ It is scenario-neutral: the same contracts and HappyRobot workflows run a DANA/f
 | Supabase State Gateway | Connected DANA and wildfire E2E passed against Supabase; local demo needs no Azure deployment |
 | Scenario Controller and packs | Implemented; DANA and wildfire dry-runs available |
 | Three HappyRobot workflows | Published in HappyRobot `development`; connected E2E passed |
-| Local dashboard | Implemented and verified against the Supabase Edge Gateway |
+| Local dashboard v2 (app-v2) | **Default** since v2 integration: `make up` → `app-v2/dist` (1440×900, jurisdiction projection, Realtime+polling); verified with Gateway snapshots |
+| Local dashboard legacy (app/) | Fallback diagnostic: `make up-legacy` → `app/`; still verified via `scripts/test-dashboard-local.sh` |
 | Controlled interaction and E2E runner | Connected E2E passed in `dry-run`; live external channels intentionally not exercised |
 
 ## 2. Quick contract check
@@ -231,7 +232,7 @@ Expected: `9` commands for each pack. The wildfire stream must not contain DANA-
 
 Detailed plan: [Scenario Controller](docs/superpowers/plans/2026-09-19-scenario-controller.md).
 
-### Step 7 — Start the dashboard
+### Step 7 — Start the dashboard (v2 default)
 
 From the repository root:
 
@@ -239,16 +240,24 @@ From the repository root:
 make up
 ```
 
-The command loads `.env`, verifies the selected run through the Supabase Edge Gateway (`supabase/functions/gateway`), preserves the `/functions/v1/gateway` base path, starts the dashboard on port `4173`, and opens the correctly configured URL. It stays attached to the terminal; press `Ctrl-C` to stop it. `make up` only serves the local dashboard — it does not run Scenario Controller or Event Router.
+`make up` now launches the **Valte v2 dashboard** (`app-v2/dist`, built with `npm --prefix app-v2 run build`, fixed canvas 1440×900, Valte v2 tokens via `app-v2/public/assets/valte-tokens.css`). It loads `.env`, verifies the selected run through the Supabase Edge Gateway (`GET /api/runs` → `GET /api/snapshot`, `supabase/functions/gateway`), preserves the `/functions/v1/gateway` base path, starts the dashboard on port `4173`, and opens the correctly configured URL with `run_id` and `gateway_url` query params. The adapter builds a viewer-scoped projection (`GET /api/runs` → snapshot → `buildViewerProjection` with jurisdiction filtering and signal/lesson redaction), renders header/KPIs/role switcher (operational entities only, `role !== source`) and Zones/Incidents/Actions/Resources/Contacts screens (Zones uses `display.x/y`). It stays attached to the terminal; press `Ctrl-C` to stop it. `make up` only serves the local dashboard — it does not run Scenario Controller or Event Router.
 
-To show the wildfire run or select another port:
+Legacy fallback (diagnostic static dashboard in `app/`):
+
+```bash
+make up-legacy
+# or: ./scripts/dashboard-local.sh up
+```
+
+`make check` verifies `.env` and Gateway for v2; `make check-legacy` does the same for the legacy dashboard. To show the wildfire run or select another port (works for both):
 
 ```bash
 make up RUN_ID="$WILDFIRE_RUN_ID"
 make up PORT=4174
+make up-legacy RUN_ID="$WILDFIRE_RUN_ID"
 ```
 
-The local Python server exposes the dashboard at the root URL. To enable Realtime notifications, append URL-encoded `supabase_url` and `supabase_anon_key` query parameters. Without them, polling remains active and the UI reports `degraded` rather than failing.
+The local Python server exposes the dashboard at the root URL. To enable Realtime notifications, append URL-encoded `supabase_url` and `supabase_anon_key` query parameters; the v2 adapter subscribes to Realtime (`events` table, `run_id=eq.<id>`) with debounced snapshot refresh and polling fallback (`live`/`degraded`/`stale`/`offline`). Without Realtime keys, polling remains active and the UI reports `degraded` rather than failing.
 
 Continue when the page shows `SIMULACIÓN`, the DANA run, and Gateway status.
 
