@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Valte v2 · Centro de coordinación</title>
+    <link rel="stylesheet" href="/assets/valte-tokens.css" />
+    <link rel="stylesheet" href="/assets/valte-ds.css" />
+    <link rel="stylesheet" href="/assets/vendor/leaflet.css" />
+    <script src="/assets/react.production.min.js"></script>
+    <script src="/assets/react-dom.production.min.js"></script>
+    <script src="/assets/dc-runtime.js"></script>
+    <script src="/assets/valte-ds.js"></script>
+    <script src="/assets/valte-live.js"></script>
+    <script src="/assets/valte-map.js"></script>
+    <script type="module" crossorigin src="/assets/index-CMpDtPRi.js"></script>
+  </head>
+  <body>
+    <div
+      id="app"
+      data-preview-width="1440"
+      data-preview-height="900"
+      style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; gap: 16px; padding: 16px; background: var(--surface-000); color: var(--ink); font-family: var(--font-sans); overflow: hidden; margin: 0 auto;"
+    >
+      <main
+        style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding: 24px 48px 48px;"
+      >
+        <header style="display: flex; align-items: baseline; gap: 12px;">
+          <span style="font-family: var(--font-display); font-size: 32px; line-height: 36px;">Valte</span>
+          <span style="font-size: 13px; line-height: 20px; color: var(--ink-muted);">con HappyRobot · v2</span>
+          <span
+            id="v2-status"
+            style="margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--ink-muted);"
+            >cargando…</span
+          >
+        </header>
+        <section id="v2-content" style="flex: 1; display: flex; align-items: center; justify-content: center;">
+          <p style="font-family: var(--font-display); font-size: 28px; color: var(--ink-muted);">
+            Dashboard v2 · adaptador Supabase Gateway
+          </p>
+        </section>
+        <footer style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">
+          Canvas fijo 1440×900 · tokens Valte v2 · build vite
+        </footer>
+      </main>
+      <aside
+        data-theme="dark"
+        style="width: 496px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 40px; padding: 40px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden; position: relative;"
+      >
+        <p style="font-family: var(--font-display); font-size: 18px; line-height: 24px; position: relative;">
+          Tokens y componentes Valte v2 importados desde <code>origin/feat/valte-v2:frontend/assets</code>
+        </p>
+        <p style="font-size: 13px; line-height: 20px; color: var(--ink-muted); position: relative;">
+          Adapter Gateway → snapshot → proyección por jurisdicción → comandos
+        </p>
+      </aside>
+    </div>
+  </body>
+</html>

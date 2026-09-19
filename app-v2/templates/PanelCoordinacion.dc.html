@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel · Coordinación · Valte</title>
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/dc-runtime.js"></script>
+<link rel="stylesheet" href="assets/valte-tokens.css">
+<link rel="stylesheet" href="assets/valte-ds.css">
+<script src="assets/valte-ds.js"></script>
+<script src="assets/valte-live.js"></script>
+</head>
+<body>
+<x-dc><helmet>
+<style>
+body{margin:0;background:var(--surface-000);color:var(--ink);font-family:var(--font-sans);}
+a{color:var(--info);}a:hover{color:var(--ink);}
+.wave{fill:none;stroke:var(--line-strong);stroke-width:1;opacity:.5;}
+.seg{display:flex;flex-direction:column;gap:2px;padding:8px 14px;border-radius:var(--radius-md);border:1px solid var(--line-strong);color:var(--ink);text-decoration:none;min-width:150px;}
+.seg:hover{background:var(--surface-200);color:var(--ink);}
+.seg.is-on{background:var(--ink);border-color:var(--ink);color:var(--on-ink);}
+.seg.is-on .seg-kind{color:var(--on-ink);opacity:.7;}
+.seg-kind{font-size:11px;line-height:14px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);}
+.seg-name{font-size:14px;line-height:20px;font-weight:500;}
+.back{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--line-strong);color:var(--ink);}
+.back:hover{background:var(--surface-200);color:var(--ink);}
+.seg:focus-visible,.back:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;}
+.col-body{display:flex;flex-direction:column;gap:12px;overflow:auto;min-height:0;padding-bottom:8px;}
+.col-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--line-strong);}
+.col-title{font-family:var(--font-display);font-size:28px;line-height:32px;margin:0;font-weight:400;}
+.count{font-family:var(--font-mono);font-size:12px;line-height:16px;color:var(--ink-muted);}
+.lbl{font-size:12px;line-height:16px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);}
+.kpi-link{text-decoration:none;color:var(--ink);border-radius:var(--radius-md);margin:-8px -12px -8px 0;padding:8px 12px 8px 24px !important;position:relative;}
+.kpi-link:hover{background:var(--surface-200);color:var(--ink);}
+.kpi-link.is-on{background:var(--surface-200);box-shadow:inset 0 -2px 0 var(--ink);}
+.kpi-link:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.kpi-link .kpi-go{position:absolute;top:10px;right:12px;color:var(--ink-muted);transition:transform .2s ease;}
+.kpi-link:hover .kpi-go{transform:translateX(3px);color:var(--ink);}
+
+/* Additions for the live app (everything else is the design's own CSS). */
+html{background:var(--surface-000);}
+.vt-sev__num{display:none;} /* severity reads from the bars alone: no number beside them */
+.vl-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:9999;background:var(--ink);color:var(--on-ink);
+  font:500 14px/20px var(--font-sans);padding:10px 18px;border-radius:var(--radius-md);box-shadow:var(--shadow-pop);max-width:720px;}
+.vl-toast.is-ok{background:var(--success);color:#fff}.vl-toast.is-warn{background:var(--warning);color:var(--on-warning)}
+.vl-toast.is-bad{background:var(--critical);color:var(--on-critical)}
+.ringbar{position:relative;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:var(--radius-md);
+  background:var(--agent-soft);color:var(--ink);font-size:14px;line-height:20px;border:1px solid var(--agent);}
+.ringdot{width:10px;height:10px;border-radius:50%;background:var(--agent);animation:vl-pulse 1s ease-in-out infinite;flex-shrink:0;}
+@keyframes vl-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.5)}}
+.vl-empty{padding:24px 0;color:var(--ink-muted);font-size:14px;line-height:20px;}
+.vl-tab{appearance:none;cursor:pointer;}
+.vl-origin-tag{font-family:var(--font-mono);font-size:11px;color:var(--ink-muted);}
+.vl-change{display:grid;grid-template-columns:38px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:4px 0;font-size:13px;line-height:18px;color:var(--ink);text-decoration:none;}
+.vl-change:hover{color:var(--ink);background:var(--surface-200);}
+.vl-g{font-size:12px;text-align:center;}.vl-g.is-critical{color:var(--critical);}.vl-g.is-warning{color:var(--warning-text);}
+.vl-g.is-agent{color:var(--agent);}.vl-g.is-success{color:var(--success);}.vl-g.is-info{color:var(--info);}.vl-g.is-neutral{color:var(--ink-muted);}
+.tab.vl-zonechip{background:var(--info-soft);border-color:var(--info);color:var(--info);}
+.vl-change .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.vl-scrim{position:absolute;inset:0;border:0;padding:0;margin:0;background:rgba(14,13,12,.45);cursor:pointer;}
+.vl-dlg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:860px;max-height:840px;overflow:auto;box-sizing:border-box;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--surface-100);color:var(--ink);border-radius:var(--radius-lg);box-shadow:var(--shadow-pop);}
+.vl-x{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--line-strong);background:none;color:var(--ink);cursor:pointer;font-size:18px;}
+.vl-x:hover{background:var(--surface-200);}
+.vl-row{display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:20px;}
+.vl-prio{font-family:var(--font-mono);font-size:12px;font-weight:500;}
+.vl-prio.p0{color:var(--critical);}.vl-prio.p1{color:var(--warning-text);}.vl-prio.p2{color:var(--info);}.vl-prio.p3{color:var(--ink-muted);}
+.vl-sub{color:var(--ink-muted);font-size:12px;line-height:16px;}
+.vl-more{appearance:none;border:0;background:none;padding:6px 0 0;font:500 13px/18px var(--font-sans);color:var(--agent);cursor:pointer;text-align:left;}
+.vl-more:hover{text-decoration:underline;}
+.vl-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;}
+.vl-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.vl-chipbtn{appearance:none;font:500 13px/20px var(--font-sans);padding:6px 12px;border-radius:var(--radius-pill);border:1px solid var(--line-strong);background:none;color:var(--ink);cursor:pointer;}
+.vl-chipbtn:hover{background:var(--surface-200);}.vl-chipbtn.is-on{background:var(--ink);border-color:var(--ink);color:var(--on-ink);}
+.vl-fl{display:flex;flex-direction:column;gap:6px;}
+.vl-in{font:400 15px/22px var(--font-sans);color:var(--ink);background:var(--surface-100);border:1px solid var(--line-strong);border-radius:var(--radius-md);padding:9px 12px;width:100%;box-sizing:border-box;resize:none;}
+.vl-in:focus{outline:2px solid var(--focus);outline-offset:1px;}
+
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 24px; background: var(--surface-000); color: var(--ink); font-family: var(--font-sans); overflow: hidden; position: relative;">
+<header data-theme="dark" style="position: relative; flex-shrink: 0; box-sizing: border-box; padding: 20px 28px 24px; display: flex; flex-direction: column; gap: 20px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden;">
+<svg width="640" height="640" sc-camel-view-box="0 0 640 640" aria-hidden="true" style="position: absolute; right: -120px; top: -420px;"><circle class="wave" cx="320" cy="320" r="40"></circle><circle class="wave" cx="320" cy="320" r="80"></circle><circle class="wave" cx="320" cy="320" r="120"></circle><circle class="wave" cx="320" cy="320" r="160"></circle><circle class="wave" cx="320" cy="320" r="200"></circle><circle class="wave" cx="320" cy="320" r="240"></circle><circle class="wave" cx="320" cy="320" r="280"></circle><circle class="wave" cx="320" cy="320" r="320"></circle></svg>
+<div style="position: relative; display: flex; align-items: center; gap: 20px;">
+<a href="{{hd.backHref}}" class="back" aria-label="Volver"><svg width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="M11 6l-6 6 6 6"></path></svg></a>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<h1 style="margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 44px; letter-spacing: -0.01em;">{{hd.title}}</h1>
+<span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted);">{{hd.sub}}</span>
+</div>
+<div style="margin-left: 16px;"><x-import component-from-global-scope="Valte.SeverityMeter" value="{{hd.sev}}" trend="{{hd.trend}}"></x-import></div>
+<sc-if value="{{hd.level}}" hint-placeholder-val="{{false}}"><x-import component-from-global-scope="Valte.StatusBadge" tone="critical" glyph="▲" label="{{hd.levelLabel}}"></x-import></sc-if>
+<div style="flex-grow: 1;"></div>
+<nav aria-label="Entidad" style="display: flex; gap: 8px;"><sc-for list="{{hd.segs}}" as="s" hint-placeholder-count="3"><a href="{{s.href}}" class="{{s.cls}}"><span class="seg-kind">{{s.kind}}</span><span class="seg-name">{{s.name}}</span></a></sc-for></nav>
+</div>
+<div style="position: relative; display: flex; gap: 24px; padding-top: 16px; border-top: 1px solid var(--line-strong);"><sc-for list="{{hd.kpis}}" as="k" hint-placeholder-count="5"><a href="{{k.href}}" class="{{k.cls}}" style="{{k.style}}"><span class="lbl">{{k.label}}</span><span style="font-family: var(--font-mono); font-size: 28px; line-height: 32px; letter-spacing: -0.02em; color: {{k.color}};">{{k.num}}<span style="font-size: 14px; color: var(--ink-muted);"> {{k.rest}}</span></span><svg class="kpi-go" width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg></a></sc-for></div>
+<sc-for list="{{hd.ringing}}" as="r" hint-placeholder-count="0">
+<div class="ringbar"><span class="ringdot"></span><span style="flex-grow: 1;"><b>{{r.title}}</b> · {{r.ask}}</span><span class="count">{{r.meta}}</span>
+<sc-if value="{{r.canAnswer}}" hint-placeholder-val="{{false}}"><x-import component-from-global-scope="Valte.Button" size="sm" sc-camel-on-click="{{r.answer}}">Atender como {{r.entity}}</x-import></sc-if>
+<sc-if value="{{r.live}}" hint-placeholder-val="{{false}}"><x-import component-from-global-scope="Valte.Button" size="sm" variant="secondary" sc-camel-on-click="{{r.hangup}}">Colgar</x-import></sc-if>
+<a href="Contactos.dc.html" class="count" style="color: var(--ink);">ver ↗</a></div>
+</sc-for>
+</header>
+
+<div style="flex-grow: 1; min-height: 0; display: flex; gap: 32px; padding: 0 12px;">
+<section class="col" style="width: 360px; flex-shrink: 0;"><div class="col-head"><h2 class="col-title">Zonas</h2><span class="count">{{zonesCount}}</span></div><div class="col-body"><sc-for list="{{zones}}" as="z" hint-placeholder-count="6"><a href="{{z.href}}" style="text-decoration: none; color: var(--ink); display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line);">
+<div style="display: flex; align-items: center; gap: 12px;"><span style="font-size: 16px; line-height: 24px; font-weight: 600; flex-grow: 1;">{{z.name}}</span><span class="count">{{z.etaShort}}</span><x-import component-from-global-scope="Valte.StatusBadge" tone="{{z.warnTone}}" glyph="{{z.warnGlyph}}" label="{{z.warnShort}}"></x-import></div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><x-import component-from-global-scope="Valte.SeverityMeter" value="{{z.severity}}" trend="{{z.trend}}"></x-import><span style="font-family: var(--font-mono); font-size: 13px; line-height: 20px; color: var(--critical);">{{z.accessText}}</span></div>
+</a></sc-for></div><div><x-import component-from-global-scope="Valte.Button" variant="secondary" block="{{yes}}" sc-camel-on-click="{{rp.show}}">⚑ Reportar incidencia</x-import></div></section><section class="col" style="flex-grow: 1;"><div class="col-head"><h2 class="col-title">Acciones</h2><span class="count">{{actsCount}}</span></div><div class="col-body"><sc-if value="{{hasNote}}" hint-placeholder-val="{{false}}"><div style="padding: 4px 0 12px; border-bottom: 1px solid var(--line);"><span class="lbl">{{noteLabel}}</span><p class="vt-reason" style="margin-top: 6px;"><span class="vt-reason__who">Agente</span>{{note}}</p><button type="button" class="vl-more" sc-camel-on-click="{{openPlan}}">Ver plan, reflejos y lo aprendido →</button></div></sc-if><sc-if value="{{hasChanges}}" hint-placeholder-val="{{false}}"><div style="display: flex; flex-direction: column; padding: 2px 0 8px; border-bottom: 1px solid var(--line);"><span class="lbl" style="padding-bottom: 4px;">Últimos cambios</span><sc-for list="{{changes}}" as="g" hint-placeholder-count="3"><a href="{{g.href}}" class="vl-change" title="{{g.text}}"><span class="mono muted">{{g.time}}</span><span class="{{g.cls}}">{{g.glyph}}</span><span class="ell">{{g.text}}</span></a></sc-for></div></sc-if><sc-if value="{{noActs}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Aún no hay acciones. El agente actuará en cuanto lleguen señales relevantes.</div></sc-if><sc-for list="{{acts}}" as="a" hint-placeholder-count="2"><x-import component-from-global-scope="Valte.ActionItem" action="{{a.action}}" time="{{a.time}}" verb-label="{{a.verbLabel}}" actor-name="{{a.actorName}}" deadline="{{a.deadline}}" sc-camel-on-approve="{{a.approve}}" sc-camel-on-reject="{{a.reject}}"></x-import></sc-for></div></section><section class="col" style="width: 400px; flex-shrink: 0;"><div class="col-head"><h2 class="col-title">Señales</h2><span class="count">{{sigsCount}}</span></div><div class="col-body"><sc-if value="{{noSigs}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Sin señales todavía. Pulsa Start en «Mundo exterior».</div></sc-if><sc-for list="{{sigs}}" as="s" hint-placeholder-count="3"><x-import component-from-global-scope="Valte.SignalItem" signal="{{s.signal}}" time="{{s.time}}" source-name="{{s.sourceName}}" noise="{{s.noise}}"></x-import></sc-for></div></section>
+</div>
+<sc-if value="{{planOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10;">
+<button type="button" class="vl-scrim" aria-label="Cerrar" sc-camel-on-click="{{closePlan}}"></button>
+<div class="vl-dlg" role="dialog" aria-modal="true" aria-labelledby="plan-title">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><span class="lbl">{{pl.kicker}}</span>
+<h2 id="plan-title" style="margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 44px;">{{pl.title}}</h2></div>
+<button type="button" class="vl-x" aria-label="Cerrar" sc-camel-on-click="{{closePlan}}">✕</button>
+</div>
+<p class="vt-reason" style="margin: 0;"><span class="vt-reason__who">Agente</span>{{pl.summary}}</p>
+<div class="vl-cols">
+<div style="display: flex; flex-direction: column;"><span class="lbl">Objetivos, por orden</span>
+<sc-for list="{{pl.objectives}}" as="o" hint-placeholder-count="3"><div class="vl-row"><span class="{{o.cls}}">{{o.priority}}</span><span>{{o.text}}<span class="vl-sub" style="display: block;">{{o.meta}}</span></span></div></sc-for>
+<sc-if value="{{pl.noObjectives}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Todavía no hay plan: el agente lo redacta cuando una zona llega a severidad 4.</div></sc-if>
+</div>
+<div style="display: flex; flex-direction: column;"><span class="lbl">Incidentes</span>
+<sc-for list="{{pl.incidents}}" as="i" hint-placeholder-count="2"><div class="vl-row"><span class="{{i.cls}}">{{i.priority}}</span><span>{{i.title}}<span class="vl-sub" style="display: block;">{{i.meta}}</span></span></div></sc-for>
+<sc-if value="{{pl.noIncidents}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Sin incidentes abiertos.</div></sc-if>
+</div>
+</div>
+<div class="vl-cols">
+<div style="display: flex; flex-direction: column;"><span class="lbl">Cuándo se tiró cada plan</span>
+<sc-for list="{{pl.history}}" as="p" hint-placeholder-count="2"><div class="vl-row"><span class="mono muted">{{p.version}}</span><span>{{p.why}}<span class="vl-sub" style="display: block;">{{p.meta}}</span></span></div></sc-for>
+<sc-if value="{{pl.noHistory}}" hint-placeholder-val="{{false}}"><div class="vl-empty">El plan vigente es el primero.</div></sc-if>
+</div>
+<div style="display: flex; flex-direction: column;"><span class="lbl">Reflejos armados (actúan sin esperar al agente)</span>
+<sc-for list="{{pl.tripwires}}" as="t" hint-placeholder-count="2"><div class="vl-row"><span class="{{t.cls}}">{{t.glyph}}</span><span>{{t.text}}<span class="vl-sub" style="display: block;">{{t.meta}}</span></span></div></sc-for>
+<sc-if value="{{pl.noTripwires}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Ninguno todavía.</div></sc-if>
+</div>
+</div>
+<div style="display: flex; flex-direction: column;"><span class="lbl">Aprendido de ejecuciones anteriores</span>
+<sc-for list="{{pl.lessons}}" as="l" hint-placeholder-count="2"><div class="vl-row"><span class="vl-prio p2">✎</span><span>{{l.text}}<span class="vl-sub" style="display: block;">{{l.meta}}</span></span></div></sc-for>
+<sc-if value="{{pl.noLessons}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Es la primera crisis de este tipo: al cerrarla, el sistema guarda qué fuentes fallaron, quién no contestó y cuánto tardaron los avisos, y lo aplica a la siguiente.</div></sc-if>
+</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{rp.open}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 12;">
+<button type="button" class="vl-scrim" aria-label="Cerrar" sc-camel-on-click="{{rp.close}}"></button>
+<div class="vl-dlg" role="dialog" aria-modal="true" aria-labelledby="rp-title" style="width: 760px;">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><span class="lbl">Canal de incidencias · {{rp.who}}</span>
+<h2 id="rp-title" style="margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 44px;">Reportar incidencia</h2></div>
+<button type="button" class="vl-x" aria-label="Cerrar" sc-camel-on-click="{{rp.close}}">✕</button>
+</div>
+<label class="vl-fl"><span class="lbl">Nombre</span>
+<input class="vl-in" type="text" placeholder="Se hunde el puente de la CV-36 en Paiporta" value="{{rp.name}}" sc-camel-on-change="{{rp.setName}}"></label>
+<div style="display: flex; flex-direction: column; gap: 8px;"><span class="lbl">Tipo</span>
+<div class="vl-chips"><sc-for list="{{rp.kinds}}" as="k" hint-placeholder-count="6"><button type="button" class="{{k.cls}}" aria-pressed="{{k.on}}" sc-camel-on-click="{{k.pick}}">{{k.label}}</button></sc-for></div></div>
+<div style="display: flex; gap: 8px; justify-content: flex-end;">
+<x-import component-from-global-scope="Valte.Button" variant="secondary" sc-camel-on-click="{{rp.close}}">Cancelar</x-import>
+<x-import component-from-global-scope="Valte.Button" sc-camel-on-click="{{rp.send}}">{{rp.sendLabel}}</x-import>
+</div>
+<sc-if value="{{rp.hasMine}}" hint-placeholder-val="{{false}}"><div style="display: flex; flex-direction: column;"><span class="lbl">Tus últimas incidencias y lo que cambiaron</span>
+<sc-for list="{{rp.mine}}" as="m" hint-placeholder-count="2"><div class="vl-row"><span class="mono muted">{{m.time}}</span><span>{{m.title}}<span class="vl-sub" style="display: block;">{{m.effects}}</span></span></div></sc-for></div></sc-if>
+</div>
+</div>
+</sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  componentDidMount() {
+    const self = this;
+    if (new URLSearchParams(location.search).get('plan')) this.setState({ planOpen: true });
+    // The "how the system thinks" dialog needs three more calls: only pay for them while it is open.
+    ValteLive.bind(this, cid => ValteLive.get(`/crises/${cid}/overview?role=coordination`).then(o =>
+      !(self.state || {}).planOpen ? o : Promise.all([ValteLive.get(`/crises/${cid}/plan`), ValteLive.get(`/crises/${cid}/tripwires`),
+        ValteLive.get(`/crises/${cid}/lessons`)]).then(([plan, tripwires, lessons]) => Object.assign(o, { think: { plan, tripwires, lessons: lessons.lessons } }))));
+  }
+  componentWillUnmount() { ValteLive.unbind(this); }
+  think(d) {
+    const t = d.think || { plan: { plan: null, history: [], incidents: [] }, tripwires: [], lessons: [] }, p = t.plan.plan;
+    const names = Object.fromEntries((d.zones || []).map(z => [z.id, z.name])), zn = ids => (ids || []).map(z => names[z] || z).join(', ');
+    const prio = x => 'vl-prio ' + String(x || 'p3').toLowerCase();
+    const cond = w => (w.if || {}).type === 'silence' ? `si ${w.if.source} calla ${w.if.silence_min} min`
+      : `si ${(w.if || {}).source || 'cualquier fuente'} da severidad ≥ ${(w.if || {}).min_severity}` + ((w.if || {}).zone ? ` en ${names[w.if.zone] || w.if.zone}` : '');
+    const then = w => (w.then || []).map(a => `${a.verb}${a.actor && a.actor !== 'auto' ? ' (' + a.actor + ')' : ''}`).join(' + ');
+    const ORIGIN = { command: 'PedroD-crisis-command · HappyRobot', 'local-brain': 'cerebro local de respaldo' };
+    const past = t.plan.history.filter(x => !x.active);
+    return {
+      kicker: p ? `${ORIGIN[p.origin] || p.origin} · ${p.objectives.length} objetivos` : 'sin plan todavía',
+      title: p ? `Plan v${p.version}` + (p.invalidated_reason ? ' · invalidado' : '') : 'Plan',
+      summary: p ? p.summary + (p.invalidated_reason ? ` — Invalidado: ${p.invalidated_reason_es || p.invalidated_reason}. El agente está redactando el siguiente.` : '') : 'El agente redacta el primer plan cuando una zona llega a severidad 4.',
+      objectives: (p ? p.objectives : []).map(o => ({ priority: o.priority || '—', cls: prio(o.priority), text: o.objective || o.title || '',
+        meta: [zn(o.zone_ids), o.suggested_verb, o.why].filter(Boolean).join(' · ') })),
+      noObjectives: !p || !p.objectives.length,
+      incidents: t.plan.incidents.filter(i => i.state !== 'closed').map(i => ({ priority: i.priority, cls: prio(i.priority), title: i.title || i.incident_id,
+        meta: [zn(i.zone_ids), i.summary, `${(i.evidence || []).length} evidencias`].filter(Boolean).join(' · ') })),
+      noIncidents: !t.plan.incidents.filter(i => i.state !== 'closed').length,
+      history: past.map(x => ({ version: 'v' + x.version, why: x.invalidated_reason_es || x.invalidated_reason || 'sustituido por uno más reciente', meta: (x.summary || '').slice(0, 140) })),
+      noHistory: !past.length,
+      tripwires: t.tripwires.map(w => ({ glyph: w.active ? '⚡' : '✓', cls: 'vl-prio ' + (w.active ? 'p1' : 'p3'), text: `${cond(w)} → ${then(w)}`,
+        meta: `${w.id} · lo armó ${w.set_by === 'plan' ? 'el plan de emergencias' : w.set_by === 'coordinator' ? 'el agente' : w.set_by}` + (w.last_fired_t ? ' · ya se disparó' : '') + (w.reason ? ' · ' + w.reason : '') })),
+      noTripwires: !t.tripwires.length,
+      lessons: t.lessons.filter(l => !l.from_this_crisis).map(l => ({ text: l.text, meta: l.kind.replace(/_/g, ' ') + (l.subject ? ' · ' + l.subject : '') })),
+      noLessons: !t.lessons.filter(l => !l.from_this_crisis).length
+    };
+  }
+
+  renderVals() {
+    const d = (this.state || {}).data || {}, cid = ValteLive.crisisId(), h = d.header || {}, k = d.kpis;
+    const zones = (d.zones || []).map(ValteLive.zoneRow), acts = d.actions || [], sigs = d.signals || [];
+    const plan = d.plan, note = h.situation_note || (plan && plan.summary) || '';
+    const co = ValteLive.roleEntity(h, 'coordination'), me = co ? { id: co.entity_id, name: co.label, role: 'coordination' } : {};
+    return Object.assign(ValteLive.header(this, 'PanelCoordinacion'), ValteLive.reportVals(this, cid, me), {
+      yes: true,
+      zones, zonesCount: k ? `${k.zones.total} · ${k.zones.origins} orígenes` : '',
+      acts: ValteLive.actionRows(this, cid, acts, 'operador-cecopi'), noActs: !!d.header && !acts.length,
+      actsCount: k ? `${k.actions.pending_approval} por aprobar · ${k.actions.total} en total` : '',
+      sigs, noSigs: !!d.header && !sigs.length,
+      sigsCount: k ? `${k.signals.total} · ${k.signals.noise} de ruido · ${k.signals.per_min}/min` : '',
+      changes: (d.changes || []).slice(0, 4).map(g => Object.assign({}, g, { cls: 'vl-g is-' + g.tone })), hasChanges: (d.changes || []).length > 0,
+      planOpen: !!(this.state || {}).planOpen, pl: this.think(d),
+      openPlan: () => { this.setState({ planOpen: true }); ValteLive.reload(this); }, closePlan: () => this.setState({ planOpen: false }),
+      hasNote: !!note, note,
+      noteLabel: plan ? `Plan v${plan.version}${plan.invalidated_reason ? ' · invalidado: ' + (plan.invalidated_reason_es || plan.invalidated_reason) : ''}` : 'Situación'
+    });
+  }
+}
+
+</script>
+</body></html>

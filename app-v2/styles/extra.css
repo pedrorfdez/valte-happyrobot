@@ -1,0 +1,37 @@
+/* Additions for the live app (everything else is the design's own CSS). */
+html{background:var(--surface-000);}
+.vt-sev__num{display:none;} /* severity reads from the bars alone: no number beside them */
+.vl-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:9999;background:var(--ink);color:var(--on-ink);
+  font:500 14px/20px var(--font-sans);padding:10px 18px;border-radius:var(--radius-md);box-shadow:var(--shadow-pop);max-width:720px;}
+.vl-toast.is-ok{background:var(--success);color:#fff}.vl-toast.is-warn{background:var(--warning);color:var(--on-warning)}
+.vl-toast.is-bad{background:var(--critical);color:var(--on-critical)}
+.ringbar{position:relative;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:var(--radius-md);
+  background:var(--agent-soft);color:var(--ink);font-size:14px;line-height:20px;border:1px solid var(--agent);}
+.ringdot{width:10px;height:10px;border-radius:50%;background:var(--agent);animation:vl-pulse 1s ease-in-out infinite;flex-shrink:0;}
+@keyframes vl-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.5)}}
+.vl-empty{padding:24px 0;color:var(--ink-muted);font-size:14px;line-height:20px;}
+.vl-tab{appearance:none;cursor:pointer;}
+.vl-origin-tag{font-family:var(--font-mono);font-size:11px;color:var(--ink-muted);}
+.vl-change{display:grid;grid-template-columns:38px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:4px 0;font-size:13px;line-height:18px;color:var(--ink);text-decoration:none;}
+.vl-change:hover{color:var(--ink);background:var(--surface-200);}
+.vl-g{font-size:12px;text-align:center;}.vl-g.is-critical{color:var(--critical);}.vl-g.is-warning{color:var(--warning-text);}
+.vl-g.is-agent{color:var(--agent);}.vl-g.is-success{color:var(--success);}.vl-g.is-info{color:var(--info);}.vl-g.is-neutral{color:var(--ink-muted);}
+.tab.vl-zonechip{background:var(--info-soft);border-color:var(--info);color:var(--info);}
+.vl-change .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.vl-scrim{position:absolute;inset:0;border:0;padding:0;margin:0;background:rgba(14,13,12,.45);cursor:pointer;}
+.vl-dlg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:860px;max-height:840px;overflow:auto;box-sizing:border-box;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--surface-100);color:var(--ink);border-radius:var(--radius-lg);box-shadow:var(--shadow-pop);}
+.vl-x{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--line-strong);background:none;color:var(--ink);cursor:pointer;font-size:18px;}
+.vl-x:hover{background:var(--surface-200);}
+.vl-row{display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:20px;}
+.vl-prio{font-family:var(--font-mono);font-size:12px;font-weight:500;}
+.vl-prio.p0{color:var(--critical);}.vl-prio.p1{color:var(--warning-text);}.vl-prio.p2{color:var(--info);}.vl-prio.p3{color:var(--ink-muted);}
+.vl-sub{color:var(--ink-muted);font-size:12px;line-height:16px;}
+.vl-more{appearance:none;border:0;background:none;padding:6px 0 0;font:500 13px/18px var(--font-sans);color:var(--agent);cursor:pointer;text-align:left;}
+.vl-more:hover{text-decoration:underline;}
+.vl-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;}
+.vl-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.vl-chipbtn{appearance:none;font:500 13px/20px var(--font-sans);padding:6px 12px;border-radius:var(--radius-pill);border:1px solid var(--line-strong);background:none;color:var(--ink);cursor:pointer;}
+.vl-chipbtn:hover{background:var(--surface-200);}.vl-chipbtn.is-on{background:var(--ink);border-color:var(--ink);color:var(--on-ink);}
+.vl-fl{display:flex;flex-direction:column;gap:6px;}
+.vl-in{font:400 15px/22px var(--font-sans);color:var(--ink);background:var(--surface-100);border:1px solid var(--line-strong);border-radius:var(--radius-md);padding:9px 12px;width:100%;box-sizing:border-box;resize:none;}
+.vl-in:focus{outline:2px solid var(--focus);outline-offset:1px;}
