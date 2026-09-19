@@ -1,0 +1,453 @@
+{
+  "entities": [
+    {
+      "id": "aemet",
+      "name": "AEMET Comunitat Valenciana",
+      "kind": "information_source",
+      "weight": 9,
+      "trust": "high",
+      "jurisdiction": [],
+      "channel": {
+        "kind": "none"
+      },
+      "capabilities": [],
+      "status": "available",
+      "notes": "Official weather warnings. Issued the red warning early on 2024-10-29.",
+      "provenance": "plan",
+      "ingest": {
+        "channel": "sensor",
+        "mode": "direct"
+      }
+    },
+    {
+      "id": "chj-gauges",
+      "name": "CHJ - Sensores Rambla del Poyo",
+      "kind": "information_source",
+      "weight": 8,
+      "trust": "high",
+      "jurisdiction": [
+        "chiva",
+        "torrent"
+      ],
+      "channel": {
+        "kind": "none"
+      },
+      "capabilities": [],
+      "status": "available",
+      "notes": "River flow gauges. Scripted to go unreachable mid-crisis, as in 2024.",
+      "provenance": "plan",
+      "ingest": {
+        "channel": "sensor",
+        "mode": "direct"
+      }
+    },
+    {
+      "id": "social-media",
+      "name": "Redes sociales (agregado)",
+      "kind": "information_source",
+      "weight": 2,
+      "trust": "low",
+      "jurisdiction": [],
+      "channel": {
+        "kind": "none"
+      },
+      "capabilities": [],
+      "status": "available",
+      "notes": "Real-time but unverified. Main source of both noise and early truth.",
+      "provenance": "plan",
+      "ingest": {
+        "channel": "social",
+        "mode": "perception"
+      }
+    },
+    {
+      "id": "local-news",
+      "name": "Medios locales",
+      "kind": "information_source",
+      "weight": 4,
+      "trust": "medium",
+      "jurisdiction": [],
+      "channel": {
+        "kind": "none"
+      },
+      "capabilities": [],
+      "status": "available",
+      "notes": "Slower. Confirms events already visible elsewhere.",
+      "provenance": "plan",
+      "ingest": {
+        "channel": "news",
+        "mode": "perception"
+      }
+    },
+    {
+      "id": "112-calls",
+      "name": "Llamadas al 112 (agregado)",
+      "kind": "information_source",
+      "weight": 5,
+      "trust": "medium",
+      "jurisdiction": [],
+      "channel": {
+        "kind": "none"
+      },
+      "capabilities": [],
+      "status": "available",
+      "notes": "Aggregate channel for emergency calls. Callers are sincere but often wrong about scale and location. Call volume per zone is itself a strong severity indicator.",
+      "provenance": "plan",
+      "ingest": {
+        "channel": "call",
+        "mode": "perception"
+      }
+    },
+    {
+      "id": "emergency-coordinator",
+      "name": "Coordinador de Emergencias (CECOPI / 112)",
+      "kind": "authority",
+      "weight": 10,
+      "trust": "high",
+      "jurisdiction": [],
+      "channel": {
+        "kind": "voice",
+        "address": "+34600000002"
+      },
+      "capabilities": [
+        "send_es_alert",
+        "activate_emergency_level",
+        "request_ume"
+      ],
+      "activation": {
+        "delay_min": 0,
+        "cost": "medium"
+      },
+      "escalation_to": null,
+      "status": "available",
+      "notes": "Only entity that can send the mass alert. Demo: a teammate's phone.",
+      "provenance": "plan"
+    },
+    {
+      "id": "mayor-paiporta",
+      "name": "Alcaldesa de Paiporta",
+      "kind": "authority",
+      "weight": 7,
+      "trust": "high",
+      "jurisdiction": [
+        "paiporta"
+      ],
+      "channel": {
+        "kind": "voice",
+        "address": "+34600000003"
+      },
+      "capabilities": [
+        "order_evacuation",
+        "open_shelter"
+      ],
+      "activation": {
+        "delay_min": 0,
+        "cost": "low"
+      },
+      "escalation_to": "emergency-coordinator",
+      "status": "available",
+      "notes": "Demo: a teammate's phone.",
+      "provenance": "plan"
+    },
+    {
+      "id": "guardia-civil-trafico",
+      "name": "Guardia Civil - Trafico",
+      "kind": "authority",
+      "weight": 6,
+      "trust": "high",
+      "jurisdiction": [
+        "torrent",
+        "paiporta",
+        "catarroja",
+        "alfafar"
+      ],
+      "channel": {
+        "kind": "voice",
+        "address": "+34600000004"
+      },
+      "capabilities": [
+        "close_road"
+      ],
+      "activation": {
+        "delay_min": 15,
+        "cost": "low"
+      },
+      "escalation_to": "emergency-coordinator",
+      "status": "available",
+      "notes": "Closes A-3 and V-31. In 2024 many victims died in vehicles.",
+      "provenance": "plan"
+    },
+    {
+      "id": "bomberos-torrent",
+      "name": "Parque de Bomberos de Torrent",
+      "kind": "responder",
+      "weight": 6,
+      "trust": "high",
+      "jurisdiction": [
+        "torrent",
+        "paiporta",
+        "catarroja"
+      ],
+      "channel": {
+        "kind": "voice",
+        "address": "+34600000005"
+      },
+      "capabilities": [
+        "rescue",
+        "pump_water"
+      ],
+      "units": {
+        "total": 2,
+        "available": 2
+      },
+      "activation": {
+        "delay_min": 10,
+        "cost": "low"
+      },
+      "escalation_to": "emergency-coordinator",
+      "zone": "torrent",
+      "status": "available",
+      "notes": "Closest units to the basin towns.",
+      "provenance": "plan"
+    },
+    {
+      "id": "bomberos-valencia",
+      "name": "Bomberos de Valencia",
+      "kind": "responder",
+      "weight": 6,
+      "trust": "high",
+      "jurisdiction": [],
+      "channel": {
+        "kind": "voice",
+        "address": "+34600000006"
+      },
+      "capabilities": [
+        "rescue"
+      ],
+      "units": {
+        "total": 3,
+        "available": 3
+      },
+      "activation": {
+        "delay_min": 30,
+        "cost": "low"
+      },
+      "escalation_to": "emergency-coordinator",
+      "zone": "valencia",
+      "status": "available",
+      "notes": "30 min travel to the basin.",
+      "provenance": "plan"
+    },
+    {
+      "id": "ume",
+      "name": "Unidad Militar de Emergencias",
+      "kind": "responder",
+      "weight": 8,
+      "trust": "high",
+      "jurisdiction": [],
+      "channel": {
+        "kind": "email",
+        "address": "ume@demo.local"
+      },
+      "capabilities": [
+        "rescue",
+        "heavy_equipment"
+      ],
+      "units": {
+        "total": 5,
+        "available": 5
+      },
+      "activation": {
+        "delay_min": 180,
+        "cost": "high"
+      },
+      "escalation_to": null,
+      "zone": "remote",
+      "status": "available",
+      "notes": "Powerful but slow to activate. Must be requested early on weak evidence. High political cost: needs human approval.",
+      "provenance": "plan"
+    },
+    {
+      "id": "cruz-roja",
+      "name": "Cruz Roja Valencia",
+      "kind": "responder",
+      "weight": 5,
+      "trust": "high",
+      "jurisdiction": [],
+      "channel": {
+        "kind": "email",
+        "address": "cruzroja@demo.local"
+      },
+      "capabilities": [
+        "shelter",
+        "supplies"
+      ],
+      "units": {
+        "total": 4,
+        "available": 4
+      },
+      "activation": {
+        "delay_min": 45,
+        "cost": "low"
+      },
+      "escalation_to": "emergency-coordinator",
+      "zone": "valencia",
+      "status": "available",
+      "notes": "Shelters and basic supplies (food, water, medicine).",
+      "provenance": "plan"
+    },
+    {
+      "id": "local-volunteers",
+      "name": "Voluntarios locales",
+      "kind": "responder",
+      "weight": 2,
+      "trust": "medium",
+      "jurisdiction": [
+        "paiporta",
+        "catarroja",
+        "alfafar"
+      ],
+      "channel": {
+        "kind": "sms",
+        "address": "+34600000007"
+      },
+      "capabilities": [
+        "supplies",
+        "wellness_check"
+      ],
+      "units": {
+        "total": 10,
+        "available": 10
+      },
+      "activation": {
+        "delay_min": 20,
+        "cost": "low"
+      },
+      "escalation_to": null,
+      "zone": "paiporta",
+      "status": "available",
+      "notes": "Numerous but untrained. Do not send into active hazard zones.",
+      "provenance": "plan"
+    },
+    {
+      "id": "civilians-chiva",
+      "name": "Poblacion de Chiva",
+      "kind": "population",
+      "weight": 1,
+      "trust": "low",
+      "jurisdiction": [
+        "chiva"
+      ],
+      "channel": {
+        "kind": "sms",
+        "address": "broadcast:chiva"
+      },
+      "population": {
+        "total": 16000,
+        "warned": false,
+        "evacuated_pct": 0,
+        "at_risk_pct": 8
+      },
+      "zone": "chiva",
+      "status": "available",
+      "notes": "Upstream. Sees the rain first; source of early reports.",
+      "provenance": "plan"
+    },
+    {
+      "id": "civilians-torrent",
+      "name": "Poblacion de Torrent",
+      "kind": "population",
+      "weight": 1,
+      "trust": "low",
+      "jurisdiction": [
+        "torrent"
+      ],
+      "channel": {
+        "kind": "sms",
+        "address": "broadcast:torrent"
+      },
+      "population": {
+        "total": 85000,
+        "warned": false,
+        "evacuated_pct": 0,
+        "at_risk_pct": 10
+      },
+      "zone": "torrent",
+      "status": "available",
+      "notes": "",
+      "provenance": "plan"
+    },
+    {
+      "id": "civilians-paiporta",
+      "name": "Poblacion de Paiporta",
+      "kind": "population",
+      "weight": 1,
+      "trust": "low",
+      "jurisdiction": [
+        "paiporta"
+      ],
+      "channel": {
+        "kind": "sms",
+        "address": "broadcast:paiporta"
+      },
+      "population": {
+        "total": 27000,
+        "warned": false,
+        "evacuated_pct": 0,
+        "at_risk_pct": 14
+      },
+      "zone": "paiporta",
+      "status": "available",
+      "notes": "Ground zero in 2024: 45 deaths. Dry until the wave arrives.",
+      "provenance": "plan"
+    },
+    {
+      "id": "civilians-catarroja",
+      "name": "Poblacion de Catarroja",
+      "kind": "population",
+      "weight": 1,
+      "trust": "low",
+      "jurisdiction": [
+        "catarroja"
+      ],
+      "channel": {
+        "kind": "sms",
+        "address": "broadcast:catarroja"
+      },
+      "population": {
+        "total": 28000,
+        "warned": false,
+        "evacuated_pct": 0,
+        "at_risk_pct": 13
+      },
+      "zone": "catarroja",
+      "status": "available",
+      "notes": "",
+      "provenance": "plan"
+    },
+    {
+      "id": "civilians-alfafar",
+      "name": "Poblacion de Alfafar",
+      "kind": "population",
+      "weight": 1,
+      "trust": "low",
+      "jurisdiction": [
+        "alfafar"
+      ],
+      "channel": {
+        "kind": "sms",
+        "address": "broadcast:alfafar"
+      },
+      "population": {
+        "total": 21000,
+        "warned": false,
+        "evacuated_pct": 0,
+        "at_risk_pct": 13
+      },
+      "zone": "alfafar",
+      "status": "available",
+      "notes": "Furthest downstream. Most warning time if the system acts early.",
+      "provenance": "plan"
+    }
+  ]
+}

@@ -1,0 +1,630 @@
+{
+  "timeline": [
+    {
+      "t": "2024-10-29T15:00:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0001",
+        "t": "2024-10-29T15:00:00+01:00",
+        "source": "aemet",
+        "source_trust": "high",
+        "modality": "broadcast",
+        "content": "AEMET reitera el AVISO ROJO por lluvias torrenciales en el interior de la provincia de Valencia. Se pueden acumular mas de 180 mm en 12 horas. Precaucion extrema.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 4
+          }
+        ],
+        "location": {
+          "text": "interior de la provincia de Valencia",
+          "zone": null,
+          "precision": "region"
+        }
+      },
+      "note": "The red warning existed since the morning. It names the region, not the towns: the agent must map it to the basin."
+    },
+    {
+      "t": "2024-10-29T15:30:00+01:00",
+      "type": "hazard",
+      "hazard": {
+        "id": "flood-poyo",
+        "type": "flood",
+        "zone": "chiva",
+        "severity": 3,
+        "trend": "rising",
+        "propagating": true
+      },
+      "note": "Ground truth: heavy rain starts filling the rambla at the head of the basin."
+    },
+    {
+      "t": "2024-10-29T15:40:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0002",
+        "t": "2024-10-29T15:40:00+01:00",
+        "source": "social-media",
+        "source_trust": "low",
+        "modality": "text",
+        "content": "Esta cayendo una bestialidad en Chiva, nunca he visto llover asi. Los coches del barranco flotando ya",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 5
+          }
+        ],
+        "location": {
+          "text": "Chiva",
+          "zone": "chiva",
+          "precision": "zone"
+        }
+      },
+      "note": "First truth from the lowest-trust source. Downstream towns are sunny."
+    },
+    {
+      "t": "2024-10-29T15:50:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0003",
+        "t": "2024-10-29T15:50:00+01:00",
+        "source": "chj-gauges",
+        "source_trust": "high",
+        "modality": "sensor_reading",
+        "content": "Rambla del Poyo en Riba-roja: caudal 150 m3/s y subiendo. Media historica de octubre: 2 m3/s.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 4
+          }
+        ],
+        "location": {
+          "text": "aforo Rambla del Poyo",
+          "coords": {
+            "lat": 39.4948,
+            "lng": -0.5679,
+            "accuracy_m": 10
+          },
+          "zone": "chiva",
+          "precision": "exact"
+        }
+      },
+      "note": "The gauge corroborates the tweet. 150 m3/s is already 75x the October average."
+    },
+    {
+      "t": "2024-10-29T16:05:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0004",
+        "t": "2024-10-29T16:05:00+01:00",
+        "source": "social-media",
+        "source_trust": "low",
+        "modality": "text",
+        "content": "ALERTA se ha desbordado el barranco en Chiva, el agua se lleva contenedores por la calle Mayor",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 6
+          }
+        ],
+        "location": {
+          "text": "calle Mayor, Chiva",
+          "zone": "chiva",
+          "precision": "street"
+        }
+      }
+    },
+    {
+      "t": "2024-10-29T16:15:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0005",
+        "t": "2024-10-29T16:15:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Chiva: Estamos atrapados en el coche cerca del polideportivo, el agua sube muy rapido, hay mas coches. Envien ayuda.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 7
+          }
+        ],
+        "location": {
+          "text": "polideportivo de Chiva",
+          "coords": {
+            "lat": 39.4701,
+            "lng": -0.7215,
+            "accuracy_m": 300
+          },
+          "zone": "chiva",
+          "precision": "street"
+        }
+      },
+      "note": "First emergency call with phone GPS. Three independent sources now point at chiva: the corroboration rule should mark this high confidence.",
+      "call": {
+        "who": "Hombre de 45 anos atrapado en su coche en Chiva, asustado pero coherente",
+        "number": "+34611000001",
+        "knows": [
+          "esta junto al polideportivo de Chiva",
+          "el agua sube muy rapido",
+          "hay tres coches mas atrapados"
+        ],
+        "unknowns": [
+          "de donde viene tanta agua",
+          "si hay heridos en los otros coches"
+        ]
+      }
+    },
+    {
+      "t": "2024-10-29T16:30:00+01:00",
+      "type": "hazard",
+      "hazard": {
+        "id": "flood-poyo",
+        "type": "flood",
+        "zone": "chiva",
+        "severity": 6,
+        "trend": "rising",
+        "propagating": true
+      },
+      "note": "Ground truth escalation. Dynamics: severity 6 in chiva at 16:30 implies the wave reaches torrent about 18:00, paiporta about 18:45."
+    },
+    {
+      "t": "2024-10-29T16:35:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0006",
+        "t": "2024-10-29T16:35:00+01:00",
+        "source": "chj-gauges",
+        "source_trust": "high",
+        "modality": "sensor_reading",
+        "content": "Rambla del Poyo en Riba-roja: caudal 780 m3/s y subiendo con rapidez.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 7
+          }
+        ],
+        "location": {
+          "text": "aforo Rambla del Poyo",
+          "coords": {
+            "lat": 39.4948,
+            "lng": -0.5679,
+            "accuracy_m": 10
+          },
+          "zone": "chiva",
+          "precision": "exact"
+        }
+      },
+      "note": "This is the decision point. A competent system alerts downstream now, 2 hours before the wave. In 2024 nothing happened here."
+    },
+    {
+      "t": "2024-10-29T16:50:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0007",
+        "t": "2024-10-29T16:50:00+01:00",
+        "source": "local-news",
+        "source_trust": "medium",
+        "modality": "broadcast",
+        "content": "A Punt informa: graves inundaciones en Chiva y Buñol. Carreteras cortadas en el interior. En el area metropolitana de Valencia no llueve.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 6
+          }
+        ],
+        "location": {
+          "text": "Chiva y Buñol, interior de Valencia",
+          "zone": "chiva",
+          "precision": "zone"
+        }
+      },
+      "note": "The trap sentence: 'en el area metropolitana no llueve'. Locally true and globally misleading. Tests whether the agent reasons with the basin graph instead of with the weather."
+    },
+    {
+      "t": "2024-10-29T17:10:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0008",
+        "t": "2024-10-29T17:10:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Cheste: El barranco del Poyo baja como un rio enorme, arboles enteros flotando, va todo hacia Torrent y los pueblos de abajo.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 8
+          }
+        ],
+        "location": {
+          "text": "Cheste, junto a la rambla",
+          "zone": "chiva",
+          "precision": "zone"
+        }
+      },
+      "note": "A civilian says out loud what the graph knows: it all flows downstream.",
+      "call": {
+        "who": "Agricultor de Cheste, 60 anos, tranquilo, conoce el barranco de toda la vida",
+        "number": "+34611000002",
+        "knows": [
+          "el Poyo baja como nunca lo ha visto",
+          "arrastra arboles enteros",
+          "todo eso acaba en Torrent y los pueblos de abajo"
+        ],
+        "unknowns": [
+          "cifras de caudal",
+          "si las autoridades estan avisadas"
+        ]
+      }
+    },
+    {
+      "t": "2024-10-29T17:30:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0009",
+        "t": "2024-10-29T17:30:00+01:00",
+        "source": "chj-gauges",
+        "source_trust": "high",
+        "modality": "sensor_reading",
+        "content": "Rambla del Poyo en Riba-roja: caudal 1686 m3/s. Supera el maximo historico registrado.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 9
+          }
+        ],
+        "location": {
+          "text": "aforo Rambla del Poyo",
+          "coords": {
+            "lat": 39.4948,
+            "lng": -0.5679,
+            "accuracy_m": 10
+          },
+          "zone": "chiva",
+          "precision": "exact"
+        }
+      },
+      "note": "Last gauge reading before it dies. Historic peak was about 2280 m3/s at 18:55."
+    },
+    {
+      "t": "2024-10-29T17:45:00+01:00",
+      "type": "world_patch",
+      "patch": {
+        "entity": "chj-gauges",
+        "set": {
+          "status": "unreachable"
+        }
+      },
+      "note": "The gauge goes silent at the worst moment, as in 2024. No signal announces this: the agent must notice the missing readings, downgrade its situational confidence, and lean on other sources. 'When to drop the plan' moment."
+    },
+    {
+      "t": "2024-10-29T17:50:00+01:00",
+      "type": "hazard",
+      "hazard": {
+        "id": "flood-poyo",
+        "type": "flood",
+        "zone": "chiva",
+        "severity": 9,
+        "trend": "rising",
+        "propagating": true
+      }
+    },
+    {
+      "t": "2024-10-29T18:00:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0010",
+        "t": "2024-10-29T18:00:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Torrent: El agua entra en los garajes del barrio de El Vedat, ha llegado de golpe, no estaba lloviendo aqui. Hay gente bajando a sacar los coches.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 7
+          }
+        ],
+        "location": {
+          "text": "El Vedat, Torrent",
+          "zone": "torrent",
+          "precision": "street"
+        }
+      },
+      "note": "The wave reaches Torrent. 'Gente bajando a sacar los coches' is how people died in 2024: if zones were warned earlier, effects reduce at_risk_pct here.",
+      "call": {
+        "who": "Mujer de 35 anos en El Vedat (Torrent), sorprendida, algo incredula",
+        "number": "+34611000003",
+        "knows": [
+          "el agua entra en los garajes de su calle",
+          "ha llegado de golpe sin llover alli",
+          "hay vecinos bajando a sacar coches"
+        ],
+        "unknowns": [
+          "por que hay agua si no llueve",
+          "cuanto va a subir"
+        ]
+      }
+    },
+    {
+      "t": "2024-10-29T18:10:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0011",
+        "t": "2024-10-29T18:10:00+01:00",
+        "source": "social-media",
+        "source_trust": "low",
+        "modality": "text",
+        "content": "Torrent: el barranco ha reventado, esto no es agua es un rio de barro. Los bomberos no dan abasto",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 8
+          }
+        ],
+        "location": {
+          "text": "Torrent",
+          "zone": "torrent",
+          "precision": "zone"
+        }
+      }
+    },
+    {
+      "t": "2024-10-29T18:15:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0012",
+        "t": "2024-10-29T18:15:00+01:00",
+        "source": "social-media",
+        "source_trust": "low",
+        "modality": "text",
+        "content": "Somos una cuadrilla de agricultores de Catarroja, tenemos 8 tractores y remolques altos. Podemos ayudar a mover gente o llevar comida donde haga falta. Contacto: Paco 600111222",
+        "claims": [],
+        "location": {
+          "text": "Catarroja",
+          "zone": "catarroja",
+          "precision": "zone"
+        }
+      },
+      "note": "The register_entity moment: a capable actor that is not in the plan. Correct behavior: register as discovered responder, low trust, assign only low-risk tasks (supplies, wellness_check), never water rescue."
+    },
+    {
+      "t": "2024-10-29T18:30:00+01:00",
+      "type": "world_patch",
+      "patch": {
+        "entity": "bomberos-torrent",
+        "set": {
+          "units": {
+            "total": 2,
+            "available": 1
+          }
+        }
+      },
+      "note": "One Torrent fire unit is cut off by the water. Resource scarcity tightens exactly when demand explodes."
+    },
+    {
+      "t": "2024-10-29T18:45:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0013",
+        "t": "2024-10-29T18:45:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Paiporta: Una ola de agua y barro ha entrado en el pueblo, hay personas atrapadas en garajes en la calle Mestre Music Serrano, plantas bajas inundandose. Mucha gente pidiendo ayuda.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 9
+          }
+        ],
+        "location": {
+          "text": "calle Mestre Music Serrano, Paiporta",
+          "zone": "paiporta",
+          "precision": "street"
+        }
+      },
+      "note": "18:45: the wave hits Paiporta, faithful to the real timeline. Everything before this moment was the window.",
+      "call": {
+        "who": "Vecina de Paiporta, 68 anos, muy nerviosa, a ratos entrecortada",
+        "number": "+34611000004",
+        "knows": [
+          "una ola de agua y barro ha entrado en el pueblo",
+          "hay personas atrapadas en garajes en la calle Mestre Music Serrano",
+          "las plantas bajas se inundan"
+        ],
+        "unknowns": [
+          "cuanta gente hay atrapada",
+          "si viene mas agua"
+        ]
+      }
+    },
+    {
+      "t": "2024-10-29T18:55:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0014",
+        "t": "2024-10-29T18:55:00+01:00",
+        "source": "social-media",
+        "source_trust": "low",
+        "modality": "text",
+        "content": "PAIPORTA SOS hay gente subida a los coches y a las vallas, el agua sigue subiendo, no llegan los servicios de emergencia",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 9
+          }
+        ],
+        "location": {
+          "text": "Paiporta",
+          "zone": "paiporta",
+          "precision": "zone"
+        }
+      }
+    },
+    {
+      "t": "2024-10-29T19:00:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0015",
+        "t": "2024-10-29T19:00:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde la V-31 a la altura de Alfafar: Hay decenas de coches parados con el agua subiendo, la gente no sabe si salir o quedarse dentro.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 8
+          }
+        ],
+        "location": {
+          "text": "V-31, Alfafar",
+          "coords": {
+            "lat": 39.4066,
+            "lng": -0.3841,
+            "accuracy_m": 500
+          },
+          "zone": "alfafar",
+          "precision": "street"
+        }
+      },
+      "note": "The road-closure test arrives late by design: if the agent ordered close_road hours ago, effects have already emptied the V-31 and this signal is scripted but finds fewer victims.",
+      "call": {
+        "who": "Conductor parado en la V-31 junto a Alfafar, 40 anos, tenso, con el motor calado",
+        "number": "+34611000005",
+        "knows": [
+          "hay decenas de coches parados con agua subiendo",
+          "la gente duda entre salir o quedarse"
+        ],
+        "unknowns": [
+          "si la carretera esta cortada mas adelante",
+          "que deben hacer"
+        ]
+      }
+    },
+    {
+      "t": "2024-10-29T19:15:00+01:00",
+      "type": "world_patch",
+      "patch": {
+        "entity": "mayor-paiporta",
+        "set": {
+          "status": "unreachable"
+        }
+      },
+      "note": "Phone network degrades in the flooded town. Escalation test: actions targeting the mayor must fail over to emergency-coordinator via escalation_to."
+    },
+    {
+      "t": "2024-10-29T19:30:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0016",
+        "t": "2024-10-29T19:30:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Catarroja: El agua ha llegado con fuerza, bajos y garajes inundados junto al barranco, personas mayores atrapadas en plantas bajas en la zona de Les Barraques.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 8
+          }
+        ],
+        "location": {
+          "text": "Les Barraques, Catarroja",
+          "zone": "catarroja",
+          "precision": "street"
+        }
+      },
+      "call": {
+        "who": "Hombre de 50 anos en Les Barraques (Catarroja), sereno, llama por sus vecinos",
+        "number": "+34611000006",
+        "knows": [
+          "el agua ha llegado con fuerza junto al barranco",
+          "hay personas mayores atrapadas en plantas bajas"
+        ],
+        "unknowns": [
+          "numero exacto de atrapados",
+          "si alguien mas ha llamado ya"
+        ]
+      }
+    },
+    {
+      "t": "2024-10-29T19:45:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0017",
+        "t": "2024-10-29T19:45:00+01:00",
+        "source": "local-news",
+        "source_trust": "medium",
+        "modality": "broadcast",
+        "content": "Situacion critica en la comarca de l'Horta Sud: Paiporta, Catarroja, Alfafar y Massanassa inundadas. Se piden medios aereos y efectivos de rescate. Miles de personas atrapadas.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 9
+          }
+        ],
+        "location": {
+          "text": "l'Horta Sud",
+          "zone": null,
+          "precision": "region"
+        }
+      },
+      "note": "By now the media confirm everything. Confirmation without anticipation is worth nothing: the score was decided two hours ago."
+    },
+    {
+      "t": "2024-10-29T20:11:00+01:00",
+      "type": "marker",
+      "note": "HISTORIC MARKER: at this exact minute the real ES-Alert reached the phones, with the towns already under water. 224 deaths. Demo overlay: show this next to the timestamp of the alert our system sent."
+    },
+    {
+      "t": "2024-10-29T20:20:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0018",
+        "t": "2024-10-29T20:20:00+01:00",
+        "source": "social-media",
+        "source_trust": "low",
+        "modality": "text",
+        "content": "Se necesita agua embotellada, mantas y medicamentos en el centro de Paiporta, hay vecinos acogiendo a gente en las plantas altas",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 6
+          }
+        ],
+        "location": {
+          "text": "centro de Paiporta",
+          "zone": "paiporta",
+          "precision": "zone"
+        }
+      },
+      "note": "The crisis shifts from rescue to supplies. Tests reallocation: cruz-roja and the discovered tractor volunteers become the right actors."
+    }
+  ],
+  "noise": {
+    "seed_note": "Run seed comes from the sim CLI (--seed) so demos are reproducible.",
+    "sources": [
+      {
+        "source": "social-media",
+        "rate_per_min": 0.5,
+        "bucket": "social.noise"
+      },
+      {
+        "source": "112-calls",
+        "rate_per_min": 0.1,
+        "zones": [
+          "valencia"
+        ],
+        "bucket": "call.noise"
+      },
+      {
+        "source": "local-news",
+        "rate_per_min": 0.05,
+        "bucket": "news.noise"
+      }
+    ]
+  }
+}

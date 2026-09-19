@@ -1,0 +1,159 @@
+{
+  "scenario": {
+    "id": "dana-valencia",
+    "name": "DANA de Valencia, 29 de octubre de 2024",
+    "description": "Recreation of the 2024-10-29 DANA flood. Torrential rain falls upstream (Chiva) while the downstream towns stay dry. The Rambla del Poyo sends a flood wave through Torrent, Paiporta, Catarroja, and Alfafar. In reality the mass alert (ES-Alert) was sent at 20:11, after the wave had arrived; 224 people died. The system objective is to warn and act inside the propagation windows.",
+    "hazard_types": [
+      "flood"
+    ],
+    "time": {
+      "start": "2024-10-29T15:00:00+01:00",
+      "end": "2024-10-29T20:30:00+01:00",
+      "compression": "1 demo minute = 30 scenario minutes (full run in 11 minutes)"
+    }
+  },
+  "zones": [
+    {
+      "id": "chiva",
+      "name": "Chiva",
+      "municipality": "Chiva",
+      "province": "Valencia",
+      "country": "Spain",
+      "population": 16000,
+      "downstream_of": [],
+      "propagation_delay_min": 0,
+      "centroid": {
+        "lat": 39.4722,
+        "lng": -0.7192
+      },
+      "geometry": null,
+      "notes": "Head of the Rambla del Poyo basin. The rain falls here (491 mm on 2024-10-29) while downstream towns stay dry. Earliest signals originate here: rain gauges, the CHJ flow sensor, and local reports.",
+      "attributes": {
+        "elevation": "high"
+      }
+    },
+    {
+      "id": "torrent",
+      "name": "Torrent",
+      "municipality": "Torrent",
+      "province": "Valencia",
+      "country": "Spain",
+      "population": 85000,
+      "downstream_of": [
+        "chiva"
+      ],
+      "propagation_delay_min": 90,
+      "centroid": {
+        "lat": 39.437,
+        "lng": -0.4664
+      },
+      "geometry": null,
+      "notes": "Water in Chiva reaches Torrent roughly 90 minutes later along the rambla. Largest town in the basin and home of the closest fire station. The rambla crosses its outskirts (El Vedat area).",
+      "attributes": {
+        "elevation": "medium"
+      }
+    },
+    {
+      "id": "paiporta",
+      "name": "Paiporta",
+      "municipality": "Paiporta",
+      "province": "Valencia",
+      "country": "Spain",
+      "population": 27000,
+      "downstream_of": [
+        "torrent"
+      ],
+      "propagation_delay_min": 45,
+      "centroid": {
+        "lat": 39.4282,
+        "lng": -0.4184
+      },
+      "geometry": null,
+      "notes": "The wave reaches Paiporta about 45 minutes after Torrent. Ground zero in 2024: 45 deaths, many in garages and ground floors. Dry until the wave arrives, so residents perceive no danger. The rambla crosses the town center. Dense housing with underground garages next to the channel.",
+      "attributes": {
+        "elevation": "low"
+      }
+    },
+    {
+      "id": "catarroja",
+      "name": "Catarroja",
+      "municipality": "Catarroja",
+      "province": "Valencia",
+      "country": "Spain",
+      "population": 28000,
+      "downstream_of": [
+        "paiporta"
+      ],
+      "propagation_delay_min": 20,
+      "centroid": {
+        "lat": 39.4026,
+        "lng": -0.4044
+      },
+      "geometry": null,
+      "notes": "About 20 minutes behind Paiporta. Between the rambla and the Albufera. Flat terrain: water spreads wide and drains slowly.",
+      "attributes": {
+        "elevation": "low"
+      }
+    },
+    {
+      "id": "alfafar",
+      "name": "Alfafar",
+      "municipality": "Alfafar",
+      "province": "Valencia",
+      "country": "Spain",
+      "population": 21000,
+      "downstream_of": [
+        "paiporta"
+      ],
+      "propagation_delay_min": 25,
+      "centroid": {
+        "lat": 39.4173,
+        "lng": -0.3889
+      },
+      "geometry": null,
+      "notes": "About 25 minutes behind Paiporta. Furthest downstream: the zone with the most warning time if the system acts early. Includes a large commercial area next to the V-31 highway, where many people were trapped in vehicles in 2024.",
+      "attributes": {
+        "elevation": "low"
+      }
+    },
+    {
+      "id": "valencia",
+      "name": "València",
+      "municipality": "València",
+      "province": "Valencia",
+      "country": "Spain",
+      "population": 800000,
+      "downstream_of": [],
+      "propagation_delay_min": 0,
+      "centroid": {
+        "lat": 39.4699,
+        "lng": -0.3763
+      },
+      "geometry": null,
+      "notes": "Outside the flood path (protected by the diverted Turia channel). Base of bomberos-valencia and cruz-roja. Staging area, not a hazard target in this scenario.",
+      "attributes": {
+        "elevation": "medium"
+      }
+    },
+    {
+      "id": "remote",
+      "name": "Fuera de la zona",
+      "municipality": "",
+      "province": "",
+      "country": "Spain",
+      "population": 0,
+      "downstream_of": [],
+      "propagation_delay_min": 0,
+      "centroid": {
+        "lat": 40.3119,
+        "lng": -3.7278
+      },
+      "geometry": null,
+      "notes": "Abstract zone for responders outside the map (UME base in Bétera/Madrid). Travel and activation delays are on the entity, not on this zone.",
+      "attributes": {
+        "elevation": "high"
+      }
+    }
+  ],
+  "initial_hazards": []
+}
