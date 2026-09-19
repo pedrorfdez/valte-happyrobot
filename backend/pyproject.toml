@@ -1,0 +1,19 @@
+[project]
+name = "valte-backend"
+version = "0.1.0"
+description = "Valte crisis system: crisis kernel and simulator"
+requires-python = ">=3.11"
+dependencies = [
+    "jsonschema>=4.0",
+]
+
+[project.optional-dependencies]
+kernel = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "psycopg[binary]>=3.2",
+    "pydantic-settings>=2.0",
+]
+
+[tool.setuptools]
+packages = ["sim"]
