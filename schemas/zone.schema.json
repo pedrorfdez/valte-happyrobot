@@ -5,6 +5,7 @@
   "description": "A geographic unit of the crisis world. The zone id is the canonical location key: entities, hazards, signals, and actions all reference zones by id. The zone table is the single place that holds rich geodata (names, coordinates). Zones form a directed graph through downstream_of; hazards propagate along its edges with a delay.",
   "type": "object",
   "required": ["id", "name", "population"],
+  "additionalProperties": false,
   "properties": {
     "id": {
       "type": "string",
@@ -39,10 +40,10 @@
       "type": "integer",
       "description": "Minutes for a hazard in an upstream zone to reach this zone. This is the warning window the system must exploit: acting inside this window is the whole point."
     },
-    "elevation": {
-      "type": "string",
-      "enum": ["low", "medium", "high"],
-      "description": "Coarse exposure indicator. low elevation means higher flood exposure and more people at risk in garages and ground floors."
+    "attributes": {
+      "type": "object",
+      "description": "Open key-value attributes owned by the scenario pack. The core never branches on them; only the scenario dynamics (simulator) and agent prompts read them. Example for a flood pack: {\"elevation\": \"low\", \"garages\": \"many\"}. A blackout pack would carry different keys. This keeps scenario physics out of the core schema.",
+      "additionalProperties": {"type": ["string", "number", "boolean"]}
     },
     "centroid": {
       "type": "object",

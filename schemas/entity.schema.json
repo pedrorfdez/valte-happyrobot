@@ -5,6 +5,7 @@
   "description": "An actor in the crisis world. Four kinds: information_source (emits signals, cannot act), authority (decides and orders; the system contacts it), responder (acts on the ground with finite units), population (aggregate of civilians per zone; what the system protects).",
   "type": "object",
   "required": ["id", "name", "kind", "weight", "trust", "provenance", "status"],
+  "additionalProperties": false,
   "properties": {
     "id": {
       "type": "string",
@@ -50,6 +51,24 @@
         }
       }
     },
+    "ingest": {
+      "type": "object",
+      "description": "Only for information_source entities: how this source's data enters the system. channel picks the native payload shape; mode picks the path. perception: payloads go to a HappyRobot ingest workflow that extracts claims and produces normalized signals (unstructured sources). direct: the source is already structured, so it POSTs normalized signals straight to the kernel, keeping the reflex path fast (sensors must never wait for an LLM).",
+      "required": ["channel", "mode"],
+      "additionalProperties": false,
+      "properties": {
+        "channel": {
+          "type": "string",
+          "enum": ["call", "social", "news", "sensor"],
+          "description": "Native payload shape: call -> call_record.schema.json, social -> social_post.schema.json, news -> news_bulletin.schema.json, sensor -> signal.schema.json (already normalized)."
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["perception", "direct"],
+          "description": "perception: via a HappyRobot ingest workflow. direct: straight to kernel POST /signals."
+        }
+      }
+    },
     "capabilities": {
       "type": "array",
       "items": {"type": "string"},
@@ -91,8 +110,8 @@
     },
     "status": {
       "type": "string",
-      "enum": ["available", "busy", "unreachable"],
-      "description": "Operational state. The simulator can change it mid-run (entities go unreachable during the crisis); the agent must then use escalation_to."
+      "enum": ["available", "activating", "busy", "unreachable"],
+      "description": "Operational state. available: ready for tasking. activating: requested but the activation delay is still running (UME between request and arrival); shown on the dashboard as incoming. busy: all units assigned. unreachable: not answering; the agent must then use escalation_to. The simulator can change status mid-run."
     },
     "provenance": {
       "type": "string",

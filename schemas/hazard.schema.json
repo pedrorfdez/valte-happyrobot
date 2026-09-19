@@ -5,6 +5,7 @@
   "description": "A dangerous condition in a zone. The simulator owns hazard evolution (the ground truth); the agent never reads hazards directly and only infers them from signals. Hazards propagate along the zone graph edges with the delay defined on zones.",
   "type": "object",
   "required": ["id", "type", "zone", "severity", "trend"],
+  "additionalProperties": false,
   "properties": {
     "id": {
       "type": "string",

@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "call_record.schema.json",
+  "title": "CallRecord",
+  "description": "Native payload of the call channel (112). This is what the HappyRobot voice-ingest workflow receives, and the ONLY input contract for calls at all three levels: level 1, the simulator POSTs this JSON; level 2, a HappyRobot voice agent role-playing a citizen calls the inbound agent, which produces this record; level 3, a live human calls during the demo, same. The ingest workflow extracts claims and location and POSTs a normalized signal to the kernel. No claims, no trust, no resolved zone here: perception is the workflow's job.",
+  "type": "object",
+  "required": ["id", "t", "channel", "caller", "transcript"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string", "description": "Call id (sig-* id of the underlying scripted signal, so extraction can be scored against ground truth)."},
+    "t": {"type": "string", "format": "date-time", "description": "Call start time, scenario clock."},
+    "channel": {"type": "string", "const": "call", "description": "Channel discriminator."},
+    "caller": {
+      "type": "object",
+      "description": "Who is calling, as the phone system would see it.",
+      "required": ["number"],
+      "additionalProperties": false,
+      "properties": {
+        "number": {"type": "string", "description": "Caller phone number (fake in simulation)."},
+        "gps": {
+          "type": "object",
+          "description": "Handset location if the emergency call carries AML/GPS data. Absent otherwise.",
+          "additionalProperties": false,
+          "properties": {
+            "lat": {"type": "number"},
+            "lng": {"type": "number"},
+            "accuracy_m": {"type": "number"}
+          }
+        }
+      }
+    },
+    "transcript": {"type": "string", "description": "What the caller said, transcribed. At level 1 the simulator provides it; at levels 2-3 the voice agent transcribes the real audio."},
+    "persona": {
+      "type": ["object", "null"],
+      "description": "Level 2 readiness: the citizen role for a voice agent to play. Present in simulator output only as a passthrough from the timeline; real calls never carry it. Ingest workflows must ignore it.",
+      "additionalProperties": false,
+      "properties": {
+        "who": {"type": "string", "description": "Short character description (vecina de Paiporta, 60 anos, muy nerviosa)."},
+        "knows": {"type": "array", "items": {"type": "string"}, "description": "Facts the caller can state."},
+        "unknowns": {"type": "array", "items": {"type": "string"}, "description": "Things the caller cannot answer, so the voice agent stays realistic under questioning."}
+      }
+    }
+  }
+}

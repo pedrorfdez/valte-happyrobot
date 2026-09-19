@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "news_bulletin.schema.json",
+  "title": "NewsBulletin",
+  "description": "Native payload of the news channel. What the HappyRobot news-ingest workflow receives, shaped like an email or wire item from a media outlet. No claims, no resolved zone: the ingest workflow extracts them.",
+  "type": "object",
+  "required": ["id", "t", "channel", "outlet", "headline", "body"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string", "description": "Bulletin id (sig-* id of the underlying signal, for extraction scoring)."},
+    "t": {"type": "string", "format": "date-time", "description": "Publication time, scenario clock."},
+    "channel": {"type": "string", "const": "news", "description": "Channel discriminator."},
+    "outlet": {"type": "string", "description": "Media outlet name."},
+    "headline": {"type": "string", "description": "Short headline."},
+    "body": {"type": "string", "description": "Bulletin text."}
+  }
+}

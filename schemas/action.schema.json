@@ -5,6 +5,7 @@
   "description": "One action the agent decides. Written to the shared database by HappyRobot workflows; the simulator applies its effects on the world; the dashboard renders the action log. Actions with real_interaction produce an actual call, email, or SMS. evidence and reasoning are mandatory: they are the transparency the judges score.",
   "type": "object",
   "required": ["id", "t", "actor", "verb", "status", "evidence", "reasoning"],
+  "additionalProperties": false,
   "properties": {
     "id": {
       "type": "string",
@@ -21,7 +22,7 @@
     },
     "verb": {
       "type": "string",
-      "description": "The action verb. World verbs are executed by entities: send_es_alert, order_evacuation, close_road, rescue, pump_water, shelter, supplies, wellness_check, request_ume, activate_emergency_level, open_shelter. System verbs are executed by the agent itself: register_entity (create a discovered entity from a signal), update_entity (revise entity attributes from runtime evidence: units lost, status unreachable, trust downgraded)."
+      "description": "The action verb. Two disjoint families with different validation. World verbs are open scenario vocabulary executed by entities; the World API rejects a verb not present in the actor's capabilities, so the runtime menu comes from the entity registry, never from this schema. System verbs are a closed set implemented and enforced by the crisis kernel itself (actor must be system): register_entity (create a discovered entity from a signal; params holds the entity object), update_entity (revise entity attributes from runtime evidence: units lost, status unreachable, trust downgraded), set_tripwire (install a standing rule: a condition on incoming signals that triggers kernel-executed actions in milliseconds, without agent deliberation; the agent's main self-programming mechanism), clear_tripwire (retire a standing rule), schedule_check (emit a timer event later; params holds delay_min and a reminder note). Agents must never invent system verbs; the kernel validates params per system verb."
     },
     "target_zones": {
       "type": "array",
@@ -34,13 +35,18 @@
     },
     "status": {
       "type": "string",
-      "enum": ["pending_approval", "approved", "executed", "rejected", "failed"],
-      "description": "Lifecycle state. Actions whose actor has activation cost high enter pending_approval and wait for a human on the dashboard, with a timeout that auto-escalates. failed records real-world execution errors (call not answered); the agent must then escalate via escalation_to."
+      "enum": ["pending_approval", "approved", "in_progress", "executed", "rejected", "failed"],
+      "description": "Lifecycle state. pending_approval: waits for a human on the dashboard (required when the actor's activation cost is high), with a timeout that auto-escalates. approved: cleared to execute. in_progress: execution started but the outcome is not known yet (a voice call ringing, a responder traveling); the agent PATCHes the final state later. executed: done, outcome recorded. rejected: denied by the human supervisor. failed: real-world execution error (call not answered); the agent must then escalate via escalation_to."
     },
     "evidence": {
       "type": "array",
-      "items": {"type": "string"},
-      "description": "Signal ids that justify this action. Mandatory and never empty: every decision must be traceable to observed signals."
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^(sig|act|evt)-",
+        "description": "A typed reference: sig-* (an observed signal), act-* (a prior action whose outcome motivates this one, e.g. escalating after a failed call), evt-* (a timer or system event). "
+      },
+      "description": "References that justify this action. Mandatory and never empty: every decision must be traceable to something that happened. Signals are the common case; actions triggered by an earlier action's failure cite that action, and actions triggered by a timer cite the event."
     },
     "reasoning": {
       "type": "string",

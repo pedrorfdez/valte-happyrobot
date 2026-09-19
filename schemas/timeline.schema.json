@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "timeline.schema.json",
+  "title": "Timeline",
+  "description": "The scripted part of a scenario pack. The simulator releases each entry when the scenario clock passes its t. Scripted entries carry the dramatic arc; the noise generator fills the gaps so signal filtering is actually tested. Entry order in the array is not significant; t is.",
+  "type": "object",
+  "required": ["timeline", "noise"],
+  "additionalProperties": false,
+  "properties": {
+    "timeline": {
+      "type": "array",
+      "description": "Scripted entries, each released at its scenario time t.",
+      "items": {
+        "type": "object",
+        "required": ["t", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "t": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Scenario time at which the simulator releases this entry."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["signal", "hazard", "world_patch", "marker"],
+            "description": "signal: emit a signal to the kernel ingress, exactly as a real source would. hazard: set or update ground-truth hazard state (simulator-internal; the agent only sees its consequences through signals and dynamics). world_patch: mutate an entity's ground truth (status, units); the agent must discover the change, it is not notified. marker: no world effect; a narration cue for the demo overlay and the post-run comparison."
+          },
+          "signal": {
+            "description": "For type signal: the full signal object, conforming to signal.schema.json (confidence omitted; the kernel computes it). The claims and location fields here are GROUND TRUTH for scoring perception: channel adapters strip them from the native payloads, and the HappyRobot ingest workflows must re-extract them.",
+            "type": "object"
+          },
+          "call": {
+            "type": "object",
+            "description": "Only for signal entries with modality call_transcript: the citizen role behind the call. At level 1 the simulator emits the transcript with this persona attached; at level 2 the same persona becomes the prompt of a voice agent that places a real call; at level 3 a human improvises it live. Writing it here makes all three levels share one script.",
+            "required": ["who"],
+            "additionalProperties": false,
+            "properties": {
+              "who": {"type": "string", "description": "Short character description."},
+              "number": {"type": "string", "description": "Caller phone number shown to the system (fake)."},
+              "knows": {"type": "array", "items": {"type": "string"}, "description": "Facts the caller can state."},
+              "unknowns": {"type": "array", "items": {"type": "string"}, "description": "Questions the caller cannot answer."}
+            }
+          },
+          "hazard": {
+            "description": "For type hazard: the hazard object, conforming to hazard.schema.json. Same id updates the existing hazard; dynamics take over propagation downstream.",
+            "type": "object"
+          },
+          "patch": {
+            "type": "object",
+            "description": "For type world_patch: the mutation.",
+            "required": ["entity", "set"],
+            "additionalProperties": false,
+            "properties": {
+              "entity": {"type": "string", "description": "Entity id to mutate."},
+              "set": {"type": "object", "description": "Fields to overwrite on the entity ground truth (status, units.available)."}
+            }
+          },
+          "note": {
+            "type": "string",
+            "description": "Author note or, for markers, the narration text shown on the demo overlay."
+          }
+        }
+      }
+    },
+    "noise": {
+      "type": "object",
+      "description": "Background noise generator config. The simulator emits noise signals at rate_per_min per source, drawing content from the pool and zones uniformly. Noise signals have no claims; the agent must discard them.",
+      "additionalProperties": false,
+      "properties": {
+        "seed_note": {"type": "string", "description": "Reminder that the run seed comes from the CLI, for reproducible demos."},
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source", "rate_per_min", "bucket"],
+            "additionalProperties": false,
+            "properties": {
+              "source": {"type": "string", "description": "information_source entity id that emits this noise."},
+              "rate_per_min": {"type": "number", "description": "Noise signals per scenario minute."},
+              "zones": {"type": "array", "items": {"type": "string"}, "description": "Zones the noise is attributed to. Omit for any zone."},
+              "bucket": {"type": "string", "description": "Bucket name in messages.json to sample noise content from (e.g. social.noise)."}
+            }
+          }
+        }
+      }
+    }
+  }
+}

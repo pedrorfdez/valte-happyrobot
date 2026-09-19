@@ -5,6 +5,7 @@
   "description": "One piece of incoming information from a data source. The simulator POSTs signals to the HappyRobot ingestion workflow webhook. Signals vary in reliability and precision; the ingestion workflow computes a per-signal confidence and resolves the location to a zone. Noise signals (irrelevant content, no claims) exist on purpose: the agent must discard them.",
   "type": "object",
   "required": ["id", "t", "source", "modality", "content", "location"],
+  "additionalProperties": false,
   "properties": {
     "id": {
       "type": "string",
@@ -17,7 +18,7 @@
     },
     "source": {
       "type": "string",
-      "description": "Entity id of the information source that emitted this signal (aemet, chj-gauges, social-media, local-news, or a 112 caller)."
+      "description": "Entity id of a registered information_source (aemet, chj-gauges, social-media, local-news, 112-calls). Individual people are never sources: their reports arrive through an aggregate channel entity. If a specific actor matters, the agent registers it via register_entity."
     },
     "source_trust": {
       "type": "string",
@@ -72,6 +73,10 @@
           "description": "Honest label of location precision. exact: coordinates. street: street-level text. zone: town-level. region: wider than one zone. unknown: no usable location."
         }
       }
+    },
+    "echo_of": {
+      "type": ["string", "null"],
+      "description": "Ground-truth annotation only: id of the original signal this one is a rumor echo of (a retweet, a distorted retelling). Set by the simulator for evaluation; channel adapters never include it in native payloads and perception never sees it. Scoring: an agent that counts echoes as independent corroboration overestimates confidence."
     },
     "confidence": {
       "type": ["string", "null"],
