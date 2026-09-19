@@ -76,6 +76,11 @@ def _dispatch_inner():
     run_id = current_run_id()
     if not run_id:
         return
+    # test runs must not wake the real coordinator (each wake-up costs an
+    # LLM run in HappyRobot); the pytest fixture tags its runs by note
+    note = q("select notes from runs where id=%s", (run_id,), one=True)
+    if note and note["notes"] == "pytest":
+        return
     pending = q("""select pk, type, payload, created_at from events
                    where run_id=%s and lane='coordinator' and status='pending'
                    order by pk""", (run_id,))
