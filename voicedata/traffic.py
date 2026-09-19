@@ -1,100 +1,43 @@
-"""Generador de tráfico, distribución y marcas temporales basadas en T entero."""
+"""Generador de tráfico, distribución y marcas temporales continuas con modelos matemáticos avanzados."""
 
 import json
 import random
+import math
 import re
 from typing import List, Dict, Any
-
-from config import (
-    RATIO_CRITICA,
-    RATIO_URGENTE,
-    RATIO_RUIDO,
-    RATIO_DIALOGO_OPERADOR,
-)
-
-
-def calculate_category_distribution(total_calls: int) -> List[str]:
-    """Genera la lista exacta de categorías cumpliendo la distribución 15% / 25% / 60%."""
-    n_critica = int(round(total_calls * RATIO_CRITICA))
-    n_urgente = int(round(total_calls * RATIO_URGENTE))
-    n_ruido = total_calls - n_critica - n_urgente
-
-    categories = (
-        ["critica"] * n_critica
-        + ["urgente"] * n_urgente
-        + ["ruido"] * n_ruido
-    )
-    random.shuffle(categories)
-    return categories
-
-
-def determine_transcription_type(categoria: str) -> str:
-    """Determina si la llamada es atendida (diálogo) o desatendida/buzón (monólogo)."""
-    if categoria == "ruido":
-        # En ruido, muchas son cortes inmediatos o quejas directas al contestador
-        return random.choices(
-            ["monologo_centralita", "dialogo_operador"],
-            weights=[0.70, 0.30],
-            k=1
-        )[0]
-    else:
-        # En críticas y urgentes, se simula que algunas logran entrar con operador
-        # pero debido al colapso, una parte significativa queda grabada en centralita
-        return random.choices(
-            ["dialogo_operador", "monologo_centralita"],
-            weights=[RATIO_DIALOGO_OPERADOR, 1 - RATIO_DIALOGO_OPERADOR],
-            k=1
-        )[0]
-
-
-def sample_start_tick(max_t: int = 1800) -> int:
-    """Muestrea un tiempo de inicio T (entero) simulando picos de saturación."""
-    # Fases de llegada de llamadas:
-    # 1. Inicio del temporal (20% volumen)
-    # 2. Pico de desbordamiento y colapso (65% volumen)
-    # 3. Llamadas persistentes tardías (15% volumen)
-    phases = [
-        (1, int(max_t * 0.25), 0.20),
-        (int(max_t * 0.25) + 1, int(max_t * 0.75), 0.65),
-        (int(max_t * 0.75) + 1, max_t, 0.15),
-    ]
-    weights = [p[2] for p in phases]
-    chosen_phase = random.choices(phases, weights=weights, k=1)[0]
-    return random.randint(chosen_phase[0], chosen_phase[1])
 
 
 def calculate_duration_from_text(
     transcription: str,
     tipo_transcripcion: str,
-    categoria: str
+    categoria: str,
+    t_norm: float = 0.5
 ) -> int:
-    """Calcula la duración en segundos coherente con la longitud real del texto generado.
-    
-    Aplica una tasa de habla realista (~7-10 caracteres/segundo en situaciones de estrés),
-    sumando pausas entre turnos de diálogo y variabilidad estocástica.
-    Para llamadas de bolsillo o cortes en categoría ruido, ignora la longitud del texto descriptivo
-    y asigna una duración breve coherente (3 a 12 segundos, sincronizada con el texto si lo explicita).
-    """
-    if categoria == "ruido":
-        txt_lower = transcription.lower()
-        is_pocket_or_cut = (
-            "bolsillo" in txt_lower
-            or "marcación involuntaria" in txt_lower
-            or "corte de llamada" in txt_lower
-            or "pitido de fin de llamada" in txt_lower
-            or "caída técnica de antena" in txt_lower
-            or "pérdida técnica de señal" in txt_lower
-            or "sonido ambiental" in txt_lower
-            or "ruido de roce" in txt_lower
-        )
-        if is_pocket_or_cut:
-            # Si el texto describe segundos específicos (ej. "corte de llamada tras 8 segundos"), sincronizar exactamente
-            match = re.search(r'(?:tras|a los|durante)\s+(\d+)\s+segundos', transcription, re.IGNORECASE)
-            if match:
-                return int(match.group(1))
+    """Calcula la duración en segundos coherente con la longitud real del habla."""
+    clean_text = re.sub(r'\[.*?\]', '', transcription).strip()
+    clean_text = re.sub(r'\s+', ' ', clean_text)
+    txt_lower = clean_text.lower()
+
+    # BUGFIX: Llamadas de bolsillo / Cortes / Degradación técnica
+    is_pocket_or_cut = (
+        "bolsillo" in txt_lower
+        or "involuntaria" in txt_lower
+        or "corte" in txt_lower
+        or "cobertura" in txt_lower
+        or "señal" in txt_lower
+        or "oye " in txt_lower
+        or "¡oye" in txt_lower
+        or "¿hola?" in txt_lower
+        or "se entrecorta" in txt_lower
+        or "estática" in txt_lower
+    )
+
+    if categoria == "ruido" or categoria == "ruido_degradado":
+        if is_pocket_or_cut or categoria == "ruido_degradado" or (t_norm > 0.85 and len(clean_text) < 120):
+            # Forzar duración corta, ignorando la fórmula de caracteres
             return random.randint(3, 12)
 
-    text_to_measure = transcription
+    text_to_measure = clean_text
     turn_pauses = 0
 
     if tipo_transcripcion == "dialogo_operador":
@@ -102,41 +45,75 @@ def calculate_duration_from_text(
             turns = json.loads(transcription)
             if isinstance(turns, list):
                 text_to_measure = " ".join(
-                    [t.get("texto", "") for t in turns if isinstance(t, dict)]
+                    [re.sub(r'\[.*?\]', '', t.get("texto", "")).strip() for t in turns if isinstance(t, dict)]
                 )
                 turn_pauses = len(turns) * random.randint(1, 3)
         except Exception:
-            text_to_measure = transcription
+            text_to_measure = clean_text
             turn_pauses = 4
 
     # len(texto) * factor + pausas de locución + pausa inicial/final
     base_duration = int(len(text_to_measure) * 0.13) + turn_pauses + random.randint(2, 6)
-
-    if categoria == "ruido" and len(text_to_measure) < 45:
-        # Cortes abruptos o estática breve
-        return max(2, min(base_duration, random.randint(3, 10)))
-
     return max(5, base_duration)
+
+
+def gaussian(x: float, mu: float, sigma: float) -> float:
+    return math.exp(-0.5 * ((x - mu) / sigma) ** 2)
+
+def sigmoid(x: float, k: float, x0: float) -> float:
+    # Prevenir overflow
+    try:
+        return 1.0 / (1.0 + math.exp(-k * (x - x0)))
+    except OverflowError:
+        return 0.0 if x < x0 else 1.0
 
 
 def generate_call_timeline(
     total_calls: int,
     max_t: int = 1800,
-    start_offset: int = 1
+    start_offset: float = 1.0
 ) -> List[Dict[str, Any]]:
-    """Genera la lista base de llamadas con marcas temporales T en enteros ordenadas cronológicamente."""
-    categories = calculate_category_distribution(total_calls)
+    """Genera la lista base de llamadas con marcas temporales y categorías dinámicas (NHPP + Sigmoides)."""
     calls = []
+    
+    # 1. NHPP simulado usando Beta(6.0, 1.5) para volumen de llamadas (El Subidón)
+    times_norm = [random.betavariate(6.0, 1.5) for _ in range(total_calls)]
+    times_norm.sort()
 
-    for cat in categories:
-        tipo_trans = determine_transcription_type(cat)
-        t_inicio = sample_start_tick(max_t=max_t) + (start_offset - 1)
+    # 2. Asignación cronológica de reglas
+    for t_norm in times_norm:
+        t_inicio = (t_norm * max_t) + (start_offset - 1.0)
+        
+        # A. Curvas de Gravedad (Gauss)
+        w_ruido = gaussian(t_norm, mu=0.1, sigma=0.2) + gaussian(t_norm, mu=0.95, sigma=0.1)
+        w_urgente = gaussian(t_norm, mu=0.5, sigma=0.2)
+        w_critica = gaussian(t_norm, mu=0.9, sigma=0.15)
+        
+        cat = random.choices(
+            ["ruido", "urgente", "critica"], 
+            weights=[w_ruido, w_urgente, w_critica]
+        )[0]
+        
+        # B. Degradación Técnica (Sigmoide)
+        if cat == "ruido":
+            prob_deg = sigmoid(t_norm, k=25.0, x0=0.85)
+            if random.random() < prob_deg:
+                cat = "ruido"  # Lo mantenemos como ruido para los prompts, pero forzamos el tipo_transcripcion a monologo de colapso en el paso C. 
+                               # El "ruido_degradado" conceptual es simplemente un ruido_colapso
+                               
+        # C. Saturación del Receptor (Sigmoide)
+        prob_monologo = sigmoid(t_norm, k=15.0, x0=0.75)
+        if random.random() < prob_monologo:
+            tipo = "monologo_centralita"
+        else:
+            tipo = "dialogo_operador"
+
+        # Guardamos el t_norm para poder usarlo en el cálculo de duración
         calls.append({
             "categoria": cat,
-            "tipo_transcripcion": tipo_trans,
-            "inicio": int(t_inicio),
+            "tipo_transcripcion": tipo,
+            "inicio": round(t_inicio, 2),
+            "_t_norm": t_norm
         })
 
-    # Ordenar cronológicamente por T de inicio
-    calls.sort(key=lambda x: x["inicio"])
     return calls

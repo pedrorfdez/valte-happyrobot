@@ -20,7 +20,7 @@ def generate_origin_phone() -> str:
         return f"+3496{rest}"
 
 
-def generate_receiver(tipo_transcripcion: str) -> str:
+def generate_receiver(tipo_transcripcion: str, town: str = "") -> str:
     """Genera la identificación del receptor según si fue atendida o cayó en saturación."""
     if tipo_transcripcion == "monologo_centralita":
         return random.choice([
@@ -30,7 +30,8 @@ def generate_receiver(tipo_transcripcion: str) -> str:
         ])
     else:
         op_id = random.randint(101, 160)
-        return f"operador_112_val_#{op_id}"
+        prefix = "clm" if town == "Letur" else "val"
+        return f"operador_112_{prefix}_#{op_id}"
 
 
 ZONAS_CERO = {
@@ -68,9 +69,9 @@ def enrich_call_metadata(call_dict: Dict[str, Any]) -> Dict[str, Any]:
     """Asigna todos los campos de metadatos requeridos a una llamada."""
     call_dict["id_llamada"] = str(uuid.uuid4())
     call_dict["origen"] = generate_origin_phone()
-    call_dict["receptor"] = generate_receiver(call_dict["tipo_transcripcion"])
     pueblo, lat, lon = generate_location()
     call_dict["town"] = pueblo
     call_dict["latitud"] = lat
     call_dict["longitud"] = lon
+    call_dict["receptor"] = generate_receiver(call_dict["tipo_transcripcion"], pueblo)
     return call_dict

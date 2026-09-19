@@ -61,16 +61,18 @@ async def process_call(
     duracion = calculate_duration_from_text(
         transcription=transcripcion,
         tipo_transcripcion=call["tipo_transcripcion"],
-        categoria=call["categoria"]
+        categoria=call["categoria"],
+        t_norm=call.get("_t_norm", 0.5)
     )
-    inicio = int(call["inicio"])
-    fin = inicio + int(duracion)
+    inicio = round(float(call["inicio"]), 2)
+    duracion_sec = int(duracion)
+    fin = round(inicio + duracion_sec, 2)
     
     return {
         "id_llamada": str(call["id_llamada"]),
         "inicio": inicio,
         "fin": fin,
-        "duracion_segundos": int(duracion),
+        "duracion_segundos": duracion_sec,
         "origen": str(call["origen"]),
         "receptor": str(call["receptor"]),
         "latitud": float(call["latitud"]),

@@ -75,10 +75,10 @@ def verify_dataset(csv_path: str = "llamadas_112_dana.csv"):
     for idx, r in enumerate(rows):
         # Duración y consistencia temporal
         try:
-            t_ini = int(r["inicio"])
-            t_fin = int(r["fin"])
-            dur = int(r["duracion_segundos"])
-            if t_fin - t_ini != dur or dur <= 0:
+            t_ini = float(r["inicio"])
+            t_fin = float(r["fin"])
+            dur = float(r["duracion_segundos"])
+            if abs((t_fin - t_ini) - dur) > 0.01 or dur <= 0:
                 duration_errors += 1
         except Exception:
             duration_errors += 1
@@ -134,12 +134,18 @@ def verify_dataset(csv_path: str = "llamadas_112_dana.csv"):
     print(f"  {'✅' if duplicates == 0 else '❌'} Transcripciones únicas (sin duplicados): {total - duplicates}/{total}")
 
     # 5. Rango de T y Duraciones
-    inicios = [int(r["inicio"]) for r in rows if r["inicio"].isdigit()]
-    duraciones = [int(r["duracion_segundos"]) for r in rows if r["duracion_segundos"].isdigit()]
+    inicios = []
+    duraciones = []
+    for r in rows:
+        try:
+            inicios.append(float(r["inicio"]))
+            duraciones.append(float(r["duracion_segundos"]))
+        except Exception:
+            pass
     if inicios and duraciones:
         print("\n--- Rango Temporal T ---")
-        print(f"  • Rango T inicio: [{min(inicios)} -> {max(inicios)}]")
-        print(f"  • Duración llamadas: Mín {min(duraciones)}s | Media {sum(duraciones)/len(duraciones):.1f}s | Máx {max(duraciones)}s")
+        print(f"  • Rango T inicio: [{min(inicios):.2f} -> {max(inicios):.2f}]")
+        print(f"  • Duración llamadas: Mín {min(duraciones):.0f}s | Media {sum(duraciones)/len(duraciones):.1f}s | Máx {max(duraciones):.0f}s")
 
     # 6. Muestreo de registros de ejemplo
     print("\n--- Muestra de Ejemplo (Primer Registro) ---")
