@@ -299,7 +299,7 @@ El modelo lógico incluye:
 - `signals`, `signal_revisions`, `source_clusters`, `signal_provenance_links`, `incidents`, `incident_signals` y `evidence_dependencies`;
 - `plans`, `actions`, `approvals`, `action_attempts` y `outcomes`;
 - `human_directives` con razón y expiración;
-- `commands`, `events` y `outbox`;
+- `commands`, `events` y `outbox`, con carril de prioridad, clave de lote, disponibilidad y lease;
 - `late_external_events`, append-only y separados del estado operativo cerrado;
 - `orchestration_state` y `workflow_dispatches`;
 - `scenario_truth`, incluidos hazards y estados reales de rutas, en acceso privado.
@@ -460,7 +460,27 @@ El Commander usa debounce de dos segundos de reloj real. El debounce no retrasa 
 
 `evidence.retracted` omite el debounce normal si no hay Commander activo. Si ya existe uno, marca `dirty=true` y fuerza una única revisión adicional al terminar; nunca crea dos Commanders paralelos.
 
-El outbox se drena al recibir un webhook, aceptar un comando, avanzar el reloj o reanudar un run; no requiere un proceso residente.
+### 9.1 Backpressure y tormentas de señales
+
+Persistir una entrada y activar un agente son pasos diferentes. Toda entrada única se registra antes de encolarse; una repetición con la misma clave de idempotencia devuelve el recibo anterior. Por tanto, reducir invocaciones nunca elimina evidencia ni altera su trazabilidad.
+
+Cada entrada del outbox conserva `lane`, `batch_key`, `available_at`, secuencia, estado, intentos y lease. El Router selecciona primero el carril de mayor prioridad disponible y mantiene orden estable dentro de cada carril:
+
+| Carril | Trabajo |
+| --- | --- |
+| `control` | stop, abort, pause, aprobaciones, directivas y retractaciones de evidencia |
+| `outcome` | callbacks, fallos, estados `unknown` y cambios de rutas o recursos |
+| `intake_live` | conversaciones activas y fuentes configuradas como críticas |
+| `signal_batch` | webhooks, sensores y señales estructuradas normales |
+| `maintenance` | polling, reconciliación y tareas auxiliares de postmortem |
+
+Los carriles `control` y `outcome` no pueden quedar bloqueados detrás de una tormenta de señales. Los carriles inferiores progresan cuando existe capacidad y su antigüedad queda visible; no se descartan silenciosamente por sobrecarga.
+
+Las entradas estructuradas compatibles se agrupan durante una ventana corta de reloj real por `run_id`, digest del pack, zona, afirmación pre-normalizada y huella de procedencia cuando esté disponible. Intake recibe un sobre con los IDs del lote, pero crea o revisa cada Signal con procedencia individual y determina después su `source_cluster`. Los duplicados exactos no generan una nueva invocación y los ecos con una procedencia ya conocida pueden compartirla. Una conversación activa, una fuente crítica y cualquier evento de `control` u `outcome` evitan el batching normal.
+
+La concurrencia es acotada y configurable para la demo: un solo Commander por run, un pool pequeño de Intake y un pool pequeño de Coordination con serialización por acción y destino. Los carriles de fondo nunca pueden consumir la última capacidad reservada para `control` y `outcome`; si Commander ya está activo, un evento urgente usa `dirty` y la revisión adicional definida arriba en vez de abrir otro. Alcanzar el límite deja trabajo persistido como pendiente; no abre ejecuciones adicionales. La configuración efectiva se captura en el snapshot del run para que la prueba sea reproducible.
+
+El outbox se drena al recibir un webhook, aceptar un comando, avanzar el reloj, completar un dispatch o reanudar un run; no requiere un proceso residente. Si la profundidad, antigüedad o retraso superan sus umbrales, el run marca capacidad `degraded` sin declararse `offline` ni perder entradas.
 
 ## 10. Reloj y ciclo de vida del run
 
@@ -542,6 +562,7 @@ Una corrección factual, como declarar una ruta abierta, no es una HumanDirectiv
 - reservas `held`, `committed`, `expired`, `quarantined` y `consumed`, con acción y vencimiento;
 - acciones, aprobaciones, timeouts y elementos `unknown`;
 - timeline operacional, técnico y conversacional;
+- profundidad por carril, antigüedad del trabajo pendiente, retraso de procesamiento y capacidad disponible;
 - estado `live`, `stale`, `degraded` u `offline` de cada integración;
 - controles de aprobación, rechazo, directiva, pausa, stop externo y abort.
 
@@ -682,6 +703,7 @@ Estos packs no son variaciones nominales de DANA: ejercitan propagación, depend
 | Callback después del cierre | Se guarda en `late_external_events`; no muta ni reactiva el run |
 | IA no disponible | No crea nuevas acciones de impacto; deriva a revisión |
 | Commander interrumpido | Lease expira, conserva `dirty` y se reanuda desde Supabase |
+| Tormenta de señales | Persiste entradas, agrupa trabajo compatible y reserva capacidad para `control` y `outcome` |
 
 El sistema promete idempotencia del estado interno, no `exactly-once` en sistemas externos.
 
@@ -740,11 +762,25 @@ Todos los E2E comprueban:
 
 `hidden-truth.json` incluye un canary que las pruebas buscan en todos los contextos visibles antes del postmortem.
 
-### 18.3 Ensayo live
+### 18.3 E2E de saturación y prioridad
+
+Una prueba adicional inyecta 500 entradas estructuradas, incluidas entregas idempotentes repetidas y numerosos ecos del mismo origen. Mientras `signal_batch` mantiene trabajo pendiente, introduce una aprobación, un cierre de ruta y un Outcome crítico.
+
+La prueba exige que:
+
+- todas las entradas únicas sean recuperables y las repeticiones idempotentes reutilicen su recibo;
+- los ecos permanezcan trazables como Signals individuales cuando corresponda, pero no se conviertan en corroboraciones independientes;
+- `control` y `outcome` se despachen antes que el backlog normal;
+- la concurrencia observada nunca exceda la configuración capturada en el run;
+- el número de invocaciones de Intake sea menor que el número de entradas gracias al batching y la deduplicación;
+- `queue_depth`, antigüedad y retraso reflejen la saturación y el estado pase a `degraded`;
+- tras drenar la cola, el Plan incorpore los eventos urgentes y todas sus decisiones conserven evidencia trazable.
+
+### 18.4 Ensayo live
 
 Solo DANA exige ensayo live completo. Usa destinatarios controlados, whitelist, entorno development y mensajes `SIMULACIÓN`. Los otros cinco packs prueban generalidad mediante E2E de sistema sin exigir seis integraciones reales distintas.
 
-### 18.4 Postmortem y aprendizaje
+### 18.5 Postmortem y aprendizaje
 
 Al completar o abortar:
 
@@ -835,4 +871,5 @@ El diseño se considera implementado cuando:
 10. un E2E provisional → retractación reevalúa dependientes, invalida los insuficientes, libera la reserva segura y conserva la historia;
 11. el E2E de rumor replicado demuestra que 21 Signals no idénticas de un mismo origen cuentan como un solo cluster;
 12. un E2E de intervención aplica una directiva válida, rechaza otra que usa una ruta cerrada y replantea al expirar;
-13. ninguna dependencia opcional es necesaria para que funcione el camino base.
+13. el E2E de saturación conserva todas las entradas únicas, prioriza control y outcomes y respeta los límites de concurrencia;
+14. ninguna dependencia opcional es necesaria para que funcione el camino base.
