@@ -234,6 +234,7 @@ Todos los objetos v2 incluyen:
 
 - `contract_version`;
 - identificador propio y `run_id`;
+- `pack_id`, `pack_version` y `pack_digest`;
 - `scenario_at`, `received_at` y, cuando proceda, `processed_at`;
 - procedencia estructurada;
 - `correlation_id` y `causation_id`;
@@ -311,6 +312,11 @@ Toda mutación usa:
 {
   "command_id": "...",
   "run_id": "...",
+  "pack": {
+    "id": "wildfire-minimal",
+    "version": "1.0.0",
+    "digest": "sha256:..."
+  },
   "expected_state_version": 17,
   "actor": { "type": "workflow", "id": "crisis-command" },
   "command_type": "...",
@@ -324,9 +330,11 @@ El Gateway procesa cada comando en este orden:
 1. Busca `(run_id, command_id)`.
 2. Si ya existe con el mismo fingerprint, devuelve el resultado original.
 3. Si el mismo ID tiene otro contenido, responde `idempotency_mismatch`.
-4. Comprueba `expected_state_version`, schema, transición e invariantes.
-5. En una sola transacción actualiza el dominio, añade eventos, crea outbox, guarda el resultado e incrementa `state_version` una vez.
-6. Confirma la transacción antes de permitir un efecto externo.
+4. Comprueba que la identidad y el digest del pack coinciden con la snapshot inmutable del run; un desacuerdo devuelve `pack_context_mismatch`.
+5. Comprueba que acciones, entidades, recursos y edges referenciados pertenecen a esa snapshot; una acción ajena devuelve `action_not_in_active_pack`.
+6. Comprueba `expected_state_version`, schema, transición e invariantes.
+7. En una sola transacción actualiza el dominio, añade eventos, crea outbox, guarda el resultado e incrementa `state_version` una vez.
+8. Confirma la transacción antes de permitir un efecto externo.
 
 Un conflicto de versión no modifica el estado. El cliente relee, recalcula y usa un nuevo `command_id`.
 
@@ -439,7 +447,9 @@ Cada workflow tiene un prompt base estable. Un Context Builder añade únicament
 - Command: objetivos, policies, action catalog, recursos, grafos y snapshot observable.
 - Coordination: misión, entidad, canales, deadlines y contrato de respuesta.
 
-Se registran `prompt_template_version`, pack/version, `state_version` y fragmentos de playbook usados. `hidden-truth.json` nunca entra en prompts ni contextos de agentes.
+El Context Builder es stateless entre runs: reconstruye el contexto desde la snapshot del run para cada dispatch y no reutiliza memoria conversacional, variables mutables globales, fragmentos de Knowledge Base ni resultados de otro pack. Todo prompt lleva `run_id`, `pack_id`, `pack_version` y `pack_digest`.
+
+Se registran `prompt_template_version`, identidad y digest del pack, `state_version` y fragmentos de playbook usados. `hidden-truth.json` nunca entra en prompts ni contextos de agentes.
 
 ## 15. Scenario Packs
 
@@ -484,6 +494,8 @@ El preflight valida JSON Schema, referencias internas, IDs, grafos, capacidades,
 El motor ejecuta exactamente un pack por run. Un pack puede contener varios hazards y cascadas mediante los grafos de impacto y dependencia, pero no puede importar ni combinar otro pack en runtime.
 
 Cada run persiste el digest del pack y una snapshot inmutable. El motor nunca migra silenciosamente un pack incompatible.
+
+El Action Catalog, las policies, los recursos y los grafos se resuelven exclusivamente desde esa snapshot. El Gateway rechaza cualquier acción, entidad, recurso o edge que no pertenezca al pack del run, aunque el identificador haya existido en una ejecución anterior.
 
 ## 16. Scenario Packs de aceptación
 
@@ -558,6 +570,14 @@ entrada → Intake → Gateway/Supabase → Event Router → Command
 
 Esta capa es la prueba autoritativa de la arquitectura distribuida.
 
+Además se ejecuta una prueba de aislamiento secuencial:
+
+```text
+DANA completa → cerrar run → incendio forestal → cerrar run
+```
+
+El segundo run debe cargar una snapshot nueva y no puede contener IDs, recursos, acciones, fragmentos de playbook ni terminología operativa exclusiva de DANA. La prueba cubre dos rechazos: una referencia al digest DANA dentro del run de incendio devuelve `pack_context_mismatch`; una acción DANA enviada con la identidad correcta del pack de incendio devuelve `action_not_in_active_pack`.
+
 ### 18.2 Invariantes de prueba
 
 Todos los E2E comprueban:
@@ -614,6 +634,7 @@ Ninguna lección modifica automáticamente prompts, policies, playbooks ni regla
 16. Cada ejecución externa usa un `dispatch_id` estable.
 17. `unknown` nunca se convierte automáticamente en éxito o fallo.
 18. Una arista solo puede consultarse dentro de su capa de grafo.
+19. Ningún prompt, comando o acción puede mezclar identidades o contenido de dos packs.
 
 ## 20. Evolución del repositorio actual
 
@@ -653,4 +674,5 @@ El diseño se considera implementado cuando:
 4. los seis packs completan el E2E de sistema sin violar invariantes;
 5. HappyRobot ejecuta las pruebas nativas definidas;
 6. el dashboard permite observar, aprobar, intervenir y revisar el postmortem;
-7. ninguna dependencia opcional es necesaria para que funcione el camino base.
+7. la prueba secuencial DANA → incendio demuestra aislamiento entre packs;
+8. ninguna dependencia opcional es necesaria para que funcione el camino base.
