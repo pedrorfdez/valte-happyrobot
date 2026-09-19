@@ -210,8 +210,8 @@ Solo puede existir un Commander activo por run. Los eventos recibidos durante su
 
 Proceso:
 
-1. Revalida vigencia del plan, aprobación y reserva.
-2. Persiste un intento con `dispatch_id` antes del efecto externo.
+1. Revalida que el run siga activo, además de la vigencia del plan, aprobación y reserva.
+2. Solicita al Gateway `authorize_external_effect`. Solo si el run sigue activo, el Gateway persiste el intento con `dispatch_id`, `dispatch_authorized_at` y `authorized_state_version` antes del efecto externo.
 3. Selecciona el primer canal disponible de la cadena autorizada.
 4. Envía la misión marcada como `SIMULACIÓN` a un destinatario en whitelist.
 5. Registra entrega, aceptación, rechazo, ejecución, timeout o incertidumbre.
@@ -296,6 +296,7 @@ El modelo lógico incluye:
 - `plans`, `actions`, `approvals`, `action_attempts` y `outcomes`;
 - `human_directives` con razón y expiración;
 - `commands`, `events` y `outbox`;
+- `late_external_events`, append-only y separados del estado operativo cerrado;
 - `orchestration_state` y `workflow_dispatches`;
 - `scenario_truth`, incluidos hazards y estados reales de rutas, en acceso privado.
 
@@ -374,6 +375,8 @@ El Gateway procesa cada comando en este orden:
 
 Un conflicto de versión no modifica el estado. El cliente relee, recalcula y usa un nuevo `command_id`.
 
+Una vez que el run alcanza `completed` o `aborted`, el Gateway activa un terminal fence. Cualquier comando que intente cambiar el estado operativo devuelve `run_closed`. La única escritura posterior admitida es el registro idempotente de un evento externo tardío en `late_external_events`, fuera de `state_version` y sin crear outbox operativo.
+
 Propiedad semántica de las escrituras:
 
 | Estado | Propietario de la decisión | Escritor físico |
@@ -390,6 +393,8 @@ No existen escrituras directas desde HappyRobot ni desde el navegador.
 ## 9. Event Router y concurrencia
 
 El Event Router consume el outbox con entrega `at-least-once`; la idempotencia está en el consumidor y en el Gateway. Reclama cada trabajo con lease y registra el `dispatch_id` antes de marcarlo como entregado.
+
+Antes de cada dispatch vuelve a comprobar el estado del run. Si ya es terminal, no inicia el workflow y marca la entrada como `suppressed_run_closed`. Dentro de Coordination, ningún efecto externo puede ejecutarse sin una autorización persistida por el Gateway mientras el run estaba activo. Un efecto ya autorizado puede terminar después del cierre y no puede deshacerse; su respuesta posterior sigue el flujo de eventos tardíos.
 
 Allowlist mínima:
 
@@ -425,6 +430,10 @@ ready → running ⇄ paused → completed
 - `Abort` cierra el run y habilita el postmortem.
 
 Los eventos programados usan `due_scenario_at` y solo se disparan en `running`. El run termina al alcanzar una condición del pack, su duración máxima o un aborto humano. El motivo distingue éxito, timeout y fallo técnico sin multiplicar estados de lifecycle.
+
+La transición terminal es atómica y guarda como `terminal_state_version` la versión resultante, además de `closed_scenario_at` y `closed_at`. Esa versión fija el snapshot evaluable del run. Las entradas de outbox todavía no despachadas quedan suprimidas y no pueden obtener nuevas autorizaciones de efecto externo. Los intentos autorizados antes del fence permanecen visibles como in-flight y pueden originar un evento tardío.
+
+Los callbacks recibidos después del cierre se deduplican por identificador del proveedor o fingerprint y responden con éxito una vez persistidos, evitando reintentos innecesarios. Conservan `run_id`, `action_id`, `dispatch_id`, procedencia, `received_at`, resumen y referencia al payload. No cambian Action, Outcome, reservas, plan ni puntuación, y no despiertan al Commander.
 
 ## 11. Autonomía, aprobación y supervisión
 
@@ -582,6 +591,7 @@ Estos packs no son variaciones nominales de DANA: ejercitan propagación, depend
 | Efecto externo incierto | `unknown`, sin reintento ciego |
 | Reserva `held` expirada | `expired`, libera capacidad y activa Command |
 | Reserva `quarantined` | Bloqueada hasta que una persona confirme uso o liberación |
+| Callback después del cierre | Se guarda en `late_external_events`; no muta ni reactiva el run |
 | IA no disponible | No crea nuevas acciones de impacto; deriva a revisión |
 | Commander interrumpido | Lease expira, conserva `dirty` y se reanuda desde Supabase |
 
@@ -633,7 +643,8 @@ Todos los E2E comprueban:
 - todo incidente activo atendido, verificado o aplazado con razón y `revisit_at`;
 - correlación entre evento, plan, acción, intento y outcome;
 - ausencia de `hidden_truth` en prompts o vistas activas;
-- ningún efecto externo nuevo tras completar o abortar;
+- ningún efecto externo posee `dispatch_authorized_at` posterior a `closed_at` ni `authorized_state_version` posterior a `terminal_state_version`;
+- ningún callback tardío cambia `terminal_state_version`, la puntuación o el estado operativo;
 - paso por los tres workflows en cada pack.
 
 `hidden-truth.json` incluye un canary que las pruebas buscan en todos los contextos visibles antes del postmortem.
@@ -655,6 +666,8 @@ Al completar o abortar:
 7. una persona aprueba, edita o rechaza cada lección.
 
 Ninguna lección modifica automáticamente prompts, policies, playbooks ni reglas de evaluación.
+
+El postmortem se calcula contra `terminal_state_version`. Los eventos de `late_external_events` aparecen en un anexo con su tiempo real de recepción, pero no recalculan silenciosamente reglas, puntuaciones ni lecciones del run cerrado.
 
 ## 19. Invariantes normativos
 
@@ -679,6 +692,8 @@ Ninguna lección modifica automáticamente prompts, policies, playbooks ni regla
 19. Ningún prompt, comando o acción puede mezclar identidades o contenido de dos packs.
 20. Toda unidad no disponible está respaldada por una reserva activa y toda reserva activa pertenece a una Action.
 21. Una reserva `quarantined` solo puede pasar a `committed`, `released` o `consumed` mediante reconciliación humana registrada.
+22. Un run terminal nunca cambia su `terminal_state_version` y ningún evento tardío crea trabajo operativo.
+23. Todo efecto externo está respaldado por una autorización persistida mientras el run estaba activo.
 
 ## 20. Evolución del repositorio actual
 
@@ -720,4 +735,5 @@ El diseño se considera implementado cuando:
 6. el dashboard permite observar, aprobar, intervenir y revisar el postmortem;
 7. la prueba secuencial DANA → incendio demuestra aislamiento entre packs;
 8. los E2E prueban expiración, liberación, consumo y cuarentena de reservas sin sobreasignación;
-9. ninguna dependencia opcional es necesaria para que funcione el camino base.
+9. un callback posterior al cierre queda en el anexo sin alterar estado ni evaluación;
+10. ninguna dependencia opcional es necesaria para que funcione el camino base.
