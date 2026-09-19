@@ -132,7 +132,9 @@ presented as a distributed production control.
 Execute the work in this order:
 
 1. Run static/type checks for the Edge Function.
-2. Serve it locally with the Supabase CLI and verify CORS, validation and route behavior.
+2. Serve it locally with Deno and verify CORS, validation and route behavior; use the Supabase CLI
+   API deployment path so the bundled module graph can include the existing handlers outside the
+   function directory.
 3. Deploy `gateway` and smoke-test `GET /api/snapshot` against one seeded demo run.
 4. Open the local dashboard with the deployed function base as `gateway_url` and verify snapshot
    loading plus one operator command.
