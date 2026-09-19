@@ -1,0 +1,14 @@
+{
+  "provider_event_id": "voice-event-demo-001",
+  "dispatch_id": "dispatch-demo-001",
+  "attempt_id": "dispatch-demo-001:web_voice:1",
+  "run_id": "run-wildfire-demo",
+  "action_id": "act-demo-contact-001",
+  "channel": "web_voice",
+  "status": "success",
+  "received_at": "2026-09-19T12:00:05Z",
+  "summary": "Controlled demo recipient accepted the simulated mission.",
+  "observed_effects": {
+    "accepted": true
+  }
+}

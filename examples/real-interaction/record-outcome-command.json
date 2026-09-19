@@ -1,0 +1,39 @@
+{
+  "command_id": "callback:voice-event-demo-001",
+  "run_id": "run-wildfire-demo",
+  "pack_id": "wildfire-demo",
+  "pack_version": "1.0.0",
+  "pack_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "expected_state_version": 7,
+  "actor": "happyrobot",
+  "command_type": "record_outcome",
+  "payload": {
+    "outcome": {
+      "contract_version": "2.0.0",
+      "run_id": "run-wildfire-demo",
+      "pack_id": "wildfire-demo",
+      "pack_version": "1.0.0",
+      "pack_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "scenario_at": "2026-09-19T12:00:00Z",
+      "received_at": "2026-09-19T12:00:05Z",
+      "correlation_id": "run-wildfire-demo",
+      "causation_id": "dispatch-demo-001",
+      "outcome_id": "outcome:dispatch-demo-001:web_voice:1:voice-event-demo-001",
+      "action_id": "act-demo-contact-001",
+      "attempt_id": "dispatch-demo-001:web_voice:1",
+      "status": "success",
+      "summary": "Controlled demo recipient accepted the simulated mission.",
+      "observed_effects": {
+        "accepted": true
+      },
+      "evidence": [
+        {
+          "kind": "signal",
+          "signal_id": "sig-fire-001",
+          "revision": 1
+        }
+      ]
+    }
+  },
+  "causation_id": "dispatch-demo-001"
+}

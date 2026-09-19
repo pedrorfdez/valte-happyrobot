@@ -61,11 +61,17 @@
           "every Incident.canonical_incident_id is null, itself or resolves to an emitted Incident",
           "Plan has exact context.run run_id, pack_id, pack_version and pack_digest",
           "Plan.status == active",
+          "context.plan == null or context.plan.status == active",
+          "if context.plan == null then Plan.plan_version == 1 and Plan.supersedes_plan_id == null",
+          "if context.plan is active then Plan.plan_version == context.plan.plan_version + 1",
+          "if context.plan is active then Plan.plan_id != context.plan.plan_id and Plan.supersedes_plan_id == context.plan.plan_id",
           "every Action has unique action_id and exact context.run run_id, pack_id, pack_version and pack_digest",
+          "every Action.action_id is absent from context.actions[].action_id",
           "set(plan.incident_ids) == set(commander.output.incidents[].incident_id)",
           "set(plan.action_ids) == set(commander.output.actions[].action_id)",
           "every Action.plan_id == plan.plan_id",
           "every Action.incident_id resolves to commander.output.incidents[].incident_id",
+          "at least one Action has primitive == contact_entity, status == pending_approval, approval_policy == human_required, non-empty string params.mission and params.requested_response in [accept_or_reject, acknowledge]",
           "every signal evidence reference resolves to an active context.signals revision",
           "every incident evidence reference resolves to commander.output.incidents[].incident_id"
         ],
@@ -95,7 +101,115 @@
           },
           "causation_id": "{{context.trigger_event.event_id}}"
         },
-        "on_status": { "409": "stop_and_leave_redelivery_to_persisted_outbox" }
+        "on_status": { "409": "Refresh Command Snapshot After Conflict" },
+        "max_conflict_retries": 1
+      }
+    },
+    {
+      "name": "Refresh Command Snapshot After Conflict",
+      "type": "http_action",
+      "config": {
+        "only_after_status": 409,
+        "method": "GET",
+        "url": "{{GATEWAY_URL}}/api/snapshot?run_id={{run_id}}",
+        "output_alias": "retry_snapshot",
+        "root_keys": ["run", "signals", "incidents", "plan", "actions", "outcomes", "resources", "events", "outbox"]
+      }
+    },
+    {
+      "name": "Build Retry Context",
+      "type": "native_variable_mapping",
+      "config": {
+        "only_after_status": 409,
+        "schema": "context.schema.json",
+        "output_alias": "retry_context",
+        "snapshot_source": "retry_snapshot",
+        "adds": ["dispatch_id", "trigger_event"]
+      }
+    },
+    {
+      "name": "Retry Situation Analyst",
+      "type": "ai_agent",
+      "config": {
+        "only_after_status": 409,
+        "input": "retry_context",
+        "prompt": "situation-analyst.prompt.md",
+        "output_format": "json",
+        "output_alias": "retry_analysis"
+      }
+    },
+    {
+      "name": "Retry Commander",
+      "type": "ai_agent",
+      "config": {
+        "only_after_status": 409,
+        "input": ["retry_context", "retry_analysis"],
+        "prompt": "commander.prompt.md",
+        "output_format": "json",
+        "output_schema": "output.schema.json",
+        "output_alias": "retry_commander"
+      }
+    },
+    {
+      "name": "Validate Retried Plan Proposal Before Write",
+      "type": "condition",
+      "config": {
+        "only_after_status": 409,
+        "validation_kind": "schema_and_relational",
+        "all": [
+          "retry_commander.output valid against output.schema.json",
+          "retry_commander.output.command_id != commander.output.command_id",
+          "retry_commander.output.expected_state_version == retry_context.run.state_version",
+          "retry_context.run.state_version > context.run.state_version",
+          "trigger.run_id == trigger.event.run_id == retry_context.run.run_id",
+          "every retried Incident has unique incident_id and exact retry_context.run run_id, pack_id, pack_version and pack_digest",
+          "every retried Incident.canonical_incident_id is null, itself or resolves to a retried Incident",
+          "retried Plan has exact retry_context.run run_id, pack_id, pack_version and pack_digest",
+          "retried Plan.status == active",
+          "retry_context.plan == null or retry_context.plan.status == active",
+          "if retry_context.plan == null then retried Plan.plan_version == 1 and retried Plan.supersedes_plan_id == null",
+          "if retry_context.plan is active then retried Plan.plan_version == retry_context.plan.plan_version + 1",
+          "if retry_context.plan is active then retried Plan.plan_id != retry_context.plan.plan_id and retried Plan.supersedes_plan_id == retry_context.plan.plan_id",
+          "every retried Action has unique action_id and exact retry_context.run run_id, pack_id, pack_version and pack_digest",
+          "every retried Action.action_id is absent from retry_context.actions[].action_id",
+          "set(retried plan.incident_ids) == set(retry_commander.output.incidents[].incident_id)",
+          "set(retried plan.action_ids) == set(retry_commander.output.actions[].action_id)",
+          "every retried Action.plan_id == retried plan.plan_id",
+          "every retried Action.incident_id resolves to retry_commander.output.incidents[].incident_id",
+          "at least one retried Action has primitive == contact_entity, status == pending_approval, approval_policy == human_required, non-empty string params.mission and params.requested_response in [accept_or_reject, acknowledge]",
+          "every retried signal evidence reference resolves to an active retry_context.signals revision",
+          "every retried incident evidence reference resolves to retry_commander.output.incidents[].incident_id"
+        ],
+        "false_branch": "stop_before_retry_write_and_route_to_human_review"
+      }
+    },
+    {
+      "name": "Retry Gateway replace_plan Once",
+      "type": "http_action",
+      "config": {
+        "only_after_status": 409,
+        "retry_ordinal": 1,
+        "method": "POST",
+        "url": "{{GATEWAY_URL}}/api/commands",
+        "content_type": "application/json",
+        "body": {
+          "command_id": "{{retry_commander.output.command_id}}",
+          "run_id": "{{retry_context.run.run_id}}",
+          "pack_id": "{{retry_context.run.pack_id}}",
+          "pack_version": "{{retry_context.run.pack_version}}",
+          "pack_digest": "{{retry_context.run.pack_digest}}",
+          "expected_state_version": "{{retry_context.run.state_version}}",
+          "actor": "happyrobot",
+          "command_type": "replace_plan",
+          "payload": {
+            "incidents": "{{retry_commander.output.incidents}}",
+            "plan": "{{retry_commander.output.plan}}",
+            "actions": "{{retry_commander.output.actions}}"
+          },
+          "causation_id": "{{retry_context.trigger_event.event_id}}"
+        },
+        "on_status": { "409": "stop_conflict_and_route_to_human_review" },
+        "max_conflict_retries": 0
       }
     }
   ]

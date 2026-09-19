@@ -87,13 +87,21 @@ It never exposes hidden/scenario truth, service credentials, or recipient contac
 
 ## Event Router
 
-`POST /api/event-router` accepts an optional bounded batch size:
+`POST /api/event-router` accepts an optional run scope and interaction mode. It
+claims at most one pending job per invocation, even if a legacy caller sends a
+larger `limit` value:
 
 ```json
 {
-  "limit": 10
+  "limit": 1,
+  "run_id": "run-id",
+  "interaction_mode": "dry-run"
 }
 ```
+
+`run_id` is optional for administrative draining and required by the E2E runner so DANA and wildfire cannot consume each other's pending work.
+`interaction_mode` is allowlisted to `dry-run`, `web_voice`, `email`, or `pstn`; it defaults to `dry-run` and is forwarded only to Coordination dispatches.
+Callers must wait for the visible state/outbox receipt before invoking the Router again. This keeps workflow effects ordered without adding another queue or lock to the demo.
 
 It returns:
 

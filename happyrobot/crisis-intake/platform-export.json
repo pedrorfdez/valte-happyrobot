@@ -134,7 +134,7 @@
           "payload": { "signal": "{{normalize_signal.output}}" },
           "causation_id": "{{event.event_id}}"
         },
-        "on_status": { "409": "stop_and_leave_redelivery_to_persisted_outbox" },
+        "on_status": { "409": "stop_and_route_to_human_review" },
         "max_conflict_retries": 0
       }
     }

@@ -1,0 +1,58 @@
+{
+  "dispatch_id": "dispatch-demo-001",
+  "run_id": "run-wildfire-demo",
+  "event": {
+    "event_id": 207,
+    "run_id": "run-wildfire-demo",
+    "state_version": 7,
+    "event_type": "action.approved",
+    "causation_id": "approval-demo-contact-001",
+    "payload": {
+      "action": {
+        "contract_version": "2.0.0",
+        "run_id": "run-wildfire-demo",
+        "pack_id": "wildfire-demo",
+        "pack_version": "1.0.0",
+        "pack_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scenario_at": "2026-09-19T12:00:00Z",
+        "received_at": "2026-09-19T12:00:01Z",
+        "correlation_id": "run-wildfire-demo",
+        "causation_id": "plan-fire-001",
+        "action_id": "act-demo-contact-001",
+        "plan_id": "plan-fire-001",
+        "incident_id": "inc-fire-001",
+        "primitive": "contact_entity",
+        "status": "approved",
+        "actor_id": "civil-protection",
+        "target": {
+          "contact_id": "demo-field-lead"
+        },
+        "params": {
+          "mission": "Confirm availability for a controlled wildfire coordination simulation.",
+          "requested_response": "accept_or_reject"
+        },
+        "action_effect_fingerprint": "contact_entity:demo-field-lead:simulation",
+        "evidence": [
+          {
+            "kind": "signal",
+            "signal_id": "sig-fire-001",
+            "revision": 1
+          }
+        ],
+        "evidence_status": "valid",
+        "reasoning": "A controlled recipient can confirm the simulated coordination mission.",
+        "priority": "P1",
+        "risk": "low",
+        "approval_policy": "human_required",
+        "reservation_id": null
+      },
+      "run_id": "run-wildfire-demo",
+      "pack_id": "wildfire-demo",
+      "pack_version": "1.0.0",
+      "pack_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "state_version": 7,
+      "correlation_id": "run-wildfire-demo",
+      "causation_id": "approval-demo-contact-001"
+    }
+  }
+}

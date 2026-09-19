@@ -1,0 +1,20 @@
+{
+  "dispatch_id": "dispatch-demo-001",
+  "run_id": "run-wildfire-demo",
+  "pack_id": "wildfire-demo",
+  "pack_version": "1.0.0",
+  "pack_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "state_version": 7,
+  "action_id": "act-demo-contact-001",
+  "interaction_mode": "dry-run",
+  "recipient": {
+    "contact_id": "demo-field-lead",
+    "display_name": "Demo field lead"
+  },
+  "message": {
+    "prefix": "SIMULACIÓN — ",
+    "subject": "SIMULACIÓN — Solicitud de coordinación controlada",
+    "body": "SIMULACIÓN — Confirma si aceptas o rechazas la misión controlada de coordinación ante incendio forestal.",
+    "requested_response": "accept_or_reject"
+  }
+}

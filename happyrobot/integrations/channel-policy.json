@@ -1,0 +1,43 @@
+{
+  "policy_version": "1.0.0",
+  "environment": "development",
+  "default_interaction_mode": "dry-run",
+  "interaction_mode_source": "trigger.interaction_mode",
+  "message_prefix": "SIMULACIÓN — ",
+  "channels": [
+    {
+      "id": "web_voice",
+      "priority": 1,
+      "enabled_when": "trigger.interaction_mode=web_voice",
+      "requires": ["DEMO_CONTACT_ID"]
+    },
+    {
+      "id": "email",
+      "priority": 2,
+      "enabled_when": "trigger.interaction_mode=email OR web_voice_unavailable_in_preflight",
+      "requires": ["DEMO_CONTACT_ID", "DEMO_CONTACT_EMAIL"]
+    },
+    {
+      "id": "pstn",
+      "priority": 3,
+      "enabled_when": "existing_verified_credential_and_explicit_operator_selection",
+      "requires": ["DEMO_CONTACT_ID", "DEMO_CONTACT_PHONE"],
+      "optional": true
+    }
+  ],
+  "safety": {
+    "allowlist_variable": "DEMO_ALLOWED_CONTACT_IDS",
+    "reject_unlisted_recipient": true,
+    "preflight_fallback_max": 1,
+    "retry_unknown": false,
+    "require_approved_action": true,
+    "require_active_run": true,
+    "require_exact_pack_identity": true,
+    "revalidate_immediately_before_effect": true,
+    "reject_existing_action_outcome": true,
+    "reject_existing_dispatch_or_attempt": true,
+    "require_new_action_and_dispatch_after_dry_run": true,
+    "preserve_dispatch_id_across_preflight_fallback": true,
+    "attempt_id_format": "{dispatch_id}:{channel}:1"
+  }
+}

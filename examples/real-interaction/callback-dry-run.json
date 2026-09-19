@@ -1,0 +1,14 @@
+{
+  "provider_event_id": "dry-run:dispatch-demo-001",
+  "dispatch_id": "dispatch-demo-001",
+  "attempt_id": "dispatch-demo-001:dry-run:1",
+  "run_id": "run-wildfire-demo",
+  "action_id": "act-demo-contact-001",
+  "channel": "dry-run",
+  "status": "partial",
+  "received_at": "2026-09-19T12:00:03Z",
+  "summary": "Dispatch rendered in dry-run; no external channel was invoked.",
+  "observed_effects": {
+    "interaction_mode": "dry-run"
+  }
+}

@@ -24,7 +24,7 @@ dispatch the allowlisted events. No workflow keeps a long wait or shared in-memo
   historical trigger event.
 - Intake reads a snapshot immediately before `upsert_signal`. A `409` causes one fresh
   snapshot, full Signal revalidation and one retry. A second conflict stops the run and leaves
-  redelivery to the persisted outbox/Event Router; workflows never spin or retry indefinitely.
+  the execution for human review; workflows never spin or retry indefinitely.
   This optimistic-concurrency path prevents competing workflow executions from continuing with
   a stale state version.
 - Before `upsert_signal`, a native guard proves that the normalized Signal identity equals
@@ -39,8 +39,8 @@ dispatch the allowlisted events. No workflow keeps a long wait or shared in-memo
 - Before `record_outcome`, a native guard proves that `outcome.action_id` equals the approved
   trigger Action, `outcome.attempt_id` equals `dispatch_id`, and Outcome run/pack identity equals
   the revalidated snapshot.
-- Any failed guard stops before the HTTP write and routes the execution to human review or
-  normal persisted redelivery. JSON Schema validation remains necessary but is not treated as
+- Any failed guard stops before the HTTP write and routes the execution to human review. JSON
+  Schema validation remains necessary but is not treated as
   sufficient for these cross-object invariants.
 
 ## Required local IDs

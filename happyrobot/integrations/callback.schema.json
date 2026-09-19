@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/happyrobot/integrations/callback.schema.json",
+  "type": "object",
+  "required": [
+    "provider_event_id",
+    "dispatch_id",
+    "attempt_id",
+    "run_id",
+    "action_id",
+    "channel",
+    "status",
+    "received_at",
+    "summary",
+    "observed_effects"
+  ],
+  "properties": {
+    "provider_event_id": { "type": "string", "minLength": 1 },
+    "dispatch_id": { "type": "string", "minLength": 1 },
+    "attempt_id": {
+      "type": "string",
+      "pattern": "^.+:(dry-run|web_voice|email|pstn):1$"
+    },
+    "run_id": { "type": "string", "minLength": 1 },
+    "action_id": { "type": "string", "minLength": 1 },
+    "channel": { "enum": ["dry-run", "web_voice", "email", "pstn"] },
+    "status": { "enum": ["success", "partial", "failed", "no_response", "unknown"] },
+    "received_at": { "type": "string", "format": "date-time" },
+    "summary": { "type": "string", "minLength": 1 },
+    "observed_effects": { "type": "object" }
+  },
+  "additionalProperties": false
+}

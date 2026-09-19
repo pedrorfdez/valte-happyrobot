@@ -7,6 +7,7 @@ const required = (name) => {
 };
 
 const HAPPYROBOT_TIMEOUT_MS = 20_000;
+const interactionModes = new Set(["dry-run", "web_voice", "email", "pstn"]);
 
 const workflowSettingByDestination = {
   "crisis-intake": "HAPPYROBOT_INTAKE_WORKFLOW_ID",
@@ -59,11 +60,18 @@ export default async function eventRouter(context, req) {
     return;
   }
 
-  const requested = Number(body.limit ?? 10);
-  const limit = Number.isInteger(requested) ? Math.max(1, Math.min(requested, 10)) : 10;
+  const limit = 1;
   const runId = body.run_id ?? null;
   if (runId !== null && (typeof runId !== "string" || !runId.trim())) {
     context.res = jsonResponse(400, { error: "invalid_request", message: "run_id must be a non-empty string" });
+    return;
+  }
+  const interactionMode = body.interaction_mode ?? "dry-run";
+  if (!interactionModes.has(interactionMode)) {
+    context.res = jsonResponse(400, {
+      error: "invalid_request",
+      message: "interaction_mode must be dry-run, web_voice, email, or pstn"
+    });
     return;
   }
 
@@ -74,49 +82,52 @@ export default async function eventRouter(context, req) {
       return;
     }
 
-    const results = await Promise.all(jobs.map(async (job) => {
-      let succeeded = false;
-      let errorMessage = null;
-      let workflowRunId = null;
-      try {
-        const settingName = workflowSettingByDestination[job.destination];
-        if (!settingName) throw new Error(`destination is not allowlisted: ${job.destination}`);
-        const workflowId = required(settingName);
-        const launched = await happyRobot(`/workflows/${workflowId}/runs`, {
-          method: "POST",
-          body: JSON.stringify({
-            environment: required("HAPPYROBOT_ENV"),
-            payload: {
-              dispatch_id: job.dispatch_id,
-              run_id: job.run_id,
-              event: job.payload
-            }
-          })
-        });
-        workflowRunId = launched?.id ?? launched?.data?.id ?? null;
-        succeeded = true;
-      } catch (error) {
-        errorMessage = error.message;
-      }
-
-      const receipt = await callRpc("finish_outbox", {
-        p_outbox_id: job.outbox_id,
-        p_dispatch_id: job.dispatch_id,
-        p_succeeded: succeeded,
-        p_error: errorMessage
-      });
-      return {
-        outbox_id: job.outbox_id,
-        destination: job.destination,
+    const job = jobs[0];
+    let succeeded = false;
+    let errorMessage = null;
+    let workflowRunId = null;
+    try {
+      const settingName = workflowSettingByDestination[job.destination];
+      if (!settingName) throw new Error(`destination is not allowlisted: ${job.destination}`);
+      const workflowId = required(settingName);
+      const workflowPayload = {
         dispatch_id: job.dispatch_id,
-        workflow_run_id: workflowRunId,
-        succeeded,
-        receipt
+        run_id: job.run_id,
+        event: job.payload
       };
-    }));
+      if (job.destination === "crisis-response-coordination") {
+        workflowPayload.interaction_mode = interactionMode;
+      }
+      const launched = await happyRobot(`/workflows/${workflowId}/runs`, {
+        method: "POST",
+        body: JSON.stringify({
+          environment: required("HAPPYROBOT_ENV"),
+          payload: workflowPayload
+        })
+      });
+      workflowRunId = launched?.id ?? launched?.data?.id ?? null;
+      succeeded = true;
+    } catch (error) {
+      errorMessage = error.message;
+    }
+
+    const receipt = await callRpc("finish_outbox", {
+      p_outbox_id: job.outbox_id,
+      p_dispatch_id: job.dispatch_id,
+      p_succeeded: succeeded,
+      p_error: errorMessage
+    });
+    const results = [{
+      outbox_id: job.outbox_id,
+      destination: job.destination,
+      dispatch_id: job.dispatch_id,
+      workflow_run_id: workflowRunId,
+      succeeded,
+      receipt
+    }];
 
     context.res = jsonResponse(200, {
-      claimed: jobs.length,
+      claimed: results.length,
       dispatched: results.filter((item) => item.succeeded).length,
       failed: results.filter((item) => !item.succeeded).length,
       results

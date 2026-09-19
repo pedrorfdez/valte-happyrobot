@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#081018">
+    <title>Centro de coordinación de crisis · Simulación</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Saltar al estado de la crisis</a>
+
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">SIMULACIÓN · NO ES UN SERVICIO DE EMERGENCIAS</p>
+        <h1>Centro de coordinación de crisis</h1>
+      </div>
+      <div
+        id="connection-status"
+        class="connection"
+        data-state="offline"
+        role="status"
+        aria-live="polite"
+      >offline · esperando snapshot</div>
+    </header>
+
+    <div id="error-banner" class="banner" role="alert" hidden></div>
+
+    <main id="main" tabindex="-1">
+      <section id="run-panel" class="run-strip" aria-labelledby="run-title" tabindex="-1">
+        <div>
+          <div class="section-heading">
+            <h2 id="run-title">Run</h2>
+            <span class="simulation-mark">SIMULACIÓN</span>
+          </div>
+          <dl id="run-summary" class="run-summary">
+            <div><dt>Estado</dt><dd>Esperando snapshot</dd></div>
+          </dl>
+        </div>
+        <div id="run-controls" class="controls" aria-label="Controles del run de simulación">
+          <span class="controls-label">Controles · SIMULACIÓN</span>
+          <button type="button" data-command="pause_run" disabled>Pausar</button>
+          <button type="button" data-command="resume_run" disabled>Reanudar</button>
+          <button type="button" data-command="abort_run" class="danger" disabled>Abortar simulación</button>
+        </div>
+      </section>
+
+      <div id="dashboard-grid" class="dashboard-grid">
+        <section class="panel" aria-labelledby="signals-title">
+          <div class="section-heading">
+            <h2 id="signals-title">Signals</h2>
+            <span id="signals-count" class="count" aria-label="Número de signals">0</span>
+          </div>
+          <div id="signals-list" class="record-list" role="list">
+            <p class="empty">Esperando snapshot.</p>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="incidents-title">
+          <div class="section-heading">
+            <h2 id="incidents-title">Incidents</h2>
+            <span id="incidents-count" class="count" aria-label="Número de incidents">0</span>
+          </div>
+          <div id="incidents-list" class="record-list" role="list">
+            <p class="empty">Esperando snapshot.</p>
+          </div>
+        </section>
+
+        <section id="plan-section" class="panel" aria-labelledby="plan-title">
+          <div class="section-heading">
+            <h2 id="plan-title">Plan activo</h2>
+            <span id="plan-count" class="count" aria-label="Número de planes activos">0</span>
+          </div>
+          <div id="plan-panel">
+            <p class="empty">Esperando snapshot.</p>
+          </div>
+        </section>
+
+        <section id="actions-panel" class="panel panel-wide" aria-labelledby="actions-title" tabindex="-1">
+          <div class="section-heading">
+            <h2 id="actions-title">Actions</h2>
+            <span id="actions-count" class="count" aria-label="Número de actions">0</span>
+          </div>
+          <p class="panel-note">Las decisiones humanas de este panel son una SIMULACIÓN.</p>
+          <div id="actions-list" class="record-list" role="list">
+            <p class="empty">Esperando snapshot.</p>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="outcomes-title">
+          <div class="section-heading">
+            <h2 id="outcomes-title">Outcomes</h2>
+            <span id="outcomes-count" class="count" aria-label="Número de outcomes">0</span>
+          </div>
+          <div id="outcomes-list" class="record-list" role="list">
+            <p class="empty">Esperando snapshot.</p>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="resources-title">
+          <div class="section-heading">
+            <h2 id="resources-title">Recursos</h2>
+            <span id="resources-count" class="count" aria-label="Número de recursos">0</span>
+          </div>
+          <div id="resources-list" class="record-list" role="list">
+            <p class="empty">Esperando snapshot.</p>
+          </div>
+        </section>
+
+        <section class="panel panel-wide" aria-labelledby="timeline-title">
+          <div class="section-heading">
+            <h2 id="timeline-title">Timeline</h2>
+            <span id="timeline-count" class="count" aria-label="Número de entradas del timeline">0</span>
+          </div>
+          <p id="timeline-note" class="panel-note">Orden autoritativo persistido.</p>
+          <div id="timeline-list" class="record-list timeline" role="list">
+            <p class="empty">Esperando snapshot.</p>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <template id="empty-template">
+      <p class="empty"></p>
+    </template>
+
+    <template id="record-template">
+      <article class="record" role="listitem">
+        <div class="record-heading">
+          <h3 data-title></h3>
+          <div class="badges" data-badges></div>
+        </div>
+        <dl class="record-fields" data-fields></dl>
+        <div class="record-body" data-body></div>
+      </article>
+    </template>
+
+    <template id="action-template">
+      <article class="record action-record" role="listitem">
+        <div class="record-heading">
+          <h3 data-title></h3>
+          <div class="badges" data-badges></div>
+        </div>
+        <dl class="record-fields" data-fields></dl>
+        <div class="record-body" data-body></div>
+        <div class="action-controls" data-action-controls hidden>
+          <span class="simulation-mark">SIMULACIÓN</span>
+        </div>
+      </article>
+    </template>
+  </body>
+</html>

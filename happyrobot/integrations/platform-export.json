@@ -1,0 +1,388 @@
+{
+  "version": {
+    "workflow_name": "crisis-response-coordination",
+    "name": "crisis-response-coordination-real-interaction-1.0.0",
+    "engine": "v3",
+    "environment": "development",
+    "base_version": "crisis-response-coordination-2.0.0",
+    "export_status": "declarative_only",
+    "publication_status": "not_published_without_credentials",
+    "default_interaction_mode": "dry-run",
+    "notes": "Sanitized native-extension blueprint. It contains no environment variable values."
+  },
+  "nodes": [
+    {
+      "name": "Build Dispatch Envelope",
+      "type": "native_variable_mapping",
+      "after": "Revalidate Action",
+      "config": {
+        "schema": "dispatch.schema.json",
+        "output_alias": "dispatch",
+        "immutable": true,
+        "field_sources": {
+          "dispatch_id": "trigger.dispatch_id",
+          "run_id": "snapshot.run.run_id",
+          "pack_id": "snapshot.run.pack_id",
+          "pack_version": "snapshot.run.pack_version",
+          "pack_digest": "snapshot.run.pack_digest",
+          "state_version": "snapshot.run.state_version",
+          "action_id": "trigger.event.payload.action.action_id",
+          "interaction_mode": "{{trigger.interaction_mode|default:dry-run}}",
+          "recipient.contact_id": "{{DEMO_CONTACT_ID}}",
+          "recipient.display_name": "{{DEMO_CONTACT_NAME}}",
+          "message.prefix": "SIMULACIÓN — ",
+          "message.subject": "SIMULACIÓN — {{trigger.event.payload.action.params.subject|default:Solicitud de coordinación controlada}}",
+          "message.body": "SIMULACIÓN — {{trigger.event.payload.action.params.mission}}",
+          "message.requested_response": "{{trigger.event.payload.action.params.requested_response}}"
+        }
+      }
+    },
+    {
+      "name": "Validate Dispatch And Contact",
+      "type": "condition",
+      "config": {
+        "all": [
+          "dispatch valid against dispatch.schema.json",
+          "dispatch.dispatch_id == trigger.dispatch_id",
+          "dispatch identity == latest validated snapshot identity",
+          "dispatch.action_id == approved action.action_id",
+          "dispatch.recipient.contact_id is an exact member of DEMO_ALLOWED_CONTACT_IDS",
+          "dispatch.message.prefix == SIMULACIÓN — ",
+          "dispatch.message.subject starts with SIMULACIÓN —",
+          "dispatch.message.body starts with SIMULACIÓN —"
+        ],
+        "false_branch": "Stop And Route To Human Review"
+      }
+    },
+    {
+      "name": "Select Interaction Channel",
+      "type": "condition",
+      "config": {
+        "policy": "channel-policy.json",
+        "default": "dry-run",
+        "branches": {
+          "dry-run": "Build Attempt Identity",
+          "web_voice": "Web Voice Preflight",
+          "email": "Build Attempt Identity",
+          "pstn": "PSTN Existing Credential Gate"
+        }
+      }
+    },
+    {
+      "name": "Web Voice Preflight",
+      "type": "native_web_voice_preflight",
+      "config": {
+        "does_not_open_session": true,
+        "available_branch": "Build Attempt Identity",
+        "known_unavailable_branch": "Select Email Before Attempt",
+        "unknown_branch": "Stop And Route To Human Review"
+      }
+    },
+    {
+      "name": "Select Email Before Attempt",
+      "type": "native_variable_mapping",
+      "config": {
+        "set": {
+          "selected_channel": "email"
+        },
+        "preserve": ["dispatch.dispatch_id"],
+        "next": "Build Attempt Identity"
+      }
+    },
+    {
+      "name": "PSTN Existing Credential Gate",
+      "type": "condition",
+      "config": {
+        "all": [
+          "operator explicitly selected pstn",
+          "an existing verified development credential is selected",
+          "DEMO_CONTACT_PHONE is configured as a hidden development variable"
+        ],
+        "false_branch": "Stop And Route To Human Review",
+        "true_branch": "Build Attempt Identity"
+      }
+    },
+    {
+      "name": "Build Attempt Identity",
+      "type": "native_variable_mapping",
+      "config": {
+        "output_alias": "attempt",
+        "fields": {
+          "dispatch_id": "{{dispatch.dispatch_id}}",
+          "channel": "{{selected_channel|default:dispatch.interaction_mode}}",
+          "attempt_id": "{{dispatch.dispatch_id}}:{{selected_channel|default:dispatch.interaction_mode}}:1"
+        },
+        "immutable": true
+      }
+    },
+    {
+      "name": "Get Fresh Pre-effect Snapshot",
+      "type": "http_action",
+      "config": {
+        "method": "GET",
+        "url": "{{GATEWAY_URL}}/api/snapshot?run_id={{dispatch.run_id}}",
+        "output_alias": "pre_effect_snapshot",
+        "root_keys": ["run", "actions", "outcomes", "events", "outbox"]
+      }
+    },
+    {
+      "name": "Revalidate Immediately Before Effect",
+      "type": "condition",
+      "config": {
+        "all": [
+          "pre_effect_snapshot.run.status == running",
+          "approved action still exists and status == approved",
+          "action.action_id == dispatch.action_id",
+          "run/action pack identity == dispatch pack identity",
+          "pre_effect_snapshot.run.state_version >= dispatch.state_version",
+          "contact is still allowlisted",
+          "attempt.dispatch_id == dispatch.dispatch_id",
+          "attempt.attempt_id == dispatch.dispatch_id + ':' + attempt.channel + ':1'",
+          "no pre_effect_snapshot.outcomes item has action_id == dispatch.action_id",
+          "no pre_effect_snapshot.outcomes item has causation_id == dispatch.dispatch_id",
+          "no pre_effect_snapshot.outcomes item has attempt_id == attempt.attempt_id",
+          "no pre_effect_snapshot.outcomes item has attempt_id starting with dispatch.dispatch_id + ':'",
+          "no pre_effect_snapshot.events or outbox item marks dispatch.dispatch_id, dispatch.action_id or attempt.attempt_id as an attempt already started"
+        ],
+        "false_branch": "Stop And Route To Human Review",
+        "true_branch_by_channel": {
+          "dry-run": "Render Dispatch Only",
+          "web_voice": "Web Voice Session",
+          "email": "Native Email",
+          "pstn": "PSTN Voice Session"
+        }
+      }
+    },
+    {
+      "name": "Render Dispatch Only",
+      "type": "native_value",
+      "config": {
+        "external_effect": false,
+        "provider_event_id": "dry-run:{{dispatch.dispatch_id}}",
+        "dispatch_id": "{{dispatch.dispatch_id}}",
+        "attempt_id": "{{attempt.attempt_id}}",
+        "run_id": "{{dispatch.run_id}}",
+        "action_id": "{{dispatch.action_id}}",
+        "channel": "dry-run",
+        "status": "partial",
+        "received_at": "{{now.iso8601}}",
+        "summary": "Dispatch rendered in dry-run; no external channel was invoked.",
+        "observed_effects": {
+          "interaction_mode": "dry-run"
+        },
+        "next": "Normalize Callback"
+      }
+    },
+    {
+      "name": "Web Voice Session",
+      "type": "voice_agent",
+      "config": {
+        "transport": "web_voice",
+        "native": true,
+        "recipient_contact_id": "{{dispatch.recipient.contact_id}}",
+        "opening": "{{dispatch.message.prefix}}",
+        "content": "{{dispatch.message.body}}",
+        "request": "{{dispatch.message.requested_response}}",
+        "correlation": {
+          "dispatch_id": "{{dispatch.dispatch_id}}",
+          "attempt_id": "{{attempt.attempt_id}}"
+        },
+        "next": "Normalize Callback"
+      }
+    },
+    {
+      "name": "Native Email",
+      "type": "email",
+      "config": {
+        "native": true,
+        "to": "{{DEMO_CONTACT_EMAIL}}",
+        "subject": "{{dispatch.message.subject}}",
+        "body": "{{dispatch.message.body}}",
+        "correlation": {
+          "dispatch_id": "{{dispatch.dispatch_id}}",
+          "attempt_id": "{{attempt.attempt_id}}"
+        },
+        "next": "Normalize Callback"
+      }
+    },
+    {
+      "name": "PSTN Voice Session",
+      "type": "voice_agent",
+      "config": {
+        "transport": "pstn",
+        "native": true,
+        "enabled_only_by": "PSTN Existing Credential Gate",
+        "to": "{{DEMO_CONTACT_PHONE}}",
+        "opening": "{{dispatch.message.prefix}}",
+        "content": "{{dispatch.message.body}}",
+        "correlation": {
+          "dispatch_id": "{{dispatch.dispatch_id}}",
+          "attempt_id": "{{attempt.attempt_id}}"
+        },
+        "next": "Normalize Callback"
+      }
+    },
+    {
+      "name": "Normalize Callback",
+      "type": "native_variable_mapping",
+      "config": {
+        "schema": "callback.schema.json",
+        "output_alias": "callback",
+        "status_map": {
+          "success": "success",
+          "partial": "partial",
+          "failed": "failed",
+          "no_response": "no_response",
+          "unknown": "unknown"
+        },
+        "force_fields": {
+          "dispatch_id": "{{dispatch.dispatch_id}}",
+          "attempt_id": "{{attempt.attempt_id}}",
+          "run_id": "{{dispatch.run_id}}",
+          "action_id": "{{dispatch.action_id}}",
+          "channel": "{{attempt.channel}}"
+        },
+        "emit_exactly_once_per_attempt": true
+      }
+    },
+    {
+      "name": "Route Callback For Persistence",
+      "type": "condition",
+      "config": {
+        "when": "callback.status",
+        "branches": {
+          "unknown": "Mark Unknown Without Retry",
+          "success": "Mark Normal Continuation",
+          "partial": "Mark Normal Continuation",
+          "failed": "Mark Normal Continuation",
+          "no_response": "Mark Normal Continuation"
+        }
+      }
+    },
+    {
+      "name": "Mark Unknown Without Retry",
+      "type": "native_variable_mapping",
+      "config": {
+        "set": {
+          "allow_retry": false,
+          "allow_fallback": false,
+          "needs_human_review_after_persist": true
+        },
+        "next": "Get Fresh Callback Snapshot"
+      }
+    },
+    {
+      "name": "Mark Normal Continuation",
+      "type": "native_variable_mapping",
+      "config": {
+        "set": {
+          "allow_retry": false,
+          "allow_fallback": false,
+          "needs_human_review_after_persist": false
+        },
+        "next": "Get Fresh Callback Snapshot"
+      }
+    },
+    {
+      "name": "Get Fresh Callback Snapshot",
+      "type": "http_action",
+      "config": {
+        "method": "GET",
+        "url": "{{GATEWAY_URL}}/api/snapshot?run_id={{callback.run_id}}",
+        "output_alias": "callback_snapshot"
+      }
+    },
+    {
+      "name": "Revalidate Callback Before Outcome",
+      "type": "condition",
+      "config": {
+        "all": [
+          "callback valid against callback.schema.json",
+          "callback.dispatch_id == dispatch.dispatch_id",
+          "callback.attempt_id == attempt.attempt_id",
+          "callback.run_id == dispatch.run_id",
+          "callback.action_id == dispatch.action_id",
+          "callback_snapshot run/action pack identity == dispatch pack identity",
+          "callback_snapshot contains the original approved action"
+        ],
+        "false_branch": "Stop And Route To Human Review",
+        "true_branch": "Build Idempotent Outcome Command"
+      }
+    },
+    {
+      "name": "Build Idempotent Outcome Command",
+      "type": "native_variable_mapping",
+      "config": {
+        "output_alias": "outcome_command",
+        "fields": {
+          "command_id": "callback:{{callback.provider_event_id}}",
+          "run_id": "{{dispatch.run_id}}",
+          "pack_id": "{{dispatch.pack_id}}",
+          "pack_version": "{{dispatch.pack_version}}",
+          "pack_digest": "{{dispatch.pack_digest}}",
+          "expected_state_version": "{{callback_snapshot.run.state_version}}",
+          "actor": "happyrobot",
+          "command_type": "record_outcome",
+          "payload.outcome.contract_version": "2.0.0",
+          "payload.outcome.run_id": "{{dispatch.run_id}}",
+          "payload.outcome.pack_id": "{{dispatch.pack_id}}",
+          "payload.outcome.pack_version": "{{dispatch.pack_version}}",
+          "payload.outcome.pack_digest": "{{dispatch.pack_digest}}",
+          "payload.outcome.scenario_at": "{{trigger.event.payload.action.scenario_at}}",
+          "payload.outcome.received_at": "{{callback.received_at}}",
+          "payload.outcome.correlation_id": "{{trigger.event.payload.correlation_id}}",
+          "payload.outcome.causation_id": "{{dispatch.dispatch_id}}",
+          "payload.outcome.outcome_id": "outcome:{{callback.attempt_id}}:{{callback.provider_event_id}}",
+          "payload.outcome.action_id": "{{dispatch.action_id}}",
+          "payload.outcome.attempt_id": "{{callback.attempt_id}}",
+          "payload.outcome.status": "{{callback.status}}",
+          "payload.outcome.summary": "{{callback.summary}}",
+          "payload.outcome.observed_effects": "{{callback.observed_effects}}",
+          "payload.outcome.evidence": "{{trigger.event.payload.action.evidence}}",
+          "causation_id": "{{dispatch.dispatch_id}}"
+        }
+      }
+    },
+    {
+      "name": "Gateway record_outcome",
+      "type": "http_action",
+      "config": {
+        "method": "POST",
+        "url": "{{GATEWAY_URL}}/api/commands",
+        "content_type": "application/json",
+        "body": "{{outcome_command}}",
+        "idempotency_key": "callback:{{callback.provider_event_id}}",
+        "on_success": "Route After Persisted Outcome",
+        "on_status": {
+          "409": "stop_and_route_to_human_reconciliation"
+        }
+      }
+    },
+    {
+      "name": "Route After Persisted Outcome",
+      "type": "condition",
+      "config": {
+        "when": "callback.status == unknown",
+        "true_branch": "Stop And Route To Human Review",
+        "false_branch": "Complete Normal Callback"
+      }
+    },
+    {
+      "name": "Complete Normal Callback",
+      "type": "native_output",
+      "config": {
+        "outcome_recorded": true,
+        "needs_human_review": false,
+        "allow_retry": false
+      }
+    },
+    {
+      "name": "Stop And Route To Human Review",
+      "type": "native_output",
+      "config": {
+        "external_effect": false,
+        "needs_human_review": true
+      }
+    }
+  ]
+}

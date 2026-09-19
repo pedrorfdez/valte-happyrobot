@@ -228,6 +228,7 @@ declare
   v_response jsonb;
   v_record jsonb;
   v_plan jsonb;
+  v_active_plan plans%rowtype;
   v_integer integer;
 begin
   if not (p_command ?& array[
@@ -428,6 +429,42 @@ begin
           return jsonb_build_object('ok', false, 'error', 'invalid_payload', 'message', 'plan_version is out of range');
       end;
 
+      select * into v_active_plan
+      from plans
+      where run_id = v_run.run_id and status = 'active';
+
+      if found then
+        if v_integer::bigint <> v_active_plan.plan_version::bigint + 1
+          or v_plan->>'plan_id' = v_active_plan.plan_id
+          or coalesce(v_plan->>'supersedes_plan_id', '') <> v_active_plan.plan_id then
+          return jsonb_build_object(
+            'ok', false,
+            'error', 'invalid_payload',
+            'message', 'replan must increment the active version, use a new plan_id, and exactly supersede the active plan'
+          );
+        end if;
+      else
+        if exists (select 1 from plans where run_id = v_run.run_id)
+          or v_integer <> 1
+          or not (v_plan ? 'supersedes_plan_id')
+          or jsonb_typeof(v_plan->'supersedes_plan_id') is distinct from 'null' then
+          return jsonb_build_object(
+            'ok', false,
+            'error', 'invalid_payload',
+            'message', 'first plan must be version 1 with null supersedes_plan_id'
+          );
+        end if;
+      end if;
+
+      if exists (
+        select 1
+        from plans
+        where run_id = v_run.run_id
+          and (plan_id = v_plan->>'plan_id' or plan_version = v_integer)
+      ) then
+        return jsonb_build_object('ok', false, 'error', 'invalid_payload', 'message', 'plan_id and plan_version must be new');
+      end if;
+
       if jsonb_array_length(v_payload->'incidents') = 0
         or exists (
           select 1
@@ -474,6 +511,16 @@ begin
         or (select count(*) from jsonb_array_elements(v_plan->'action_ids'))
           <> (select count(distinct value #>> '{}') from jsonb_array_elements(v_plan->'action_ids')) then
         return jsonb_build_object('ok', false, 'error', 'invalid_payload', 'message', 'plan and payload IDs must be unique');
+      end if;
+
+      if exists (
+        select 1
+        from actions existing
+        join jsonb_array_elements(v_payload->'actions') as item(value)
+          on existing.action_id = item.value->>'action_id'
+        where existing.run_id = v_run.run_id
+      ) then
+        return jsonb_build_object('ok', false, 'error', 'invalid_payload', 'message', 'action_id already exists in this run');
       end if;
 
       if jsonb_array_length(v_plan->'incident_ids') <> jsonb_array_length(v_payload->'incidents')

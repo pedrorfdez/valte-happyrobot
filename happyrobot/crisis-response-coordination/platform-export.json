@@ -119,7 +119,7 @@
           "payload": { "outcome": "{{build_outcome.output}}" },
           "causation_id": "{{context.trigger_event_id}}"
         },
-        "on_status": { "409": "stop_and_leave_redelivery_to_persisted_outbox" }
+        "on_status": { "409": "stop_and_route_to_human_reconciliation" }
       }
     }
   ]

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/happyrobot/integrations/dispatch.schema.json",
+  "type": "object",
+  "required": [
+    "dispatch_id",
+    "run_id",
+    "pack_id",
+    "pack_version",
+    "pack_digest",
+    "state_version",
+    "action_id",
+    "interaction_mode",
+    "recipient",
+    "message"
+  ],
+  "properties": {
+    "dispatch_id": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "pack_id": { "type": "string", "minLength": 1 },
+    "pack_version": { "type": "string", "minLength": 1 },
+    "pack_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "state_version": { "type": "integer", "minimum": 0 },
+    "action_id": { "type": "string", "minLength": 1 },
+    "interaction_mode": { "enum": ["dry-run", "web_voice", "email", "pstn"] },
+    "recipient": {
+      "type": "object",
+      "required": ["contact_id", "display_name"],
+      "properties": {
+        "contact_id": { "type": "string", "minLength": 1 },
+        "display_name": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "message": {
+      "type": "object",
+      "required": ["prefix", "subject", "body", "requested_response"],
+      "properties": {
+        "prefix": { "const": "SIMULACIÓN — " },
+        "subject": { "type": "string", "minLength": 1 },
+        "body": { "type": "string", "minLength": 1 },
+        "requested_response": { "enum": ["accept_or_reject", "acknowledge"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

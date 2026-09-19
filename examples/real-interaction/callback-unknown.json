@@ -1,0 +1,14 @@
+{
+  "provider_event_id": "email-event-demo-unknown-001",
+  "dispatch_id": "dispatch-demo-001",
+  "attempt_id": "dispatch-demo-001:email:1",
+  "run_id": "run-wildfire-demo",
+  "action_id": "act-demo-contact-001",
+  "channel": "email",
+  "status": "unknown",
+  "received_at": "2026-09-19T12:00:05Z",
+  "summary": "The provider did not return a trustworthy delivery result.",
+  "observed_effects": {
+    "delivery_confirmation": "unavailable"
+  }
+}

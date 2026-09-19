@@ -16,20 +16,18 @@ It is scenario-neutral: the same contracts and HappyRobot workflows run a DANA/f
 
 ## 1. What works now
 
-This distinction matters: do not try to start files that have not been implemented yet.
-
 | Capability | Status |
 | --- | --- |
 | Generic v2 contracts | Available now |
 | DANA and wildfire contract examples | Available now |
 | Contract validator | Available now |
-| Supabase State Gateway | Planned; see implementation plan |
-| Scenario Controller and packs | Planned; see implementation plan |
-| Three HappyRobot workflows | Planned; requires platform configuration |
-| Azure Static Web Apps dashboard | Planned |
-| Controlled interaction and E2E runner | Planned |
+| Supabase State Gateway | Implemented and PostgreSQL-smoked; deployment requires Supabase/Azure configuration |
+| Scenario Controller and packs | Implemented; DANA and wildfire dry-runs available |
+| Three HappyRobot workflows | Declarative definitions and fixtures implemented; Platform publication requires credentials |
+| Azure Static Web Apps dashboard | Implemented; static and browser smoke passed |
+| Controlled interaction and E2E runner | Implemented; mock E2E passed, connected smoke requires external services |
 
-## 2. Quick start available today
+## 2. Quick contract check
 
 Prerequisite: Node.js 24 and npm.
 
@@ -43,13 +41,14 @@ Expected output:
 ```text
 PASS dana-demo: Signal → Incident → Plan → Action → Outcome
 PASS wildfire-demo: Signal → Incident → Plan → Action → Outcome
+PASS real-interaction: callback → Outcome v2 → record_outcome
 ```
 
 The original prototypes remain in `schemas/v1/`. New work uses `schemas/v2/`.
 
 ## 3. Full local demo
 
-> The rest of this guide becomes runnable after the six workstreams in the parallel delivery plan are implemented. Until then, use the quick start above.
+> The repository implementation is complete. The connected path additionally needs your Supabase project, three published HappyRobot development workflows and Azure Functions Core Tools. Without those external values, the contract, Scenario Pack and mock/static checks remain runnable.
 
 ### Step 1 — Check prerequisites
 
@@ -99,6 +98,9 @@ HAPPYROBOT_COORDINATION_WORKFLOW_ID=your_coordination_workflow_id
 DANA_RUN_ID=run-dana-demo
 WILDFIRE_RUN_ID=run-wildfire-demo
 DEMO_INTERACTION_MODE=dry-run
+DEMO_ALLOWED_CONTACT_IDS=demo-field-lead
+DEMO_CONTACT_ID=demo-field-lead
+DEMO_CONTACT_NAME=demo-field-lead
 ```
 
 Load the variables into each terminal that needs them:
@@ -110,6 +112,7 @@ set +a
 ```
 
 `SUPABASE_ANON_KEY` is public and used only for dashboard notifications. `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `HAPPYROBOT_KEY`, and real recipient details must remain outside browser code and Git.
+Configure `DEMO_CONTACT_EMAIL` and `DEMO_CONTACT_PHONE` only as hidden HappyRobot development variables; do not place real contact values in the repository.
 
 ### Step 3 — Prepare Supabase
 
@@ -146,7 +149,7 @@ Open terminal 1, load `.env`, and start Azure Functions from the API root:
 
 ```bash
 cd api
-func start
+func start --cors '*'
 ```
 
 Keep it running. In another terminal:
@@ -177,6 +180,8 @@ For each workflow:
 7. put its workflow ID in `.env` and reload the shell.
 
 Do not configure direct Supabase writes. Workflows read snapshots and submit commands only through the Gateway.
+
+The files under `happyrobot/` and `happyrobot/integrations/` are sanitized declarative blueprints, not proof of publication. Install the interaction extension into `crisis-response-coordination`, exercise its failure branches, run native `test-all`, and export the resulting development version before the connected E2E.
 
 Detailed plan: [HappyRobot workflows](docs/superpowers/plans/2026-09-19-happyrobot-workflows.md).
 
@@ -212,13 +217,13 @@ Open terminal 2:
 python3 -m http.server 4173 --directory app
 ```
 
-Open:
+Open the root URL when using Python's static server:
 
 ```text
-http://localhost:4173/ops?run_id=run-dana-demo&gateway_url=http://localhost:7071
+http://localhost:4173/?run_id=run-dana-demo&gateway_url=http://localhost:7071
 ```
 
-To enable Realtime notifications, also provide the public Supabase URL and anon key as documented in the [dashboard plan](docs/superpowers/plans/2026-09-19-swa-dashboard.md). Without them, polling remains active and the UI reports `degraded` rather than failing.
+Python's server does not apply `staticwebapp.config.json`; `/ops` is available after deployment to Azure Static Web Apps. To enable Realtime notifications, append URL-encoded `supabase_url` and `supabase_anon_key` query parameters. Without them, polling remains active and the UI reports `degraded` rather than failing.
 
 Continue when the page shows `SIMULACIÓN`, the DANA run, and Gateway status.
 
@@ -269,7 +274,7 @@ PASS wildfire abort: operator abort_run → run.status=aborted
 PASS isolation: no DANA IDs or terms in wildfire
 ```
 
-Artifacts are written under `artifacts/e2e/` without secrets. See the [E2E plan](docs/superpowers/plans/2026-09-19-crisis-e2e-demo.md) and, once implemented, `docs/demo-runbook.md`.
+Artifacts are written under `artifacts/e2e/` without secrets. See the [E2E plan](docs/superpowers/plans/2026-09-19-crisis-e2e-demo.md) and [demo runbook](docs/demo-runbook.md).
 
 ## 4. Controlled real interaction
 
@@ -278,6 +283,8 @@ Stay in dry-run unless the recipient is present, has consented, and is allowlist
 ```bash
 export DEMO_INTERACTION_MODE=dry-run
 ```
+
+The runner sends its exact `--effects` mode through the Router to Coordination and rejects an Outcome that reports another mode. `dry-run` is the default. A live rehearsal must choose exactly `web_voice`, `email`, or `pstn`, add `--confirm-live-contact SIMULACION`, and use an allowlisted recipient alias in HappyRobot `development`.
 
 Before changing it to `web_voice` or `email`:
 

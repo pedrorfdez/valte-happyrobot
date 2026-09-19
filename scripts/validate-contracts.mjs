@@ -16,6 +16,7 @@ const exampleFiles = [
   "examples/contracts/dana-chain.json",
   "examples/contracts/wildfire-chain.json"
 ];
+const interactionOutcomeCommandFile = "examples/real-interaction/record-outcome-command.json";
 const identityFields = [
   "contract_version",
   "run_id",
@@ -84,6 +85,19 @@ for (const exampleFile of exampleFiles) {
   if (failures.length === failureCountBeforeChain) {
     console.log(`PASS ${chain.signal.pack_id}: Signal → Incident → Plan → Action → Outcome`);
   }
+}
+
+const interactionCommand = await load(resolve(interactionOutcomeCommandFile));
+const validateOutcome = ajv.getSchema("https://valte.dev/schemas/v2/outcome.schema.json");
+const interactionFailureCount = failures.length;
+if (interactionCommand.command_type !== "record_outcome") {
+  failures.push(`${interactionOutcomeCommandFile}: command_type must be record_outcome`);
+}
+if (!validateOutcome(interactionCommand.payload?.outcome)) {
+  failures.push(`${interactionOutcomeCommandFile} outcome: ${ajv.errorsText(validateOutcome.errors)}`);
+}
+if (failures.length === interactionFailureCount) {
+  console.log("PASS real-interaction: callback → Outcome v2 → record_outcome");
 }
 
 if (failures.length > 0) {
