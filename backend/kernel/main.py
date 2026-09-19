@@ -11,11 +11,12 @@ from .config import settings
 from .db import current_run_id, pool, q
 from .routers import (actions, entities, perceptions, runs, signals, situation,
                       state, tripwires, world)
-from .services import outbox, reflexes
+from .services import executor, outbox, reflexes
 
 
 def _sweep_once():
     reflexes.sweep_silence()
+    executor.execute_approved()
     _fire_due_timers()
     outbox.sweep()
 

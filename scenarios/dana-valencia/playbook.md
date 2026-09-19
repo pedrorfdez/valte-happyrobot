@@ -55,7 +55,7 @@ and reconnaissance.
 |---|---|
 | AEMET red warning (region) | Situacion 0. Arm gauge and silence tripwires. `schedule_check` 60 min. |
 | Gauge rising, severity 4-6 in chiva | Warn downstream authorities by phone (mayors, Guardia Civil). Pre-position bomberos. Situacion 1. |
-| Gauge severity >= 7 in chiva, any confidence | This equals the real 150 m3/s protocol threshold crossed. ES-Alert to ALL downstream zones (torrent, paiporta, catarroja, alfafar). `close_road` on the V-31 and A-3 stretches. Request UME. Situacion 2. Do NOT wait for downstream confirmation: in 2024 that wait cost the entire warning window. |
+| Gauge severity >= 7 in chiva, any confidence | This equals the real 150 m3/s protocol threshold crossed. ES-Alert to the affected zone AND all downstream zones (chiva, torrent, paiporta, catarroja, alfafar). The source zone is never skipped: people are already in the water there. `close_road` on the V-31 and A-3 stretches. Request UME. Situacion 2. Do NOT wait for downstream confirmation: in 2024 that wait cost the entire warning window. |
 | Any trapped-people report, medium+ confidence | Dispatch nearest available rescue units to that zone. If units exhausted, escalate: bomberos-valencia, then UME. |
 | Gauge (chj-gauges) goes silent | Treat as escalation, not as calm. Assume the last trend continues. Raise situational uncertainty in the situation note; lean on 112 volume and social reports; if the last reading was severity >= 6, act as if severity >= 7. |
 | Wave confirmed in a zone | That zone shifts to rescue mode. Its downstream neighbors get its severity as a forecast with the propagation delay as countdown. Alert them NOW if not already done. |

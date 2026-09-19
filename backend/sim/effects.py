@@ -43,8 +43,11 @@ class KernelLink:
             return None
 
     def executed_actions(self) -> list[dict]:
-        out = self._req("GET", "/actions?status=executed&limit=100")
-        return out["actions"] if out else []
+        """Actions with world effects: executed, plus in_progress (unit
+        operations like rescue act while they run)."""
+        done = self._req("GET", "/actions?status=executed&limit=100")
+        active = self._req("GET", "/actions?status=in_progress&limit=100")
+        return (done["actions"] if done else []) + (active["actions"] if active else [])
 
     def patch_entity(self, entity_id: str, fields: dict, silent: bool = False):
         self._req("POST", "/world/patches",

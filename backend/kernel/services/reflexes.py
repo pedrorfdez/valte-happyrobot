@@ -18,13 +18,19 @@ from .outbox import emit_event
 TIER = {"low": 0, "medium": 1, "high": 2}
 
 
+def _scenario_now(run_id: str) -> str:
+    row = q("select max(t) as m from signals where run_id=%s", (run_id,), one=True)
+    return row["m"].isoformat() if row and row["m"] else datetime.utcnow().isoformat() + "+00:00"
+
+
 def _fire(run_id: str, tw: dict, evidence_id: str, detail: str):
+    now_t = _scenario_now(run_id)
     seq = q("select count(*) as c from actions where run_id=%s", (run_id,), one=True)["c"]
     for i, then in enumerate(tw["doc"].get("then", [])):
         action_id = f"act-tw{seq + i:04d}"
         doc = {
             "id": action_id,
-            "t": datetime.utcnow().isoformat() + "+00:00",
+            "t": now_t,
             "actor": then.get("actor", "system"),
             "verb": then.get("verb", "notify"),
             "target_zones": then.get("target_zones", []),
@@ -35,9 +41,23 @@ def _fire(run_id: str, tw: dict, evidence_id: str, detail: str):
         }
         q("insert into actions (run_id,id,t,actor,verb,status,doc) values (%s,%s,%s,%s,%s,%s,%s)",
           (run_id, action_id, doc["t"], doc["actor"], doc["verb"], "executed", js(doc)))
+    tw["doc"]["last_fired_t"] = now_t
+    q("update tripwires set doc=%s where run_id=%s and id=%s",
+      (js(tw["doc"]), run_id, tw["id"]))
     emit_event(run_id, "tripwire_fired",
                {"tripwire": tw["id"], "evidence": evidence_id, "detail": detail,
                 "reason": tw["doc"].get("reason", "")})
+
+
+def _in_cooldown(run_id: str, tw: dict) -> bool:
+    """One firing per cooldown window (scenario time), so a tripwire does
+    not re-execute its actions on every matching signal."""
+    last = tw["doc"].get("last_fired_t")
+    if not last:
+        return False
+    cooldown = tw["doc"].get("cooldown_min", 45)
+    now = datetime.fromisoformat(_scenario_now(run_id))
+    return (now - datetime.fromisoformat(last)).total_seconds() / 60 < cooldown
 
 
 def on_signal(run_id: str, signal: dict, confidence: str) -> list[str]:
@@ -56,6 +76,8 @@ def on_signal(run_id: str, signal: dict, confidence: str) -> list[str]:
         if sev < cond.get("min_severity", 0):
             continue
         if TIER[confidence] < TIER[cond.get("min_confidence", "low")]:
+            continue
+        if _in_cooldown(run_id, tw):
             continue
         _fire(run_id, tw, signal["id"], f"signal {signal['id']} sev={sev} conf={confidence}")
         fired.append(tw["id"])

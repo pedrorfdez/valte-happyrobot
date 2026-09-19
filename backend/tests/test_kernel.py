@@ -143,3 +143,26 @@ def test_unreachable_actor_suggests_escalation(client):
                                         "set": {"status": "unreachable"}})
     r = act(client, "act-t13", "mayor-paiporta", "order_evacuation", zones=["paiporta"])
     assert r.status_code == 409 and "emergency-coordinator" in r.text
+
+
+def test_duplicate_action_guard(client):
+    r1 = act(client, "act-t20", "guardia-civil-trafico", "close_road", zones=["catarroja"])
+    assert r1.status_code == 201
+    r2 = act(client, "act-t21", "guardia-civil-trafico", "close_road", zones=["catarroja"])
+    assert r2.status_code == 409 and "duplicate" in r2.text and "act-t20" in r2.text
+
+
+def test_executor_stubs_approved_actions(client):
+    r = act(client, "act-t22", "cruz-roja", "shelter", zones=[], params={"units": 1})
+    assert r.status_code == 201 and r.json()["action"]["status"] == "approved"
+    deadline = time.monotonic() + 15
+    status = None
+    while time.monotonic() < deadline:
+        acts = client.get("/actions?limit=50").json()["actions"]
+        a = next(x for x in acts if x["id"] == "act-t22")
+        status = a["status"]
+        if status != "approved":
+            break
+        time.sleep(2)
+    assert status == "in_progress"  # unit verb: executing, units held
+    assert a["real_interaction"]["stubbed"] is True

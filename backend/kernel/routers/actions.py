@@ -170,6 +170,20 @@ def submit_action(rid: str, action: dict, idempotency_key: str | None) -> dict:
         if outside:
             raise HTTPException(422, f"{actor_id} has no jurisdiction over {outside}; jurisdiction: {juris}")
 
+    # duplicate guard: same actor+verb+zones already in flight or done
+    zones_key = json.dumps(sorted(action.get("target_zones") or []))
+    dup = q("""select id, status from actions
+               where run_id=%s and actor=%s and verb=%s
+                 and status in ('pending_approval','approved','in_progress','executed')
+                 and coalesce((select json_agg(z order by z)::text
+                               from jsonb_array_elements_text(doc->'target_zones') z), '[]') = %s
+               order by created_at desc limit 1""",
+            (rid, actor_id, verb, zones_key), one=True)
+    if dup:
+        raise HTTPException(409,
+            f"duplicate: {dup['id']} already {dup['status']} for {actor_id} {verb} on the same zones. "
+            f"Do not repeat it; only act again if conditions changed materially (then reference {dup['id']} in evidence with different params).")
+
     needs_approval = (adoc.get("activation") or {}).get("cost") == "high"
     status = "pending_approval" if needs_approval else "approved"
     action["status"] = status

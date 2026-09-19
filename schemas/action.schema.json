@@ -57,7 +57,8 @@
       "description": "The real-world contact this action produced, if any. Filled after execution as proof of real interaction (a track requirement).",
       "properties": {
         "kind": {"type": "string", "enum": ["voice", "email", "sms"], "description": "Channel used."},
-        "to": {"type": "string", "description": "Address contacted (phone number, email)."}
+        "to": {"type": "string", "description": "Address contacted (phone number, email)."},
+        "stubbed": {"type": "boolean", "description": "True when the kernel's interim executor simulated the contact because the real channel (HappyRobot voice/SMS) is not wired yet. The dashboard must show stubbed interactions differently."}
       }
     }
   }
