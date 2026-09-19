@@ -175,11 +175,16 @@ def submit_action(rid: str, action: dict, idempotency_key: str | None) -> dict:
         raise HTTPException(409, f"actor {actor_id} is unreachable; escalate to {esc or 'human supervisor'}")
     if verb not in (adoc.get("capabilities") or []):
         raise HTTPException(422, f"{actor_id} cannot {verb}; its capabilities are {adoc.get('capabilities')}")
+    # jurisdiction is a legal concept: enforced for authorities (a mayor
+    # cannot order another town's evacuation), advisory for responders
+    # (mutual aid is doctrine; home area means prefer-nearest, never a block)
     juris = adoc.get("jurisdiction") or []
     if juris:
         outside = [z for z in action.get("target_zones", []) if z not in juris]
         if outside:
-            raise HTTPException(422, f"{actor_id} has no jurisdiction over {outside}; jurisdiction: {juris}")
+            if adoc.get("kind") == "authority":
+                raise HTTPException(422, f"{actor_id} has no jurisdiction over {outside}; jurisdiction: {juris}")
+            action["out_of_area"] = True
 
     # duplicate guard: same actor+verb+zones in flight, or completed too
     # recently for conditions to have changed. Operations are repeatable:

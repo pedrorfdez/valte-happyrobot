@@ -166,3 +166,12 @@ def test_executor_stubs_approved_actions(client):
         time.sleep(2)
     assert status == "in_progress"  # unit verb: executing, units held
     assert a["real_interaction"]["stubbed"] is True
+
+
+def test_responder_mutual_aid_allowed(client):
+    # bomberos-torrent home area excludes chiva; rescue there must be
+    # allowed (mutual aid) and tagged out_of_area
+    r = act(client, "act-t23", "bomberos-torrent", "rescue",
+            zones=["chiva"], params={"units": 1})
+    assert r.status_code == 201, r.text
+    assert r.json()["action"]["out_of_area"] is True

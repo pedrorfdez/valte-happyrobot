@@ -34,7 +34,7 @@
     "jurisdiction": {
       "type": "array",
       "items": {"type": "string"},
-      "description": "Zone ids where this entity can act or give orders. Empty array means global jurisdiction."
+      "description": "Zone ids of this entity's legal or home area. Empty array means global. ENFORCED for authorities (a mayor cannot order outside its town); ADVISORY for responders (home area guides prefer-nearest dispatch, but mutual aid outside it is allowed and tagged out_of_area)."
     },
     "channel": {
       "type": "object",

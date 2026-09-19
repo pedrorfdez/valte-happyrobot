@@ -27,7 +27,11 @@
     "target_zones": {
       "type": "array",
       "items": {"type": "string"},
-      "description": "Zone ids the action applies to. Must be inside the actor's jurisdiction."
+      "description": "Zone ids the action applies to. For authority actors these must be inside the actor's jurisdiction; responders may operate anywhere (mutual aid)."
+    },
+    "out_of_area": {
+      "type": "boolean",
+      "description": "Set by the kernel when a responder operates outside its home jurisdiction (mutual aid). Informational: shown on the dashboard, never a block."
     },
     "params": {
       "type": "object",
