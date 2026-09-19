@@ -79,6 +79,31 @@ function validateDomainIdentity(command) {
   return null;
 }
 
+function validateApproverAllowlist(command) {
+  if (command.command_type !== "replace_plan") return null;
+  const actions = command.payload?.actions;
+  if (!Array.isArray(actions)) return null;
+  for (const action of actions) {
+    if (!isObject(action)) continue;
+    if (action.status === "pending_approval" && action.approval_policy === "human_required") {
+      const ids = action.approver_entity_ids;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return `action ${action.action_id ?? ""} approver_entity_ids must be non-empty unique`;
+      }
+      if (new Set(ids).size !== ids.length) {
+        return `action ${action.action_id ?? ""} approver_entity_ids must be unique`;
+      }
+      if (ids.some((id) => typeof id !== "string" || !id.trim())) {
+        return `action ${action.action_id ?? ""} approver_entity_ids must be non-empty strings`;
+      }
+      if (action.approvals_required !== 1) {
+        return `action ${action.action_id ?? ""} approvals_required must be 1`;
+      }
+    }
+  }
+  return null;
+}
+
 const errorStatus = (code) => {
   if (code === "run_not_found") return 404;
   if (["version_conflict", "idempotency_mismatch", "pack_context_mismatch"].includes(code)) return 409;
@@ -109,6 +134,12 @@ export default async function commands(context, req) {
     const domainError = validateDomainIdentity(command);
     if (domainError) {
       context.res = jsonResponse(400, { ok: false, error: "invalid_contract_identity", message: domainError });
+      return;
+    }
+
+    const approverError = validateApproverAllowlist(command);
+    if (approverError) {
+      context.res = jsonResponse(400, { ok: false, error: "invalid_approver", message: approverError });
       return;
     }
 

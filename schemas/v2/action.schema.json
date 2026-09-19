@@ -1,11 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://valte.dev/schemas/v2/action.schema.json",
-  "allOf": [
-    {
-      "$ref": "https://valte.dev/schemas/v2/common.schema.json#/$defs/envelope"
-    }
-  ],
   "type": "object",
   "required": [
     "action_id",
@@ -122,7 +117,50 @@
         "string",
         "null"
       ]
+    },
+    "approver_entity_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "approvals_required": {
+      "const": 1
     }
   },
+  "allOf": [
+    {
+      "$ref": "https://valte.dev/schemas/v2/common.schema.json#/$defs/envelope"
+    },
+    {
+      "if": {
+        "properties": {
+          "approval_policy": {
+            "const": "human_required"
+          }
+        },
+        "required": [
+          "approval_policy"
+        ]
+      },
+      "then": {
+        "required": [
+          "approver_entity_ids",
+          "approvals_required"
+        ],
+        "properties": {
+          "approver_entity_ids": {
+            "type": "array",
+            "minItems": 1
+          },
+          "approvals_required": {
+            "const": 1
+          }
+        }
+      }
+    }
+  ],
   "unevaluatedProperties": false
 }
