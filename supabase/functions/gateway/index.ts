@@ -1,6 +1,7 @@
 import snapshot from "../../../api/snapshot/index.mjs";
 import commands from "../../../api/commands/index.mjs";
 import eventRouter from "../../../api/event-router/index.mjs";
+import runs from "../../../api/runs/index.mjs";
 
 type AzureResponse = {
   status: number;
@@ -17,6 +18,7 @@ type AzureContext = {
 };
 
 type AzureRequest = {
+  method?: string;
   query: Record<string, string>;
   headers: Record<string, string>;
   body?: string;
@@ -36,12 +38,14 @@ const CORS_HEADERS = {
 
 const ROUTES = new Map<string, AzureHandler>([
   ["GET /api/snapshot", snapshot],
+  ["GET /api/runs", runs],
   ["POST /api/commands", commands],
   ["POST /api/event-router", eventRouter],
 ]);
 
 const KNOWN_PATHS = new Set([
   "/api/snapshot",
+  "/api/runs",
   "/api/commands",
   "/api/event-router",
 ]);
@@ -67,6 +71,7 @@ async function azureRequest(request: Request): Promise<AzureRequest> {
   const url = new URL(request.url);
   const body = request.method === "GET" ? undefined : await request.text();
   return {
+    method: request.method,
     query: Object.fromEntries(url.searchParams.entries()),
     headers: Object.fromEntries(request.headers.entries()),
     body: body || undefined,
