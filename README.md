@@ -233,19 +233,22 @@ Detailed plan: [Scenario Controller](docs/superpowers/plans/2026-09-19-scenario-
 
 ### Step 7 — Start the dashboard
 
-Open terminal 2:
+From the repository root:
 
 ```bash
-python3 -m http.server 4173 --directory app
+make up
 ```
 
-Print and open the local dashboard URL:
+The command loads `.env`, verifies the selected run through the Supabase Edge Gateway, preserves the `/functions/v1/gateway` base path, starts the dashboard on port `4173`, and opens the correctly configured URL. It stays attached to the terminal; press `Ctrl-C` to stop it.
+
+To show the wildfire run or select another port:
 
 ```bash
-node -e 'const {DANA_RUN_ID:r,GATEWAY_URL:g}=process.env; if (!r || !g) throw new Error("DANA_RUN_ID and GATEWAY_URL are required"); const u=new URL("http://localhost:4173/"); u.searchParams.set("run_id",r); u.searchParams.set("gateway_url",g); console.log(u.href)'
+make up RUN_ID="$WILDFIRE_RUN_ID"
+make up PORT=4174
 ```
 
-Python's static server exposes the dashboard at the root URL. To enable Realtime notifications, append URL-encoded `supabase_url` and `supabase_anon_key` query parameters. Without them, polling remains active and the UI reports `degraded` rather than failing.
+The local Python server exposes the dashboard at the root URL. To enable Realtime notifications, append URL-encoded `supabase_url` and `supabase_anon_key` query parameters. Without them, polling remains active and the UI reports `degraded` rather than failing.
 
 Continue when the page shows `SIMULACIÓN`, the DANA run, and Gateway status.
 
