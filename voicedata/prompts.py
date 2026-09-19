@@ -175,26 +175,26 @@ def generate_critica_monologue(town: str) -> str:
         )
     elif archetype == 2:
         return (
-            f"¡Socorro, 112! ¡Estoy en {town}, en {street}! ¡La riada se ha llevado mi coche y estoy subido al techo! "
+            f"¡Socorro, 112! ¡Estoy en {town}, en {street}! ¡Soy {name} y la riada se ha llevado mi coche, estoy subido al techo! "
             f"¡El agua cubre {water_level} y la corriente tira con una fuerza descomunal! ¡Hay troncos y contenedores chocando contra el vehículo! "
             f"¡No sé cuánto más podré aguantar agarrado, me resbalo! ¡{exclamation}! {tag}"
         )
     elif archetype == 3:
         people_count = random.randint(3, 8)
         return (
-            f"¡Auxilio! ¡Somos {people_count} personas en el tejado de una vivienda en {town}, {street}! "
+            f"¡Auxilio! ¡Somos {people_count} personas en el tejado de una vivienda en {town}, {street}! ¡Me llamo {name}! "
             f"¡El agua ya ha sumergido toda la planta baja y el primer piso! ¡El muro lateral ha colapsado hace diez minutos! "
             f"¡Tenemos a {relative} con hipotermia severa y no para de llover! ¡Que venga un helicóptero a {town} inmediatamente! {tag}"
         )
     elif archetype == 4:
         return (
-            f"¡Emergencias, por favor! ¡Llamo desesperado desde {town}, en {street}! ¡{relative} está con oxígeno y el generador acaba de morir bajo el agua! "
+            f"¡Emergencias, por favor! ¡Llamo desesperado desde {town}, en {street}! ¡Soy {name} y {relative} está con oxígeno, el generador acaba de morir bajo el agua! "
             f"¡El agua sube {random.randint(5, 20)} centímetros por minuto y ya cubre las camas! ¡No podemos moverlo en brazos por la corriente! "
             f"¡Necesitamos una lancha o rescate médico en {town} ya, se nos asfixia! {tag}"
         )
     elif archetype == 5:
         return (
-            f"¡{exclamation}! ¡Ha cedido la compuerta del garaje en {town}, {street}! ¡Bajó {relative} a sacar el coche y el fango ha sellado el portón metálico! "
+            f"¡{exclamation}! ¡Ha cedido la compuerta del garaje en {town}, {street}! ¡Soy {name} y bajó {relative} a sacar el coche, el fango ha sellado el portón! "
             f"¡El sótano está totalmente anegado hasta el dintel! ¡Oigo golpes desesperados desde dentro pero no abre la puerta! "
             f"¡Traigan equipo pesado a {town}, por favor! {tag}"
         )
@@ -206,7 +206,7 @@ def generate_critica_monologue(town: str) -> str:
         )
     else:
         return (
-            f"¡Tragedia en {town}! ¡El barranco ha desbordado en {street}! ¡La pared maestra de la casa acaba de caerse entera! "
+            f"¡Tragedia en {town}! ¡El barranco ha desbordado en {street}! ¡Soy {name} y la pared maestra de la casa acaba de caerse entera! "
             f"¡{relative} ha quedado atrapado bajo los escombros y el agua sube con fuerza negra! ¡Apenas saca la cabeza para respirar! "
             f"¡{exclamation}! ¡Venid a {town} antes de que se tape del todo! {tag}"
         )
@@ -281,33 +281,33 @@ def generate_urgente_monologue(town: str) -> str:
 
     if archetype == 1:
         return (
-            f"Buenas tardes, grabo este mensaje para el 112. Estamos aislados en el primer piso en {town}, en {street}. "
+            f"Buenas tardes, grabo este mensaje para el 112. Soy {name}, estamos aislados en el primer piso en {town}, en {street}. "
             f"El portal tiene {cm} centímetros de lodo acumulado y las puertas no abren. Llevamos {hours} horas sin luz eléctrica ni agua corriente. "
             f"En la vivienda somos {people} personas y tenemos a una persona mayor que necesita medicación para el corazón. "
             f"No corremos riesgo de ahogarnos arriba, pero necesitamos suministros y evacuación cuando puedan acceder a {town}."
         )
     elif archetype == 2:
         return (
-            f"Aviso urgente para los bomberos en {town}. En {street}, tras la fuerza del agua de esta tarde, han aparecido grietas enormes en el muro de carga. "
+            f"Aviso urgente para los bomberos en {town}. Soy {name}, residente en {street}. Tras la fuerza del agua de esta tarde, han aparecido grietas enormes en el muro de carga. "
             f"Varios coches arrastrados han chocado contra la fachada y tememos que el edificio no sea seguro. "
             f"Estamos {people} vecinos refugiados en la azotea esperando que alguien técnico venga a revisar la estructura de la finca en {town}."
         )
     elif archetype == 3:
         return (
-            f"Llamo desde {town}, calle {street}. El agua en la calle está a medio metro pero la caja general de contadores del edificio está echando chispas "
+            f"Llamo desde {town}, calle {street}. Me llamo {name}. El agua en la calle está a medio metro pero la caja general de contadores del edificio está echando chispas "
             f"y hay un olor penetrante a gas o plástico quemado en todo el hueco de la escalera. "
             f"Nos da pánico que salte una chispa y haya una explosión. Por favor, avisen a la compañía y a bomberos para cortar la acometida en {town}."
         )
     elif archetype == 4:
         return (
-            f"Hola, aviso de dos personas atrapadas en vehículo en {town}, en la rotonda cerca de {street}. "
+            f"Hola, soy {name}, aviso de dos personas atrapadas en vehículo en {town}, en la rotonda cerca de {street}. "
             f"El coche ha quedado calado y atascado en una balsa de {cm} cm de barro. No hay corriente violenta que nos arrastre, "
             f"pero el agua cubre los escapes y las puertas están trabadas por el fango. Estamos empapados y hace mucho frío. Por favor, auxilio en carretera en {town}."
         )
     elif archetype == 5:
         animals = random.randint(12, 35)
         return (
-            f"Urgencia para Protección Civil en {town}. En el camino cercano a {street} tenemos las instalaciones con {animals} animales. "
+            f"Urgencia para Protección Civil en {town}. Soy {name}, en las instalaciones con {animals} animales cercanas a {street}. "
             f"El agua inunda la planta a {cm} centímetros. Hemos logrado subir a los animales a jaulas altas pero si vuelve a llover con fuerza no aguantarán. "
             f"Nosotros estamos en el altillo a salvo pero necesitamos apoyo logístico o furgonetas altas en {town}."
         )
