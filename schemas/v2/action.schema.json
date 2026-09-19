@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/schemas/v2/action.schema.json",
+  "allOf": [
+    {
+      "$ref": "https://valte.dev/schemas/v2/common.schema.json#/$defs/envelope"
+    }
+  ],
+  "type": "object",
+  "required": [
+    "action_id",
+    "plan_id",
+    "incident_id",
+    "primitive",
+    "status",
+    "actor_id",
+    "target",
+    "params",
+    "action_effect_fingerprint",
+    "evidence",
+    "evidence_status",
+    "reasoning",
+    "priority",
+    "risk",
+    "approval_policy",
+    "reservation_id"
+  ],
+  "properties": {
+    "action_id": {
+      "type": "string"
+    },
+    "plan_id": {
+      "type": "string"
+    },
+    "incident_id": {
+      "type": "string"
+    },
+    "primitive": {
+      "enum": [
+        "allocate_resource",
+        "release_resource",
+        "update_entity",
+        "update_edge",
+        "contact_entity",
+        "broadcast_message",
+        "create_task",
+        "schedule_review",
+        "request_approval",
+        "record_outcome"
+      ]
+    },
+    "status": {
+      "enum": [
+        "proposed",
+        "pending_approval",
+        "approved",
+        "dispatching",
+        "delivered",
+        "accepted",
+        "executing",
+        "completed",
+        "rejected",
+        "timed_out",
+        "unknown",
+        "failed",
+        "canceled"
+      ]
+    },
+    "actor_id": {
+      "type": "string"
+    },
+    "target": {
+      "type": "object"
+    },
+    "params": {
+      "type": "object"
+    },
+    "action_effect_fingerprint": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "https://valte.dev/schemas/v2/common.schema.json#/$defs/evidence"
+      }
+    },
+    "evidence_status": {
+      "enum": [
+        "valid",
+        "needs_reassessment",
+        "invalidated"
+      ]
+    },
+    "reasoning": {
+      "type": "string",
+      "minLength": 1
+    },
+    "priority": {
+      "enum": [
+        "P0",
+        "P1",
+        "P2",
+        "P3"
+      ]
+    },
+    "risk": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "approval_policy": {
+      "enum": [
+        "automatic",
+        "human_required"
+      ]
+    },
+    "reservation_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "unevaluatedProperties": false
+}

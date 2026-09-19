@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/schemas/v2/outcome.schema.json",
+  "allOf": [
+    {
+      "$ref": "https://valte.dev/schemas/v2/common.schema.json#/$defs/envelope"
+    }
+  ],
+  "type": "object",
+  "required": [
+    "outcome_id",
+    "action_id",
+    "attempt_id",
+    "status",
+    "summary",
+    "observed_effects",
+    "evidence"
+  ],
+  "properties": {
+    "outcome_id": {
+      "type": "string"
+    },
+    "action_id": {
+      "type": "string"
+    },
+    "attempt_id": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "success",
+        "partial",
+        "failed",
+        "no_response",
+        "unknown"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "observed_effects": {
+      "type": "object"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "https://valte.dev/schemas/v2/common.schema.json#/$defs/evidence"
+      }
+    }
+  },
+  "unevaluatedProperties": false
+}

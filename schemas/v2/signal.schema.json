@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/schemas/v2/signal.schema.json",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "https://valte.dev/schemas/v2/common.schema.json#/$defs/envelope"
+    },
+    {
+      "type": "object",
+      "required": [
+        "signal_id",
+        "revision",
+        "status",
+        "modality",
+        "content",
+        "claims",
+        "source",
+        "location",
+        "signal_confidence"
+      ],
+      "properties": {
+        "signal_id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "enum": [
+            "active",
+            "superseded",
+            "retracted"
+          ]
+        },
+        "modality": {
+          "enum": [
+            "text",
+            "call_transcript",
+            "sensor_reading",
+            "broadcast",
+            "webhook"
+          ]
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "reporter_id",
+            "origin_reference",
+            "source_cluster_id",
+            "independence_status"
+          ],
+          "properties": {
+            "reporter_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "origin_reference": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "source_cluster_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "independence_status": {
+              "enum": [
+                "confirmed_independent",
+                "likely_same_origin",
+                "unknown"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "location": {
+          "type": "object",
+          "required": [
+            "zone_id",
+            "precision"
+          ],
+          "properties": {
+            "zone_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "precision": {
+              "enum": [
+                "exact",
+                "street",
+                "zone",
+                "region",
+                "unknown"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "signal_confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low",
+            "unknown"
+          ]
+        }
+      }
+    }
+  ],
+  "unevaluatedProperties": false
+}

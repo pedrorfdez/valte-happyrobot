@@ -66,3 +66,22 @@ A crisis management system with:
 - Keep decisions in `docs/decisions.md`: what was decided, why, and what
   was rejected.
 - Do not push without asking.
+
+## Generic crisis contracts v2
+
+The minimal v2 foundation validates the same operational chain for DANA and
+wildfire:
+
+```text
+Signal → Incident → Plan → Action → Outcome
+```
+
+Run it with:
+
+```bash
+npm install
+npm run contracts:check
+```
+
+The original DANA-oriented prototypes remain under `schemas/v1/`. The generic
+contracts used by new work live under `schemas/v2/`.
