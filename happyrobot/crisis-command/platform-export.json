@@ -1,0 +1,102 @@
+{
+  "version": {
+    "workflow_name": "crisis-command",
+    "name": "crisis-command-2.0.0",
+    "engine": "v3",
+    "environment": "development",
+    "export_status": "declarative_only"
+  },
+  "nodes": [
+    {
+      "name": "Command Input",
+      "type": "incoming_hook_trigger",
+      "config": { "input_schema": "input.schema.json" }
+    },
+    {
+      "name": "Get Snapshot",
+      "type": "http_action",
+      "config": {
+        "method": "GET",
+        "url": "{{GATEWAY_URL}}/api/snapshot?run_id={{run_id}}",
+        "output_alias": "snapshot",
+        "root_keys": ["run", "signals", "incidents", "plan", "actions", "outcomes", "resources", "events", "outbox"]
+      }
+    },
+    {
+      "name": "Build Context",
+      "type": "native_variable_mapping",
+      "config": {
+        "schema": "context.schema.json",
+        "output_alias": "context",
+        "adds": ["dispatch_id", "trigger_event"]
+      }
+    },
+    {
+      "name": "Situation Analyst",
+      "type": "ai_agent",
+      "config": {
+        "prompt": "situation-analyst.prompt.md",
+        "output_format": "json"
+      }
+    },
+    {
+      "name": "Commander",
+      "type": "ai_agent",
+      "config": {
+        "prompt": "commander.prompt.md",
+        "output_format": "json",
+        "output_schema": "output.schema.json"
+      }
+    },
+    {
+      "name": "Validate Plan Proposal Before Write",
+      "type": "condition",
+      "config": {
+        "validation_kind": "schema_and_relational",
+        "all": [
+          "commander.output valid against output.schema.json",
+          "commander.output.expected_state_version == context.run.state_version",
+          "trigger.run_id == trigger.event.run_id == context.run.run_id",
+          "every Incident has unique incident_id and exact context.run run_id, pack_id, pack_version and pack_digest",
+          "every Incident.canonical_incident_id is null, itself or resolves to an emitted Incident",
+          "Plan has exact context.run run_id, pack_id, pack_version and pack_digest",
+          "Plan.status == active",
+          "every Action has unique action_id and exact context.run run_id, pack_id, pack_version and pack_digest",
+          "set(plan.incident_ids) == set(commander.output.incidents[].incident_id)",
+          "set(plan.action_ids) == set(commander.output.actions[].action_id)",
+          "every Action.plan_id == plan.plan_id",
+          "every Action.incident_id resolves to commander.output.incidents[].incident_id",
+          "every signal evidence reference resolves to an active context.signals revision",
+          "every incident evidence reference resolves to commander.output.incidents[].incident_id"
+        ],
+        "false_branch": "stop_before_write_and_route_to_human_review"
+      }
+    },
+    {
+      "name": "Gateway replace_plan",
+      "type": "http_action",
+      "config": {
+        "method": "POST",
+        "url": "{{GATEWAY_URL}}/api/commands",
+        "content_type": "application/json",
+        "body": {
+          "command_id": "{{commander.output.command_id}}",
+          "run_id": "{{context.run.run_id}}",
+          "pack_id": "{{context.run.pack_id}}",
+          "pack_version": "{{context.run.pack_version}}",
+          "pack_digest": "{{context.run.pack_digest}}",
+          "expected_state_version": "{{context.run.state_version}}",
+          "actor": "happyrobot",
+          "command_type": "replace_plan",
+          "payload": {
+            "incidents": "{{commander.output.incidents}}",
+            "plan": "{{commander.output.plan}}",
+            "actions": "{{commander.output.actions}}"
+          },
+          "causation_id": "{{context.trigger_event.event_id}}"
+        },
+        "on_status": { "409": "stop_and_leave_redelivery_to_persisted_outbox" }
+      }
+    }
+  ]
+}

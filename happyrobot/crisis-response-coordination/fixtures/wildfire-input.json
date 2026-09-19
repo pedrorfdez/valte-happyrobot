@@ -1,0 +1,47 @@
+{
+  "dispatch_id": "dispatch-coordination-fire-001",
+  "run_id": "run-wildfire-demo",
+  "event": {
+    "event_id": 203,
+    "run_id": "run-wildfire-demo",
+    "state_version": 3,
+    "event_type": "action.approved",
+    "causation_id": "approval-fire-001",
+    "payload": {
+      "action": {
+        "contract_version": "2.0.0",
+        "run_id": "run-wildfire-demo",
+        "pack_id": "wildfire-demo",
+        "pack_version": "1.0.0",
+        "pack_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scenario_at": "2026-09-19T11:00:00Z",
+        "received_at": "2026-09-19T11:00:04Z",
+        "correlation_id": "run-wildfire-demo",
+        "causation_id": "plan-fire-001",
+        "action_id": "act-fire-001",
+        "plan_id": "plan-fire-001",
+        "incident_id": "inc-fire-001",
+        "primitive": "broadcast_message",
+        "status": "approved",
+        "actor_id": "civil-protection",
+        "target": { "zone_id": "pinar-norte" },
+        "params": { "message": "Simulation warning: elevated heat detected in Pinar Norte. Follow civil protection guidance." },
+        "action_effect_fingerprint": "broadcast_message:pinar-norte",
+        "evidence": [{ "kind": "signal", "signal_id": "sig-fire-001", "revision": 1 }],
+        "evidence_status": "valid",
+        "reasoning": "Independent thermal evidence supports a reversible warning.",
+        "priority": "P0",
+        "risk": "low",
+        "approval_policy": "automatic",
+        "reservation_id": null
+      },
+      "run_id": "run-wildfire-demo",
+      "pack_id": "wildfire-demo",
+      "pack_version": "1.0.0",
+      "pack_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "state_version": 3,
+      "correlation_id": "run-wildfire-demo",
+      "causation_id": "approval-fire-001"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/happyrobot/crisis-command/output.schema.json",
+  "type": "object",
+  "required": ["command_id", "expected_state_version", "incidents", "plan", "actions"],
+  "properties": {
+    "command_id": { "type": "string", "minLength": 1 },
+    "expected_state_version": { "type": "integer", "minimum": 0 },
+    "incidents": { "type": "array", "items": { "$ref": "https://valte.dev/schemas/v2/incident.schema.json" } },
+    "plan": { "$ref": "https://valte.dev/schemas/v2/plan.schema.json" },
+    "actions": { "type": "array", "items": { "$ref": "https://valte.dev/schemas/v2/action.schema.json" } }
+  },
+  "additionalProperties": false
+}

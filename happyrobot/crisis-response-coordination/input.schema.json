@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/happyrobot/crisis-response-coordination/input.schema.json",
+  "type": "object",
+  "required": ["dispatch_id", "run_id", "event"],
+  "properties": {
+    "dispatch_id": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "event": {
+      "type": "object",
+      "required": ["event_id", "run_id", "state_version", "event_type", "causation_id", "payload"],
+      "properties": {
+        "event_id": { "type": "integer", "minimum": 1 },
+        "run_id": { "type": "string", "minLength": 1 },
+        "state_version": { "type": "integer", "minimum": 1 },
+        "event_type": { "const": "action.approved" },
+        "causation_id": { "type": ["string", "null"] },
+        "payload": {
+          "type": "object",
+          "required": ["action", "run_id", "pack_id", "pack_version", "pack_digest", "state_version", "correlation_id", "causation_id"],
+          "properties": {
+            "action": { "$ref": "https://valte.dev/schemas/v2/action.schema.json" },
+            "run_id": { "type": "string", "minLength": 1 },
+            "pack_id": { "type": "string", "minLength": 1 },
+            "pack_version": { "type": "string", "minLength": 1 },
+            "pack_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "state_version": { "type": "integer", "minimum": 1 },
+            "correlation_id": { "type": "string", "minLength": 1 },
+            "causation_id": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

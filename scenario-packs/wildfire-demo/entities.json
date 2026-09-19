@@ -1,0 +1,36 @@
+{
+  "entities": [
+    {
+      "entity_id": "tower-camera-north",
+      "entity_type": "observation_camera",
+      "name": "Cámara Torre Norte",
+      "zone_id": "pinar-norte",
+      "source_trust": "high",
+      "fictional": true
+    },
+    {
+      "entity_id": "weather-station-east",
+      "entity_type": "weather_station",
+      "name": "Estación Viento Este",
+      "zone_id": "urbanizacion-este",
+      "source_trust": "high",
+      "fictional": true
+    },
+    {
+      "entity_id": "resident-east-01",
+      "entity_type": "resident",
+      "name": "Residente Este 01",
+      "zone_id": "urbanizacion-este",
+      "source_trust": "medium",
+      "fictional": true
+    },
+    {
+      "entity_id": "old-video-forward",
+      "entity_type": "social_media_forward",
+      "name": "Reenvío de vídeo antiguo",
+      "zone_id": "corredor-sur",
+      "source_trust": "low",
+      "fictional": true
+    }
+  ]
+}

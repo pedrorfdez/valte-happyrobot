@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/happyrobot/crisis-command/input.schema.json",
+  "type": "object",
+  "required": ["dispatch_id", "run_id", "event"],
+  "properties": {
+    "dispatch_id": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "event": {
+      "type": "object",
+      "required": ["event_id", "run_id", "state_version", "event_type", "causation_id", "payload"],
+      "properties": {
+        "event_id": { "type": "integer", "minimum": 1 },
+        "run_id": { "type": "string", "minLength": 1 },
+        "state_version": { "type": "integer", "minimum": 1 },
+        "event_type": { "enum": ["signal.created", "signal.revised", "outcome.recorded"] },
+        "causation_id": { "type": ["string", "null"] },
+        "payload": { "type": "object" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

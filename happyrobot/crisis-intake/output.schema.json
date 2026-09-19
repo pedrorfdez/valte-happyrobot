@@ -1,0 +1,5 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/happyrobot/crisis-intake/output.schema.json",
+  "$ref": "https://valte.dev/schemas/v2/signal.schema.json"
+}

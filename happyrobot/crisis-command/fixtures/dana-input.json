@@ -1,0 +1,15 @@
+{
+  "dispatch_id": "dispatch-command-dana-001",
+  "run_id": "run-dana-demo",
+  "event": {
+    "event_id": 102,
+    "run_id": "run-dana-demo",
+    "state_version": 1,
+    "event_type": "signal.created",
+    "causation_id": "sig-dana-001",
+    "payload": {
+      "signal_id": "sig-dana-001",
+      "revision": 1
+    }
+  }
+}

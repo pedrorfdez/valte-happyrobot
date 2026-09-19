@@ -1,0 +1,142 @@
+{
+  "version": {
+    "workflow_name": "crisis-intake",
+    "name": "crisis-intake-2.0.0",
+    "engine": "v3",
+    "environment": "development",
+    "export_status": "declarative_only"
+  },
+  "nodes": [
+    {
+      "name": "Source Input",
+      "type": "incoming_hook_trigger",
+      "config": {
+        "event_type": "source_input.received",
+        "input_schema": "input.schema.json"
+      }
+    },
+    {
+      "name": "Normalize Signal",
+      "type": "ai_agent",
+      "config": {
+        "prompt": "prompt.md",
+        "output_format": "json",
+        "output_schema": "output.schema.json"
+      }
+    },
+    {
+      "name": "Get Current Snapshot",
+      "type": "http_action",
+      "config": {
+        "method": "GET",
+        "url": "{{GATEWAY_URL}}/api/snapshot?run_id={{event.payload.run_id}}",
+        "output_alias": "current_snapshot",
+        "root_keys": ["run", "signals", "incidents", "plan", "actions", "outcomes", "resources", "events", "outbox"],
+        "timing": "immediately_before_validation_and_write"
+      }
+    },
+    {
+      "name": "Validate Signal Before Write",
+      "type": "condition",
+      "config": {
+        "validation_kind": "schema_and_relational",
+        "all": [
+          "normalize_signal.output valid against output.schema.json",
+          "signal.status == active",
+          "signal.signal_id == event.payload.signal_identity.signal_id",
+          "signal.revision == event.payload.signal_identity.revision",
+          "trigger.run_id == event.run_id == event.payload.run_id",
+          "signal.run_id == event.payload.run_id == current_snapshot.run.run_id",
+          "signal.pack_id == event.payload.pack_id == current_snapshot.run.pack_id",
+          "signal.pack_version == event.payload.pack_version == current_snapshot.run.pack_version",
+          "signal.pack_digest == event.payload.pack_digest == current_snapshot.run.pack_digest",
+          "signal.scenario_at == event.payload.scenario_at",
+          "signal.received_at == event.payload.received_at",
+          "signal.correlation_id == event.payload.correlation_id",
+          "signal.causation_id == event.payload.causation_id",
+          "current_snapshot.run.status == running"
+        ],
+        "false_branch": "stop_before_write_and_route_to_human_review"
+      }
+    },
+    {
+      "name": "Gateway upsert_signal",
+      "type": "http_action",
+      "config": {
+        "method": "POST",
+        "url": "{{GATEWAY_URL}}/api/commands",
+        "content_type": "application/json",
+        "body": {
+          "command_id": "intake:{{current_snapshot.run.run_id}}:{{signal.signal_id}}:{{signal.revision}}",
+          "run_id": "{{current_snapshot.run.run_id}}",
+          "pack_id": "{{current_snapshot.run.pack_id}}",
+          "pack_version": "{{current_snapshot.run.pack_version}}",
+          "pack_digest": "{{current_snapshot.run.pack_digest}}",
+          "expected_state_version": "{{current_snapshot.run.state_version}}",
+          "actor": "happyrobot",
+          "command_type": "upsert_signal",
+          "payload": { "signal": "{{normalize_signal.output}}" },
+          "causation_id": "{{event.event_id}}"
+        },
+        "on_status": { "409": "Refresh Snapshot After Conflict" },
+        "max_conflict_retries": 1
+      }
+    },
+    {
+      "name": "Refresh Snapshot After Conflict",
+      "type": "http_action",
+      "config": {
+        "only_after_status": 409,
+        "method": "GET",
+        "url": "{{GATEWAY_URL}}/api/snapshot?run_id={{event.payload.run_id}}",
+        "output_alias": "retry_snapshot",
+        "root_keys": ["run", "signals", "incidents", "plan", "actions", "outcomes", "resources", "events", "outbox"]
+      }
+    },
+    {
+      "name": "Revalidate Signal After Conflict",
+      "type": "condition",
+      "config": {
+        "validation_kind": "schema_and_relational",
+        "all": [
+          "normalize_signal.output valid against output.schema.json",
+          "signal.status == active",
+          "signal.signal_id == event.payload.signal_identity.signal_id",
+          "signal.revision == event.payload.signal_identity.revision",
+          "trigger.run_id == event.run_id == event.payload.run_id",
+          "signal.run_id == event.payload.run_id == retry_snapshot.run.run_id",
+          "signal.pack_id == event.payload.pack_id == retry_snapshot.run.pack_id",
+          "signal.pack_version == event.payload.pack_version == retry_snapshot.run.pack_version",
+          "signal.pack_digest == event.payload.pack_digest == retry_snapshot.run.pack_digest",
+          "retry_snapshot.run.status == running"
+        ],
+        "false_branch": "stop_before_retry_and_route_to_human_review"
+      }
+    },
+    {
+      "name": "Retry Gateway upsert_signal Once",
+      "type": "http_action",
+      "config": {
+        "only_after_status": 409,
+        "retry_ordinal": 1,
+        "method": "POST",
+        "url": "{{GATEWAY_URL}}/api/commands",
+        "content_type": "application/json",
+        "body": {
+          "command_id": "intake:{{retry_snapshot.run.run_id}}:{{signal.signal_id}}:{{signal.revision}}",
+          "run_id": "{{retry_snapshot.run.run_id}}",
+          "pack_id": "{{retry_snapshot.run.pack_id}}",
+          "pack_version": "{{retry_snapshot.run.pack_version}}",
+          "pack_digest": "{{retry_snapshot.run.pack_digest}}",
+          "expected_state_version": "{{retry_snapshot.run.state_version}}",
+          "actor": "happyrobot",
+          "command_type": "upsert_signal",
+          "payload": { "signal": "{{normalize_signal.output}}" },
+          "causation_id": "{{event.event_id}}"
+        },
+        "on_status": { "409": "stop_and_leave_redelivery_to_persisted_outbox" },
+        "max_conflict_retries": 0
+      }
+    }
+  ]
+}

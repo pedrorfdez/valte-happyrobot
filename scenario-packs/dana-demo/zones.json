@@ -1,0 +1,22 @@
+{
+  "zones": [
+    {
+      "zone_id": "paiporta-ground-floor",
+      "name": "Paiporta — planta baja",
+      "kind": "residential",
+      "display": { "x": 18, "y": 62 }
+    },
+    {
+      "zone_id": "catarroja-health-centre",
+      "name": "Catarroja — centro de salud",
+      "kind": "healthcare",
+      "display": { "x": 52, "y": 48 }
+    },
+    {
+      "zone_id": "south-bridge",
+      "name": "Puente Sur",
+      "kind": "transport",
+      "display": { "x": 78, "y": 30 }
+    }
+  ]
+}

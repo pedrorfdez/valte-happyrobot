@@ -1,0 +1,36 @@
+{
+  "entities": [
+    {
+      "entity_id": "caller-paiporta-01",
+      "entity_type": "resident",
+      "name": "Llamante Paiporta 01",
+      "zone_id": "paiporta-ground-floor",
+      "source_trust": "medium",
+      "fictional": true
+    },
+    {
+      "entity_id": "clinic-ops-catarroja",
+      "entity_type": "healthcare_operator",
+      "name": "Operaciones Centro de Salud",
+      "zone_id": "catarroja-health-centre",
+      "source_trust": "high",
+      "fictional": true
+    },
+    {
+      "entity_id": "social-forward-bridge",
+      "entity_type": "social_media_forward",
+      "name": "Reenvío social Puente Sur",
+      "zone_id": "south-bridge",
+      "source_trust": "low",
+      "fictional": true
+    },
+    {
+      "entity_id": "road-sensor-paiporta",
+      "entity_type": "road_sensor",
+      "name": "Sensor vial Paiporta",
+      "zone_id": "paiporta-ground-floor",
+      "source_trust": "high",
+      "fictional": true
+    }
+  ]
+}

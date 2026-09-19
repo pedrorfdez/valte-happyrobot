@@ -1,0 +1,56 @@
+{
+  "events": [
+    {
+      "event_id": "dana-call-trapped-001",
+      "due_seconds": 0,
+      "signal_identity": { "signal_id": "sig-dana-call-001", "revision": 1 },
+      "source_input": {
+        "source_input_id": "src-dana-call-001",
+        "modality": "call_transcript",
+        "content": "SIMULACIÓN: dos personas dicen estar atrapadas en una planta baja de Paiporta y el agua sigue subiendo.",
+        "reporter_id": "caller-paiporta-01",
+        "origin_reference": "fictional-call-dana-001",
+        "declared_location": "paiporta-ground-floor"
+      }
+    },
+    {
+      "event_id": "dana-clinic-preparation-001",
+      "due_seconds": 45,
+      "signal_identity": { "signal_id": "sig-dana-clinic-001", "revision": 1 },
+      "source_input": {
+        "source_input_id": "src-dana-clinic-001",
+        "modality": "webhook",
+        "content": "SIMULACIÓN: el centro de salud de Catarroja informa de pacientes vulnerables y pide preparar una posible evacuación.",
+        "reporter_id": "clinic-ops-catarroja",
+        "origin_reference": "fictional-clinic-dana-001",
+        "declared_location": "catarroja-health-centre"
+      }
+    },
+    {
+      "event_id": "dana-bridge-rumour-001",
+      "due_seconds": 90,
+      "signal_identity": { "signal_id": "sig-dana-rumour-001", "revision": 1 },
+      "source_input": {
+        "source_input_id": "src-dana-rumour-001",
+        "modality": "text",
+        "content": "SIMULACIÓN: un mensaje reenviado sin autor verificable afirma que el Puente Sur se ha derrumbado.",
+        "reporter_id": "social-forward-bridge",
+        "origin_reference": "fictional-forward-dana-001",
+        "declared_location": "south-bridge"
+      }
+    },
+    {
+      "event_id": "dana-route-blocked-001",
+      "due_seconds": 180,
+      "signal_identity": { "signal_id": "sig-dana-road-001", "revision": 1 },
+      "source_input": {
+        "source_input_id": "src-dana-road-001",
+        "modality": "sensor_reading",
+        "content": "SIMULACIÓN: el sensor vial confirma que la ruta directa hacia Paiporta queda bloqueada desde este instante.",
+        "reporter_id": "road-sensor-paiporta",
+        "origin_reference": "fictional-road-dana-001",
+        "declared_location": "paiporta-ground-floor"
+      }
+    }
+  ]
+}

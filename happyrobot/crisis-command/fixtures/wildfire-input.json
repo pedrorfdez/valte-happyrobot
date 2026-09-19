@@ -1,0 +1,15 @@
+{
+  "dispatch_id": "dispatch-command-fire-001",
+  "run_id": "run-wildfire-demo",
+  "event": {
+    "event_id": 202,
+    "run_id": "run-wildfire-demo",
+    "state_version": 1,
+    "event_type": "signal.created",
+    "causation_id": "sig-fire-001",
+    "payload": {
+      "signal_id": "sig-fire-001",
+      "revision": 1
+    }
+  }
+}

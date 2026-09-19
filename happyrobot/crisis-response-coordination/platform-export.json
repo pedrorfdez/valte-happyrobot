@@ -1,0 +1,126 @@
+{
+  "version": {
+    "workflow_name": "crisis-response-coordination",
+    "name": "crisis-response-coordination-2.0.0",
+    "engine": "v3",
+    "environment": "development",
+    "export_status": "declarative_only"
+  },
+  "nodes": [
+    {
+      "name": "Coordination Input",
+      "type": "incoming_hook_trigger",
+      "config": {
+        "event_type": "action.approved",
+        "input_schema": "input.schema.json"
+      }
+    },
+    {
+      "name": "Get Snapshot",
+      "type": "http_action",
+      "config": {
+        "method": "GET",
+        "url": "{{GATEWAY_URL}}/api/snapshot?run_id={{run_id}}",
+        "output_alias": "snapshot",
+        "root_keys": ["run", "signals", "incidents", "plan", "actions", "outcomes", "resources", "events", "outbox"]
+      }
+    },
+    {
+      "name": "Revalidate Action",
+      "type": "condition",
+      "config": {
+        "all": [
+          "run.status == running",
+          "snapshot plan exists and plan.status == active",
+          "snapshot plan.run_id, pack_id, pack_version and pack_digest == snapshot run identity",
+          "snapshot action status == approved",
+          "snapshot action_id == trigger action_id",
+          "trigger.run_id == event.run_id == event.payload.run_id == snapshot run.run_id",
+          "snapshot action.run_id == event.payload.action.run_id == event.payload.run_id == snapshot run.run_id",
+          "snapshot action.pack_id == event.payload.action.pack_id == event.payload.pack_id == snapshot run.pack_id",
+          "snapshot action.pack_version == event.payload.action.pack_version == event.payload.pack_version == snapshot run.pack_version",
+          "snapshot action.pack_digest == event.payload.action.pack_digest == event.payload.pack_digest == snapshot run.pack_digest",
+          "snapshot action.plan_id == snapshot plan.plan_id",
+          "snapshot action.action_id is listed in snapshot plan.action_ids",
+          "snapshot action.incident_id is listed in snapshot plan.incident_ids",
+          "snapshot action.evidence_status == valid",
+          "every signal evidence reference resolves to an active snapshot Signal revision",
+          "every incident evidence reference resolves to an active snapshot Incident",
+          "run and pack identity exact",
+          "run.state_version >= event.state_version"
+        ],
+        "false_branch": "stop_without_side_effect"
+      }
+    },
+    {
+      "name": "Isolated Observation",
+      "type": "native_value",
+      "config": { "value": "fixtures/isolated-observation.json" }
+    },
+    {
+      "name": "Build Coordination Context",
+      "type": "native_variable_mapping",
+      "config": {
+        "schema": "context.schema.json",
+        "output_alias": "context",
+        "fields": ["dispatch_id", "trigger_event_id", "run", "action", "delivery_observation"],
+        "field_sources": {
+          "dispatch_id": "trigger.dispatch_id",
+          "trigger_event_id": "trigger.event.event_id",
+          "run": "snapshot.run",
+          "action": "snapshot.actions[action_id == trigger.event.payload.action.action_id]",
+          "delivery_observation": "isolated_observation"
+        }
+      }
+    },
+    {
+      "name": "Build Outcome",
+      "type": "ai_agent",
+      "config": {
+        "prompt": "prompt.md",
+        "output_format": "json",
+        "output_schema": "output.schema.json"
+      }
+    },
+    {
+      "name": "Validate Outcome Before Write",
+      "type": "condition",
+      "config": {
+        "validation_kind": "schema_and_relational",
+        "all": [
+          "build_outcome.output valid against output.schema.json",
+          "outcome.action_id == context.action.action_id == trigger.event.payload.action.action_id",
+          "outcome.attempt_id == context.dispatch_id == trigger.dispatch_id",
+          "outcome.run_id == context.run.run_id",
+          "outcome.pack_id == context.run.pack_id",
+          "outcome.pack_version == context.run.pack_version",
+          "outcome.pack_digest == context.run.pack_digest",
+          "outcome evidence references resolve to context.action evidence"
+        ],
+        "false_branch": "stop_before_write_and_route_to_human_review"
+      }
+    },
+    {
+      "name": "Gateway record_outcome",
+      "type": "http_action",
+      "config": {
+        "method": "POST",
+        "url": "{{GATEWAY_URL}}/api/commands",
+        "content_type": "application/json",
+        "body": {
+          "command_id": "coordination:{{context.dispatch_id}}:outcome",
+          "run_id": "{{context.run.run_id}}",
+          "pack_id": "{{context.run.pack_id}}",
+          "pack_version": "{{context.run.pack_version}}",
+          "pack_digest": "{{context.run.pack_digest}}",
+          "expected_state_version": "{{context.run.state_version}}",
+          "actor": "happyrobot",
+          "command_type": "record_outcome",
+          "payload": { "outcome": "{{build_outcome.output}}" },
+          "causation_id": "{{context.trigger_event_id}}"
+        },
+        "on_status": { "409": "stop_and_leave_redelivery_to_persisted_outbox" }
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "visibility": "postmortem_only",
+  "canary": "DANA_TRUTH_CANARY_7XQ9",
+  "facts": [
+    {
+      "fact_id": "truth-dana-trapped",
+      "statement": "The two trapped people are real and require the scarce water-rescue team first."
+    },
+    {
+      "fact_id": "truth-dana-clinic",
+      "statement": "The clinic has a longer preparation window than the trapped residents."
+    },
+    {
+      "fact_id": "truth-dana-bridge",
+      "statement": "The bridge-collapse message is an unverified recycled rumour."
+    },
+    {
+      "fact_id": "truth-dana-route",
+      "statement": "The direct route becomes unusable at scenario second 180."
+    }
+  ]
+}

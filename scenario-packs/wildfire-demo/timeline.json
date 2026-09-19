@@ -1,0 +1,56 @@
+{
+  "events": [
+    {
+      "event_id": "fire-camera-smoke-001",
+      "due_seconds": 0,
+      "signal_identity": { "signal_id": "sig-fire-camera-001", "revision": 1 },
+      "source_input": {
+        "source_input_id": "src-fire-camera-001",
+        "modality": "sensor_reading",
+        "content": "SIMULACIÓN: una cámara detecta una columna de humo activa en Pinar Norte.",
+        "reporter_id": "tower-camera-north",
+        "origin_reference": "fictional-camera-fire-001",
+        "declared_location": "pinar-norte"
+      }
+    },
+    {
+      "event_id": "fire-wind-reading-001",
+      "due_seconds": 40,
+      "signal_identity": { "signal_id": "sig-fire-wind-001", "revision": 1 },
+      "source_input": {
+        "source_input_id": "src-fire-wind-001",
+        "modality": "sensor_reading",
+        "content": "SIMULACIÓN: la estación registra viento que empuja el frente hacia el este.",
+        "reporter_id": "weather-station-east",
+        "origin_reference": "fictional-weather-fire-001",
+        "declared_location": "urbanizacion-este"
+      }
+    },
+    {
+      "event_id": "fire-old-video-001",
+      "due_seconds": 75,
+      "signal_identity": { "signal_id": "sig-fire-video-001", "revision": 1 },
+      "source_input": {
+        "source_input_id": "src-fire-video-001",
+        "modality": "text",
+        "content": "SIMULACIÓN: circula un vídeo sin fecha que supuestamente muestra llamas junto al Corredor Sur.",
+        "reporter_id": "old-video-forward",
+        "origin_reference": "fictional-video-fire-2022",
+        "declared_location": "corredor-sur"
+      }
+    },
+    {
+      "event_id": "fire-wind-change-001",
+      "due_seconds": 150,
+      "signal_identity": { "signal_id": "sig-fire-wind-002", "revision": 1 },
+      "source_input": {
+        "source_input_id": "src-fire-wind-002",
+        "modality": "sensor_reading",
+        "content": "SIMULACIÓN: una nueva lectura confirma un giro del viento y mayor exposición de Urbanización Este.",
+        "reporter_id": "weather-station-east",
+        "origin_reference": "fictional-weather-fire-002",
+        "declared_location": "urbanizacion-este"
+      }
+    }
+  ]
+}

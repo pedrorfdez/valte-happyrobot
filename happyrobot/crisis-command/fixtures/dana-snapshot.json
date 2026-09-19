@@ -1,0 +1,52 @@
+{
+  "run": {
+    "run_id": "run-dana-demo",
+    "pack_id": "dana-demo",
+    "pack_version": "1.0.0",
+    "pack_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "status": "running",
+    "scenario_now": "2026-09-19T10:00:01Z",
+    "state_version": 1
+  },
+  "signals": [
+    {
+      "contract_version": "2.0.0",
+      "run_id": "run-dana-demo",
+      "pack_id": "dana-demo",
+      "pack_version": "1.0.0",
+      "pack_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "scenario_at": "2026-09-19T10:00:00Z",
+      "received_at": "2026-09-19T10:00:01Z",
+      "correlation_id": "run-dana-demo",
+      "causation_id": null,
+      "signal_id": "sig-dana-001",
+      "revision": 1,
+      "status": "active",
+      "modality": "sensor_reading",
+      "content": "Water level sensor reports flooding in Paiporta.",
+      "claims": [{ "type": "flood", "description": "Flooding is present in Paiporta." }],
+      "source": {
+        "reporter_id": "sensor-paiporta",
+        "origin_reference": "reading-dana-001",
+        "source_cluster_id": "cluster-dana-001",
+        "independence_status": "confirmed_independent"
+      },
+      "location": { "zone_id": "paiporta", "precision": "exact" },
+      "signal_confidence": "high"
+    }
+  ],
+  "incidents": [],
+  "plan": null,
+  "actions": [],
+  "outcomes": [],
+  "resources": [
+    {
+      "resource_id": "water-rescue-team-1",
+      "resource_type": "water_rescue_team",
+      "capacity": 1,
+      "available": 1
+    }
+  ],
+  "events": [],
+  "outbox": []
+}

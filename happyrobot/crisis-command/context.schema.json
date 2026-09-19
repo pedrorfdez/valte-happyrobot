@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/happyrobot/crisis-command/context.schema.json",
+  "type": "object",
+  "required": ["dispatch_id", "trigger_event", "run", "signals", "incidents", "plan", "actions", "outcomes", "resources", "events", "outbox"],
+  "properties": {
+    "dispatch_id": { "type": "string", "minLength": 1 },
+    "trigger_event": { "type": "object" },
+    "run": {
+      "type": "object",
+      "required": ["run_id", "pack_id", "pack_version", "pack_digest", "status", "scenario_now", "state_version"],
+      "properties": {
+        "run_id": { "type": "string" },
+        "pack_id": { "type": "string" },
+        "pack_version": { "type": "string" },
+        "pack_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "status": { "enum": ["ready", "running", "paused", "completed", "aborted"] },
+        "scenario_now": { "type": "string", "format": "date-time" },
+        "state_version": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "signals": { "type": "array", "items": { "$ref": "https://valte.dev/schemas/v2/signal.schema.json" } },
+    "incidents": { "type": "array", "items": { "$ref": "https://valte.dev/schemas/v2/incident.schema.json" } },
+    "plan": { "oneOf": [{ "$ref": "https://valte.dev/schemas/v2/plan.schema.json" }, { "type": "null" }] },
+    "actions": { "type": "array", "items": { "$ref": "https://valte.dev/schemas/v2/action.schema.json" } },
+    "outcomes": { "type": "array", "items": { "$ref": "https://valte.dev/schemas/v2/outcome.schema.json" } },
+    "resources": { "type": "array", "items": { "type": "object" } },
+    "events": { "type": "array", "items": { "type": "object" } },
+    "outbox": { "type": "array", "items": { "type": "object" } }
+  },
+  "additionalProperties": false
+}

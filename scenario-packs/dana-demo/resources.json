@@ -1,0 +1,12 @@
+{
+  "resources": [
+    {
+      "resource_id": "water-rescue-team-1",
+      "name": "Equipo de rescate acuático 1",
+      "resource_mode": "reusable",
+      "capacity": 1,
+      "capabilities": ["water_rescue"],
+      "initial_zone_id": "catarroja-health-centre"
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/happyrobot/crisis-intake/input.schema.json",
+  "type": "object",
+  "required": ["dispatch_id", "run_id", "event"],
+  "properties": {
+    "dispatch_id": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "event": {
+      "type": "object",
+      "required": ["event_id", "run_id", "state_version", "event_type", "causation_id", "payload"],
+      "properties": {
+        "event_id": { "type": "integer", "minimum": 1 },
+        "run_id": { "type": "string", "minLength": 1 },
+        "state_version": { "type": "integer", "minimum": 1 },
+        "event_type": { "const": "source_input.received" },
+        "causation_id": { "type": ["string", "null"] },
+        "payload": {
+          "type": "object",
+          "required": [
+            "signal_identity", "source_input", "run_id", "pack_id", "pack_version",
+            "pack_digest", "state_version", "scenario_at", "received_at",
+            "correlation_id", "causation_id", "zone_catalog"
+          ],
+          "properties": {
+            "signal_identity": {
+              "type": "object",
+              "required": ["signal_id", "revision"],
+              "properties": {
+                "signal_id": { "type": "string", "minLength": 1 },
+                "revision": { "type": "integer", "minimum": 1 }
+              },
+              "additionalProperties": false
+            },
+            "source_input": {
+              "type": "object",
+              "required": ["source_input_id", "modality", "content", "reporter_id", "origin_reference", "declared_location"],
+              "properties": {
+                "source_input_id": { "type": "string", "minLength": 1 },
+                "modality": { "enum": ["text", "call_transcript", "sensor_reading", "broadcast", "webhook"] },
+                "content": { "type": "string", "minLength": 1 },
+                "reporter_id": { "type": ["string", "null"] },
+                "origin_reference": { "type": ["string", "null"] },
+                "declared_location": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            },
+            "run_id": { "type": "string", "minLength": 1 },
+            "pack_id": { "type": "string", "minLength": 1 },
+            "pack_version": { "type": "string", "minLength": 1 },
+            "pack_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "state_version": { "type": "integer", "minimum": 1 },
+            "scenario_at": { "type": "string", "format": "date-time" },
+            "received_at": { "type": "string", "format": "date-time" },
+            "correlation_id": { "type": "string", "minLength": 1 },
+            "causation_id": { "type": ["string", "null"] },
+            "zone_catalog": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["zone_id", "label"],
+                "properties": {
+                  "zone_id": { "type": "string" },
+                  "label": { "type": "string" }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

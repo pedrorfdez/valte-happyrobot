@@ -1,0 +1,17 @@
+{
+  "pack_id": "dana-demo",
+  "pack_version": "1.0.0",
+  "pack_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "scenario_schema_version": "1.0.0-demo",
+  "minimum_engine_version": "1.0.0-demo",
+  "locale": "es-ES",
+  "scenario_start": "2026-09-19T10:00:00Z",
+  "duration_seconds": 480,
+  "public_files": [
+    "manifest.json",
+    "zones.json",
+    "entities.json",
+    "resources.json",
+    "timeline.json"
+  ]
+}

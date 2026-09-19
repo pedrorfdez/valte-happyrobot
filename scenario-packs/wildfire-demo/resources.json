@@ -1,0 +1,12 @@
+{
+  "resources": [
+    {
+      "resource_id": "wildfire-brigade-1",
+      "name": "Brigada forestal 1",
+      "resource_mode": "reusable",
+      "capacity": 1,
+      "capabilities": ["wildfire_response"],
+      "initial_zone_id": "corredor-sur"
+    }
+  ]
+}

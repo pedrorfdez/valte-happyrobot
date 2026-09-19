@@ -1,0 +1,94 @@
+import { callRpc, jsonResponse } from "../_shared/supabase.mjs";
+
+const actors = new Set(["scenario-controller", "happyrobot", "operator"]);
+const commandTypes = new Set([
+  "receive_source_input", "upsert_signal", "replace_plan",
+  "approve_action", "reject_action", "record_outcome",
+  "advance_clock", "pause_run", "resume_run", "abort_run"
+]);
+const requiredFields = [
+  "command_id", "run_id", "pack_id", "pack_version", "pack_digest",
+  "expected_state_version", "actor", "command_type", "payload", "causation_id"
+];
+
+const parseBody = (body) => typeof body === "string" ? JSON.parse(body) : body;
+
+function invalid(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return "body must be an object";
+  const missing = requiredFields.filter((field) => !(field in body));
+  if (missing.length) return `missing fields: ${missing.join(", ")}`;
+  if (!actors.has(body.actor)) return "actor is not allowlisted";
+  if (!commandTypes.has(body.command_type)) return "command_type is not allowlisted";
+  if (!Number.isSafeInteger(body.expected_state_version) || body.expected_state_version < 0) return "expected_state_version must be a non-negative safe integer";
+  if (!/^[a-f0-9]{64}$/.test(body.pack_digest)) return "pack_digest must be 64 lowercase hexadecimal characters";
+  if (!body.payload || typeof body.payload !== "object" || Array.isArray(body.payload)) return "payload must be an object";
+  return null;
+}
+
+const isObject = (value) => value && typeof value === "object" && !Array.isArray(value);
+
+function recordsFor(command) {
+  if (command.command_type === "upsert_signal") return [["signal", command.payload.signal]];
+  if (command.command_type === "record_outcome") return [["outcome", command.payload.outcome]];
+  if (command.command_type !== "replace_plan") return [];
+  if (!Array.isArray(command.payload.incidents) || !Array.isArray(command.payload.actions)) {
+    return { error: "replace_plan requires incident and action arrays" };
+  }
+  return [
+    ...command.payload.incidents.map((record) => ["incident", record]),
+    ["plan", command.payload.plan],
+    ...command.payload.actions.map((record) => ["action", record])
+  ];
+}
+
+function validateDomainIdentity(command) {
+  const records = recordsFor(command);
+  if (records.error) return records.error;
+  for (const [kind, record] of records) {
+    if (!isObject(record)) return `${kind} must be an object`;
+    if (record.contract_version !== "2.0.0") return `${kind}.contract_version must be 2.0.0`;
+    for (const field of ["run_id", "pack_id", "pack_version", "pack_digest"]) {
+      if (record[field] !== command[field]) return `${kind}.${field} differs from command`;
+    }
+  }
+  return null;
+}
+
+const errorStatus = (code) => {
+  if (code === "run_not_found") return 404;
+  if (["version_conflict", "idempotency_mismatch", "pack_context_mismatch"].includes(code)) return 409;
+  return 400;
+};
+
+export default async function commands(context, req) {
+  try {
+    let command;
+    try {
+      command = parseBody(req.body);
+    } catch {
+      context.res = jsonResponse(400, { ok: false, error: "invalid_command", message: "body must be valid JSON" });
+      return;
+    }
+    const transportError = invalid(command);
+    if (transportError) {
+      context.res = jsonResponse(400, { ok: false, error: "invalid_command", message: transportError });
+      return;
+    }
+
+    const domainError = validateDomainIdentity(command);
+    if (domainError) {
+      context.res = jsonResponse(400, { ok: false, error: "invalid_contract_identity", message: domainError });
+      return;
+    }
+
+    const result = await callRpc("apply_command", { p_command: command });
+    context.res = jsonResponse(result.error ? errorStatus(result.error) : 200, result);
+  } catch (error) {
+    context.log.error(error);
+    context.res = jsonResponse(500, {
+      ok: false,
+      error: "gateway_failure",
+      message: error.message
+    });
+  }
+}

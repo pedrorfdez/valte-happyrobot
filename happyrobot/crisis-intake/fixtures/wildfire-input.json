@@ -1,0 +1,35 @@
+{
+  "dispatch_id": "dispatch-intake-fire-001",
+  "run_id": "run-wildfire-demo",
+  "event": {
+    "event_id": 201,
+    "run_id": "run-wildfire-demo",
+    "state_version": 1,
+    "event_type": "source_input.received",
+    "causation_id": "source-fire-sensor-001",
+    "payload": {
+      "signal_identity": { "signal_id": "sig-fire-sensor-001", "revision": 1 },
+      "source_input": {
+        "source_input_id": "source-fire-sensor-001",
+        "modality": "sensor_reading",
+        "content": "Thermal sensor reports elevated heat in Pinar Norte; flame confirmation is not available.",
+        "reporter_id": "sensor-pinar-01",
+        "origin_reference": "reading-fire-001",
+        "declared_location": "Pinar Norte"
+      },
+      "run_id": "run-wildfire-demo",
+      "pack_id": "wildfire-demo",
+      "pack_version": "1.0.0",
+      "pack_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "state_version": 1,
+      "scenario_at": "2026-09-19T11:00:00Z",
+      "received_at": "2026-09-19T11:00:01Z",
+      "correlation_id": "run-wildfire-demo",
+      "causation_id": "source-fire-sensor-001",
+      "zone_catalog": [
+        { "zone_id": "pinar-norte", "label": "Pinar Norte" },
+        { "zone_id": "urbanizacion-este", "label": "Urbanización Este" }
+      ]
+    }
+  }
+}

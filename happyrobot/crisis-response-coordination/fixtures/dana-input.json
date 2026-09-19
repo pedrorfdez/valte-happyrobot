@@ -1,0 +1,47 @@
+{
+  "dispatch_id": "dispatch-coordination-dana-001",
+  "run_id": "run-dana-demo",
+  "event": {
+    "event_id": 103,
+    "run_id": "run-dana-demo",
+    "state_version": 3,
+    "event_type": "action.approved",
+    "causation_id": "approval-dana-001",
+    "payload": {
+      "action": {
+        "contract_version": "2.0.0",
+        "run_id": "run-dana-demo",
+        "pack_id": "dana-demo",
+        "pack_version": "1.0.0",
+        "pack_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "scenario_at": "2026-09-19T10:00:00Z",
+        "received_at": "2026-09-19T10:00:04Z",
+        "correlation_id": "run-dana-demo",
+        "causation_id": "plan-dana-001",
+        "action_id": "act-dana-001",
+        "plan_id": "plan-dana-001",
+        "incident_id": "inc-dana-001",
+        "primitive": "allocate_resource",
+        "status": "approved",
+        "actor_id": "rescue-team",
+        "target": { "zone_id": "paiporta" },
+        "params": { "units": 1 },
+        "action_effect_fingerprint": "allocate_resource:paiporta:1",
+        "evidence": [{ "kind": "signal", "signal_id": "sig-dana-001", "revision": 1 }],
+        "evidence_status": "valid",
+        "reasoning": "Independent sensor evidence shows immediate danger.",
+        "priority": "P0",
+        "risk": "medium",
+        "approval_policy": "automatic",
+        "reservation_id": null
+      },
+      "run_id": "run-dana-demo",
+      "pack_id": "dana-demo",
+      "pack_version": "1.0.0",
+      "pack_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "state_version": 3,
+      "correlation_id": "run-dana-demo",
+      "causation_id": "approval-dana-001"
+    }
+  }
+}

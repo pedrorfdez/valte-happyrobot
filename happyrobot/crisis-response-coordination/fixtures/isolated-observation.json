@@ -1,0 +1,5 @@
+{
+  "status": "partial",
+  "summary": "Isolated smoke only; no external effect was attempted.",
+  "observed_effects": { "interaction_mode": "dry-run" }
+}

@@ -1,0 +1,18 @@
+{
+  "visibility": "postmortem_only",
+  "canary": "WILDFIRE_TRUTH_CANARY_4MK2",
+  "facts": [
+    {
+      "fact_id": "truth-fire-front",
+      "statement": "The active fire begins in Pinar Norte."
+    },
+    {
+      "fact_id": "truth-fire-wind",
+      "statement": "The wind change genuinely increases exposure in Urbanizacion Este."
+    },
+    {
+      "fact_id": "truth-fire-video",
+      "statement": "The social video predates this run and must not independently drive deployment."
+    }
+  ]
+}

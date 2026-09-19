@@ -1,0 +1,52 @@
+{
+  "run": {
+    "run_id": "run-wildfire-demo",
+    "pack_id": "wildfire-demo",
+    "pack_version": "1.0.0",
+    "pack_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "status": "running",
+    "scenario_now": "2026-09-19T11:00:01Z",
+    "state_version": 1
+  },
+  "signals": [
+    {
+      "contract_version": "2.0.0",
+      "run_id": "run-wildfire-demo",
+      "pack_id": "wildfire-demo",
+      "pack_version": "1.0.0",
+      "pack_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "scenario_at": "2026-09-19T11:00:00Z",
+      "received_at": "2026-09-19T11:00:01Z",
+      "correlation_id": "run-wildfire-demo",
+      "causation_id": null,
+      "signal_id": "sig-fire-001",
+      "revision": 1,
+      "status": "active",
+      "modality": "sensor_reading",
+      "content": "Thermal sensor reports elevated heat in Pinar Norte.",
+      "claims": [{ "type": "wildfire", "description": "Elevated heat is present in Pinar Norte." }],
+      "source": {
+        "reporter_id": "sensor-pinar",
+        "origin_reference": "reading-fire-001",
+        "source_cluster_id": "cluster-fire-001",
+        "independence_status": "confirmed_independent"
+      },
+      "location": { "zone_id": "pinar-norte", "precision": "exact" },
+      "signal_confidence": "high"
+    }
+  ],
+  "incidents": [],
+  "plan": null,
+  "actions": [],
+  "outcomes": [],
+  "resources": [
+    {
+      "resource_id": "wildfire-brigade-1",
+      "resource_type": "wildfire_brigade",
+      "capacity": 1,
+      "available": 1
+    }
+  ],
+  "events": [],
+  "outbox": []
+}

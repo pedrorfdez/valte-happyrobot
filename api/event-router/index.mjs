@@ -1,0 +1,128 @@
+import { callRpc, jsonResponse } from "../_shared/supabase.mjs";
+
+const required = (name) => {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+};
+
+const HAPPYROBOT_TIMEOUT_MS = 20_000;
+
+const workflowSettingByDestination = {
+  "crisis-intake": "HAPPYROBOT_INTAKE_WORKFLOW_ID",
+  "crisis-command": "HAPPYROBOT_COMMAND_WORKFLOW_ID",
+  "crisis-response-coordination": "HAPPYROBOT_COORDINATION_WORKFLOW_ID"
+};
+
+async function happyRobot(path, options = {}) {
+  const baseUrl = required("HAPPYROBOT_BASE_URL").replace(/\/$/, "");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), HAPPYROBOT_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers: {
+        authorization: `Bearer ${required("HAPPYROBOT_KEY")}`,
+        "content-type": "application/json",
+        accept: "application/json",
+        ...options.headers
+      },
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+  const text = await response.text();
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+  }
+  if (!response.ok) throw new Error(`HappyRobot ${response.status}: ${text}`);
+  return data;
+}
+
+export default async function eventRouter(context, req) {
+  let body;
+  try {
+    body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body ?? {});
+  } catch {
+    context.res = jsonResponse(400, { error: "invalid_request", message: "body must be valid JSON" });
+    return;
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    context.res = jsonResponse(400, { error: "invalid_request", message: "body must be an object" });
+    return;
+  }
+
+  const requested = Number(body.limit ?? 10);
+  const limit = Number.isInteger(requested) ? Math.max(1, Math.min(requested, 10)) : 10;
+  const runId = body.run_id ?? null;
+  if (runId !== null && (typeof runId !== "string" || !runId.trim())) {
+    context.res = jsonResponse(400, { error: "invalid_request", message: "run_id must be a non-empty string" });
+    return;
+  }
+
+  try {
+    const jobs = await callRpc("claim_outbox", { p_limit: limit, p_run_id: runId });
+    if (!jobs.length) {
+      context.res = jsonResponse(200, { claimed: 0, dispatched: 0, failed: 0, results: [] });
+      return;
+    }
+
+    const results = await Promise.all(jobs.map(async (job) => {
+      let succeeded = false;
+      let errorMessage = null;
+      let workflowRunId = null;
+      try {
+        const settingName = workflowSettingByDestination[job.destination];
+        if (!settingName) throw new Error(`destination is not allowlisted: ${job.destination}`);
+        const workflowId = required(settingName);
+        const launched = await happyRobot(`/workflows/${workflowId}/runs`, {
+          method: "POST",
+          body: JSON.stringify({
+            environment: required("HAPPYROBOT_ENV"),
+            payload: {
+              dispatch_id: job.dispatch_id,
+              run_id: job.run_id,
+              event: job.payload
+            }
+          })
+        });
+        workflowRunId = launched?.id ?? launched?.data?.id ?? null;
+        succeeded = true;
+      } catch (error) {
+        errorMessage = error.message;
+      }
+
+      const receipt = await callRpc("finish_outbox", {
+        p_outbox_id: job.outbox_id,
+        p_dispatch_id: job.dispatch_id,
+        p_succeeded: succeeded,
+        p_error: errorMessage
+      });
+      return {
+        outbox_id: job.outbox_id,
+        destination: job.destination,
+        dispatch_id: job.dispatch_id,
+        workflow_run_id: workflowRunId,
+        succeeded,
+        receipt
+      };
+    }));
+
+    context.res = jsonResponse(200, {
+      claimed: jobs.length,
+      dispatched: results.filter((item) => item.succeeded).length,
+      failed: results.filter((item) => !item.succeeded).length,
+      results
+    });
+  } catch (error) {
+    context.log.error(error);
+    context.res = jsonResponse(500, { error: "event_router_failure", message: error.message });
+  }
+}
