@@ -155,16 +155,18 @@ Proceso:
 3. Extrae claims sin presentarlos como hechos confirmados.
 4. Separa contenido relevante de ruido.
 5. Calcula `content_fingerprint`, enlaza derivaciones conocidas y asigna un cluster de procedencia.
-6. Resuelve ubicación con Locate/Maps si está disponible o con el catálogo local de zonas.
-7. Expresa precisión, confianza, independencia, contradicciones y necesidad de verificación.
-8. Durante una llamada publica una observación provisional.
-9. Al finalizar revisa el transcript completo y publica una revisión final.
+6. Conserva el texto de ubicación original y genera candidatos normalizados con Locate/Maps si está disponible o con el catálogo local del pack.
+7. Si una conversación mantiene varios candidatos plausibles, publica primero la observación provisional y formula una pregunta de desambiguación cada vez.
+8. Versiona las hipótesis de ubicación y expresa por separado estado, precisión, procedencia y evidencia de cada candidato.
+9. Expresa confianza del contenido, independencia, contradicciones y necesidad de verificación sin confundirlas con la confianza geográfica.
+10. Durante una llamada publica una observación provisional.
+11. Al finalizar revisa el transcript completo y publica una revisión final.
 
 La idempotencia de las revisiones usa `report_id:revision`. Cada revisión es inmutable y puede quedar `active`, `superseded` o `retracted`. Una revisión final puede corregir o retirar una observación provisional sin borrar su historial ni cambiar retrospectivamente lo que el sistema conocía.
 
 Si solo existe un reporte crítico no verificado, Intake puede provocar verificación urgente, preparación reversible y solicitud de aprobación; nunca autoriza por sí mismo un despliegue.
 
-Salida: una `Signal` creada o revisada, con evidencias y confianza explicable. Intake no crea planes, no reserva recursos y no ejecuta acciones.
+Salida: una `Signal` creada o revisada, con evidencias, confianza explicable e hipótesis de ubicación versionadas. Intake no crea planes, no reserva recursos y no ejecuta acciones.
 
 Cuando una entrada no contiene `crisis_id`, se asocia automáticamente solo si existe un único run activo compatible; en cualquier otro caso queda en `needs_review`.
 
@@ -197,6 +199,7 @@ Las propuestas pasan por validación determinista de:
 - capacidad, jurisdicción y estado del actor;
 - unidades y reservas;
 - ruta operativa;
+- estado y precisión de ubicación exigidos por la categoría de acción;
 - integración y destinatario permitidos;
 - política de riesgo y aprobación;
 - HumanDirective activas y su precedencia;
@@ -252,9 +255,29 @@ Cada run de la demo contiene exactamente un agregado de crisis. `crisis_id` iden
 
 ### 6.1 Signal
 
-Una Signal es evidencia observable, no ground truth. Contiene contenido original, claims, fuente, modalidad, ubicación, precisión, confianza, procedencia y revisión. Distingue el prior `source_trust_snapshot` de la confianza calculada `signal_confidence`. Sus revisiones son append-only; `superseded` significa reemplazada por información más reciente y `retracted` significa que sus claims ya no deben sustentar decisiones activas.
+Una Signal es evidencia observable, no ground truth. Contiene contenido original, claims, fuente, modalidad, ubicación declarada, hipótesis de ubicación, confianza, procedencia y revisión. Distingue el prior `source_trust_snapshot` de la confianza calculada `signal_confidence`; ninguno de ellos sustituye el estado o precisión geográfica. Sus revisiones son append-only; `superseded` significa reemplazada por información más reciente y `retracted` significa que sus claims ya no deben sustentar decisiones activas.
 
 Su procedencia incluye `reporter_id`, `origin_reference` cuando se conoce, `derived_from_signal_id`, `content_fingerprint`, `source_cluster_id` e `independence_status`. Este último puede ser `confirmed_independent`, `likely_same_origin` o `unknown`.
+
+#### Hipótesis de ubicación
+
+Una `LocationHypothesis` pertenece a una revisión concreta de Signal y nunca reemplaza el texto original declarado. Conserva `location_hypothesis_id`, revisión, candidatos normalizados, candidato seleccionado si existe, procedencia, evidencia, precisión, razón y uno de estos estados:
+
+- `unresolved`: no existe todavía un candidato útil;
+- `ambiguous`: existen dos o más candidatos plausibles;
+- `provisional`: se ha seleccionado un candidato, pero aún no cumple la regla de verificación;
+- `verified`: una regla determinista del pack o una confirmación humana respaldada por evidencia valida el candidato;
+- `contradicted`: evidencia posterior invalida la selección anterior.
+
+Para evaluar policies, los estados válidos progresan `unresolved < ambiguous < provisional < verified`; `contradicted` nunca satisface un mínimo. La precisión usa el orden cerrado `unknown < multi_zone < zone < landmark < exact_asset`. Un estado `verified` no implica precisión máxima: por ejemplo, una zona puede estar verificada sin conocer el edificio exacto.
+
+Cada candidato referencia IDs del pack, como `zone_id`, `entity_id` o landmark normalizado, y registra si procede del reportero, proveedor, Locate/Maps, catálogo, otra Signal u operador. La IA puede proponer, ordenar y explicar candidatos, pero no declararlos `verified` por sí sola. Una corrección del operador entra como evidencia factual, no como HumanDirective.
+
+Las revisiones son append-only y apuntan a la revisión sustituida. Una Action geográficamente dirigida conserva `location_hypothesis_id` y revisión exacta. Antes de autorizar el efecto externo, el Gateway vuelve a comprobar que esa revisión sigue activa y cumple `minimum_location_status` y `minimum_location_precision`; en caso contrario devuelve `location_requirement_not_met` y activa replanificación.
+
+Con estado `unresolved`, `ambiguous` o `provisional`, el Plan puede verificar, contactar, preparar y crear una reserva `held`. Un aviso reversible puede cubrir todas las zonas candidatas solo si su plantilla indica incertidumbre y la policy lo permite. Ningún efecto dirigido a una ubicación concreta puede ejecutarse por debajo del mínimo declarado; una aprobación humana solo basta cuando la policy contempla explícitamente esa excepción y no puede saltarse una restricción dura.
+
+Al verificarse o contradecirse una hipótesis, el Gateway usa `evidence_dependencies` para marcar Incident, Plan, Action y Approval dependientes como `needs_reassessment`. Una corrección nunca modifica en sitio el objetivo de una Action: si aún no comenzó, el siguiente Plan la conserva, cancela o sustituye y ajusta su reserva atómicamente; si es P0/P1 o ya comenzó, cualquier redirección mantiene la aprobación exigida por el lifecycle normal. Los intentos y Outcomes anteriores permanecen históricos.
 
 ### 6.2 Incident
 
@@ -321,7 +344,7 @@ El modelo lógico incluye:
 - `zones`, `impact_edges`, `routes` y `dependency_edges`;
 - `entities` y `resources`, con `resources` como único ledger de capacidad y modo `reusable` o `consumable`;
 - `resource_reservations`, vinculadas a acción, unidades, estado y expiración;
-- `signals`, `signal_revisions`, `source_clusters`, `signal_provenance_links`, `incidents`, `incident_signals`, `incident_lineage`, `incident_reconciliation_candidates` y `evidence_dependencies`;
+- `signals`, `signal_revisions`, `signal_location_hypotheses`, `source_clusters`, `signal_provenance_links`, `incidents`, `incident_signals`, `incident_lineage`, `incident_reconciliation_candidates` y `evidence_dependencies`;
 - `plans`, `actions`, `approvals`, `action_attempts` y `outcomes`;
 - `human_directives` con razón y expiración;
 - `commands`, `events` y `outbox`, con carril de prioridad, clave de lote, disponibilidad y lease;
@@ -372,7 +395,7 @@ Cada entrada del Action Catalog que usa recursos declara `reservation_ttl_scenar
 
 ### 7.2 Retractación de evidencia
 
-`evidence_dependencies` mantiene el índice desde una revisión concreta de Signal hasta los Incident, Plan, Action y Approval que la utilizaron. Cada Action mantiene además `evidence_status`: `valid`, `needs_reassessment` o `invalidated`. El comando `retract_signal_revision` ejecuta en una única transacción:
+`evidence_dependencies` mantiene el índice desde una revisión concreta de Signal o LocationHypothesis hasta los Incident, Plan, Action y Approval que la utilizaron. Cada Action mantiene además `evidence_status`: `valid`, `needs_reassessment` o `invalidated`. El comando `retract_signal_revision` ejecuta en una única transacción:
 
 1. cambia la revisión `active` a `retracted` y registra la revisión final que la sustituye, si existe;
 2. marca los Incident dependientes como `needs_reassessment`;
@@ -473,6 +496,7 @@ Allowlist mínima:
 | `source_input.received` | `crisis-intake` |
 | `signal.created` / `signal.revised` | `crisis-command` |
 | `evidence.retracted` | `crisis-command`, prioridad inmediata |
+| `location_hypothesis.verified` / `contradicted` | `crisis-command`; contradicción con dependientes, prioridad inmediata |
 | `source_cluster.merged` / `source_cluster.split` | `crisis-command` |
 | `incident.reconciliation_approved` / `rejected` | `crisis-command` |
 | `route.blocked` / `resource.unavailable` | `crisis-command` |
@@ -484,7 +508,7 @@ Allowlist mínima:
 
 El Commander usa debounce de dos segundos de reloj real. El debounce no retrasa Intake ni una acción ya aprobada. `active_dispatch_id`, `lease_until`, `dirty` y `debounce_until` garantizan un único Commander activo. Un lease expirado conserva `dirty=true` para permitir recuperación.
 
-`evidence.retracted` omite el debounce normal si no hay Commander activo. Si ya existe uno, marca `dirty=true` y fuerza una única revisión adicional al terminar; nunca crea dos Commanders paralelos.
+`evidence.retracted` y una `location_hypothesis.contradicted` usada por una decisión activa omiten el debounce normal si no hay Commander activo. Si ya existe uno, marcan `dirty=true` y fuerzan una única revisión adicional al terminar; nunca crean dos Commanders paralelos.
 
 ### 9.1 Backpressure y tormentas de señales
 
@@ -494,7 +518,7 @@ Cada entrada del outbox conserva `lane`, `batch_key`, `available_at`, secuencia,
 
 | Carril | Trabajo |
 | --- | --- |
-| `control` | stop, abort, pause, aprobaciones, directivas y retractaciones de evidencia |
+| `control` | stop, abort, pause, aprobaciones, directivas, retractaciones de evidencia y contradicciones de ubicación activas |
 | `outcome` | callbacks, fallos, estados `unknown` y cambios de rutas o recursos |
 | `intake_live` | conversaciones activas y fuentes configuradas como críticas |
 | `signal_batch` | webhooks, sensores y señales estructuradas normales |
@@ -579,11 +603,12 @@ Una corrección factual, como declarar una ruta abierta, no es una HumanDirectiv
 
 `/ops` es una sola pantalla operativa con:
 
-- mapa esquemático de zonas, rutas y estado observable;
+- mapa esquemático de zonas, rutas, estado observable y áreas candidatas de ubicación;
 - incidentes P0–P3 y confianza;
 - plan activo, versión, diff, supuestos y evidencia;
 - revisiones de evidencia retractadas y decisiones dependientes pendientes de reevaluación;
 - número de Signals frente a número de clusters independientes, con explicación de agrupaciones;
+- ubicación declarada, candidato seleccionado, alternativas, precisión, estado y evidencia de verificación;
 - Incidents canónicos, candidatos `possible_duplicate`, lineage y controles para aprobar o rechazar merge/split;
 - recursos disponibles, reservados y en ejecución;
 - reservas `held`, `committed`, `expired`, `quarantined` y `consumed`, con acción y vencimiento;
@@ -653,6 +678,8 @@ playbook/
 
 El manifest declara `pack_id`, `pack_version`, `scenario_schema_version`, `minimum_engine_version`, idioma, duración, primitivas requeridas e integraciones requeridas/opcionales.
 
+`zones.json` y `entities.json` forman el catálogo local de ubicación. Además de IDs estables y nombres visibles, pueden declarar aliases, landmarks, zona contenedora y preguntas o atributos de desambiguación. Dos elementos pueden compartir nombre visible, pero nunca ID.
+
 Las únicas primitivas ejecutables por el motor son:
 
 - `allocate_resource`
@@ -668,9 +695,9 @@ Las únicas primitivas ejecutables por el motor son:
 
 `action-catalog.json` traduce verbos del escenario a estas primitivas mediante parámetros cerrados. No admite scripts arbitrarios.
 
-`policies.json` declara por categoría de acción si admite evidencia provisional, cuántos clusters `confirmed_independent` y qué clases de origen constituyen corroboración suficiente, qué riesgo exige aprobación humana y cómo se actúa al retractarse o reagruparse una evidencia. También declara las claves exactas admisibles para correlacionar Incidents, usando campos genéricos como referencia externa, clase de hazard, zona, activo y ventana temporal; una clave no declarada nunca habilita un merge automático. Cada regla se clasifica como `hard_constraint` u `objective`: las restricciones duras participan en el nivel 2 de precedencia y los objetivos en el nivel 4. Estas reglas son deterministas y no sustituyen el razonamiento cualitativo de prioridad.
+`policies.json` declara por categoría de acción si admite evidencia provisional, cuántos clusters `confirmed_independent` y qué clases de origen constituyen corroboración suficiente, qué riesgo exige aprobación humana y cómo se actúa al retractarse o reagruparse una evidencia. También declara `minimum_location_status`, `minimum_location_precision`, si admite una excepción aprobada y qué avisos pueden abarcar todos los candidatos mientras expresan incertidumbre. Finalmente define las claves exactas admisibles para correlacionar Incidents, usando campos genéricos como referencia externa, clase de hazard, zona, activo y ventana temporal; una clave no declarada nunca habilita un merge automático. Cada regla se clasifica como `hard_constraint` u `objective`: las restricciones duras participan en el nivel 2 de precedencia y los objetivos en el nivel 4. Estas reglas son deterministas y no sustituyen el razonamiento cualitativo de prioridad.
 
-El preflight valida JSON Schema, referencias internas, IDs, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, clasificación y completitud de las policies de evidencia, corroboración, retractación y correlación de Incidents, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
+El preflight valida JSON Schema, referencias internas, IDs, aliases y landmarks normalizados, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, clasificación y completitud de las policies de evidencia, localización, corroboración, retractación y correlación de Incidents, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Nombres visibles duplicados son válidos únicamente si resuelven a IDs diferentes y aportan metadatos de desambiguación. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
 
 El motor ejecuta exactamente un pack por run. Un pack puede contener varios hazards y cascadas mediante los grafos de impacto y dependencia, pero no puede importar ni combinar otro pack en runtime.
 
@@ -721,6 +748,8 @@ Estos packs no son variaciones nominales de DANA: ejercitan propagación, depend
 | Realtime no disponible | Dashboard pasa a polling y marca datos stale |
 | Plan obsoleto | Rechaza despacho y activa Command |
 | Evidencia retractada | Bloquea dependientes, revalida la evidencia restante y cancela solo lo insuficiente |
+| Ubicación sin resolver o ambigua | Verifica y prepara; no autoriza un efecto dirigido por debajo de la policy |
+| Ubicación activa contradicha | Bloquea la autorización pendiente, marca dependientes y activa replanificación prioritaria |
 | Correlación de Incident ambigua | Mantiene Incidents separados, crea `possible_duplicate` y solicita decisión humana |
 | Merge/split contra versión obsoleta | Rechaza toda la operación sin cambiar Incident, Plan, Actions ni reservas |
 | Directiva incompatible | Se rechaza con invariantes o directivas en conflicto; no cambia el dominio |
@@ -782,6 +811,8 @@ Todos los E2E comprueban:
 - múltiples copias del mismo origen cuentan como un cluster, no como corroboraciones independientes;
 - reconciliar Incidents no altera Signals, revisiones, clusters ni independencia de sus fuentes;
 - ningún Incident `merged` o `split` recibe nuevas Actions y toda referencia operativa resuelve a un Incident canónico;
+- la confianza del contenido nunca convierte implícitamente una ubicación provisional en verificada;
+- ningún efecto geográficamente dirigido se autoriza con una revisión de ubicación obsoleta o por debajo de su policy;
 - una revisión retractada no sustenta nuevas autorizaciones; las acciones sin evidencia activa suficiente se cancelan antes del despacho;
 - rutas cerradas no utilizadas después de su actualización;
 - todo incidente activo atendido, verificado o aplazado con razón y `revisit_at`;
@@ -803,7 +834,24 @@ La prueba combina tres casos:
 
 La prueba también verifica que una propuesta semántica no puede autoaprobarse, que un merge/split obsoleto falla atómicamente y que las operaciones incluidas en un Plan no provocan un bucle del Commander.
 
-### 18.4 E2E de saturación y prioridad
+### 18.4 E2E de ubicación ambigua
+
+El pack DANA define dos landmarks visibles llamados «Puente Nuevo» en zonas distintas. Una llamada inicial menciona solo ese nombre y crea dos candidatos `ambiguous`. Intake publica la Signal provisional, formula una pregunta de desambiguación y el Plan prepara el recurso mediante una reserva `held`, pero el Gateway rechaza el despacho dirigido.
+
+Una lectura de sensor independiente y la respuesta del llamante seleccionan el candidato correcto conforme a la policy, crean una revisión `verified` y permiten el despacho. Después se introduce una corrección que contradice otra hipótesis usada por una Action aún no iniciada.
+
+La prueba exige que:
+
+- el texto declarado y ambos candidatos permanezcan en el historial;
+- Signal confidence y location status evolucionen de forma independiente;
+- ninguna integración Locate/Maps sea necesaria para resolver el caso;
+- preparación y reserva sean posibles antes de verificar, pero no el efecto dirigido;
+- un aviso provisional, si se usa, cubra todos los candidatos y declare incertidumbre;
+- la autorización consulte la revisión exacta y rechace una versión obsoleta;
+- la contradicción active replanificación prioritaria, reevalúe ruta y Action y libere o mantenga la reserva según su lifecycle;
+- redirigir una Action P0/P1 o ya iniciada siga requiriendo la aprobación definida por sus reglas normales.
+
+### 18.5 E2E de saturación y prioridad
 
 Una prueba adicional inyecta 500 entradas estructuradas, incluidas entregas idempotentes repetidas y numerosos ecos del mismo origen. Mientras `signal_batch` mantiene trabajo pendiente, introduce una aprobación, un cierre de ruta y un Outcome crítico.
 
@@ -817,11 +865,11 @@ La prueba exige que:
 - `queue_depth`, antigüedad y retraso reflejen la saturación y el estado pase a `degraded`;
 - tras drenar la cola, el Plan incorpore los eventos urgentes y todas sus decisiones conserven evidencia trazable.
 
-### 18.5 Ensayo live
+### 18.6 Ensayo live
 
 Solo DANA exige ensayo live completo. Usa destinatarios controlados, whitelist, entorno development y mensajes `SIMULACIÓN`. Los otros cinco packs prueban generalidad mediante E2E de sistema sin exigir seis integraciones reales distintas.
 
-### 18.6 Postmortem y aprendizaje
+### 18.7 Postmortem y aprendizaje
 
 Al completar o abortar:
 
@@ -870,6 +918,9 @@ El postmortem se calcula contra `terminal_state_version`. Los eventos de `late_e
 29. Reconciliar Incidents nunca fusiona, elimina ni reclasifica sus Signals o `source_clusters`.
 30. Todo Incident `merged` o `split` conserva lineage y resuelve hacia uno o más Incidents canónicos activos o terminales.
 31. Un merge o split y el Plan que lo incorpora se confirman juntos o no producen ningún cambio.
+32. La ubicación original declarada y todas sus revisiones permanecen consultables aunque cambie el candidato seleccionado.
+33. Solo una regla determinista o confirmación humana respaldada por evidencia puede producir una LocationHypothesis `verified`.
+34. Todo efecto geográficamente dirigido referencia una revisión activa que cumple la policy de ubicación en el momento de autorización.
 
 ## 20. Evolución del repositorio actual
 
@@ -881,7 +932,7 @@ La implementación debe:
 - impedir la aceptación runtime de contratos sin versión;
 - mover propagación, verbos y policies específicos al Scenario Pack;
 - separar recursos de entidades y evitar contadores duplicados;
-- crear schemas para Incident, lineage, candidatos de reconciliación, Plan, Outcome, Command, Approval y eventos;
+- crear schemas para hipótesis de ubicación, Incident, lineage, candidatos de reconciliación, Plan, Outcome, Command, Approval y eventos;
 - actualizar README y ejemplos para reflejar los tres workflows y el Gateway;
 - mantener la decisión existente de usar REST/Webhooks de HappyRobot y no MCP.
 
@@ -897,6 +948,7 @@ Los ejemplos anteriores de incendio o logística son material histórico, no con
 - Un pack rígido de DANA: no demuestra generalidad.
 - Scripts arbitrarios en packs: rompen auditabilidad y aislamiento.
 - Merge automático por similitud semántica: puede confundir emergencias próximas y duplicar o desviar la respuesta.
+- Sobrescribir una única ubicación estimada: pierde alternativas, procedencia e historial de correcciones.
 - Reintento ciego de efectos externos: puede duplicar comunicaciones o acciones.
 - Twin, Redis, Sheets o MCP como dependencia central: no están disponibles ni son necesarios.
 
@@ -917,5 +969,6 @@ El diseño se considera implementado cuando:
 11. el E2E de rumor replicado demuestra que 21 Signals no idénticas de un mismo origen cuentan como un solo cluster;
 12. un E2E de intervención aplica una directiva válida, rechaza otra que usa una ruta cerrada y replantea al expirar;
 13. el E2E de correlación conserva fuentes independientes, evita Actions duplicadas y demuestra merge/split reversible y atómico;
-14. el E2E de saturación conserva todas las entradas únicas, prioriza control y outcomes y respeta los límites de concurrencia;
-15. ninguna dependencia opcional es necesaria para que funcione el camino base.
+14. el E2E de ubicación ambigua conserva candidatos, separa confianza geográfica y de contenido y bloquea despachos prematuros;
+15. el E2E de saturación conserva todas las entradas únicas, prioriza control y outcomes y respeta los límites de concurrencia;
+16. ninguna dependencia opcional es necesaria para que funcione el camino base.
