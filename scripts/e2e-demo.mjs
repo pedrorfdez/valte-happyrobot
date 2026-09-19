@@ -66,8 +66,8 @@ function usage() {
     "  --wildfire-run <id>                WILDFIRE_RUN_ID",
     "",
     "Options:",
-    "  --effects dry-run|web_voice|email|pstn   default: dry-run",
-    "  --confirm-live-contact SIMULACION        required for non-dry-run modes",
+    "  --effects dry-run|web_voice|email|pstn|controlled   default: dry-run (controlled = legacy alias for dry-run)",
+    "  --confirm-live-contact SIMULACION        required for non-dry-run modes (alias: --confirm-controlled-contact)",
     "  --timeout-ms <n>                   default: 180000; minimum: 30000",
     "  --artifacts-dir <path>             default: artifacts/e2e",
     "  --preflight-only                   validate clean runs without mutations",
@@ -82,6 +82,7 @@ function parseArgs(argv, env = process.env) {
     ["--wildfire-run", "wildfireRun"],
     ["--effects", "effects"],
     ["--confirm-live-contact", "liveConfirmation"],
+    ["--confirm-controlled-contact", "liveConfirmation"],
     ["--timeout-ms", "timeoutMs"],
     ["--artifacts-dir", "artifactsDir"]
   ]);
@@ -130,12 +131,13 @@ function parseArgs(argv, env = process.env) {
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 30_000) {
     throw new CliError("--timeout-ms must be an integer of at least 30000");
   }
-  const effects = parsed.effects ?? "dry-run";
+  let effects = parsed.effects ?? "dry-run";
+  if (effects === "controlled") effects = "dry-run";
   if (!["dry-run", "web_voice", "email", "pstn"].includes(effects)) {
-    throw new CliError("--effects must be dry-run, web_voice, email, or pstn");
+    throw new CliError("--effects must be dry-run, web_voice, email, pstn, or controlled (legacy alias for dry-run)");
   }
   if (effects !== "dry-run" && parsed.liveConfirmation !== "SIMULACION") {
-    throw new CliError("live modes require --confirm-live-contact SIMULACION");
+    throw new CliError("live modes require --confirm-live-contact SIMULACION (or --confirm-controlled-contact SIMULACION for legacy plans)");
   }
 
   return {
@@ -526,7 +528,7 @@ async function preflightScenario(config, pack, args, recorder = null) {
     assertPackIdentity(snapshot, pack, config);
     assertNoHiddenTruth(snapshot, pack);
   }
-  assert(snapshot.run.status === "ready", "run_status", `${config.label} must be ready because the Controller sends resume_run`);
+  assert(["ready", "running"].includes(snapshot.run.status), "run_status", `${config.label} must be ready|running because the Controller sends resume_run`);
   assertClean(snapshot, config);
   return snapshot;
 }

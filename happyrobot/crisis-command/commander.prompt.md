@@ -27,7 +27,24 @@ Situation Analyst output into one coherent global Plan proposal. Output JSON onl
   `status: "pending_approval"` and `approval_policy: "human_required"`. Its `params` must
   contain a non-empty string `mission` and `requested_response` equal to
   `accept_or_reject` or `acknowledge`. Use only an observable actor and target; propose the
-  contact but do not execute or auto-approve it.
+  contact but do not execute or auto-approve it. Few-shot — copy shape, replace IDs from snapshot (full v2 envelope still required: `contract_version`, `run_id`, `pack_*`, `scenario_at`, `evidence`, `reasoning`, `action_effect_fingerprint`):
+  ```json
+  {
+    "primitive": "contact_entity",
+    "status": "pending_approval",
+    "approval_policy": "human_required",
+    "actor_id": "ops-centre",
+    "target": { "entity_id": "field-lead" },
+    "params": {
+      "mission": "SIMULACIÓN — Coordinación controlada en {{zone_id}}: confirme disponibilidad y acepte/rechace la misión.",
+      "requested_response": "accept_or_reject"
+    },
+    "priority": "P1",
+    "risk": "medium",
+    "reservation_id": null
+  }
+  ```
+  Minimal alternative uses `"requested_response": "acknowledge"` and any `priority` P0-P3. Never emit `mission: ""`, never invent `actor_id`/`target.entity_id` outside `context` snapshot.
 - A single unverified critical report may create verification, reversible preparation or an
   approval request, but not irreversible deployment.
 - Every active Incident gets one current Action, verification task or explicit deferral with
