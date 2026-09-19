@@ -1,0 +1,106 @@
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 16px; display: flex; gap: 16px; background: var(--surface-000); color: var(--ink); font-family: var(--font-sans); overflow: hidden;">
+<main style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 24px 48px 40px; display: flex; flex-direction: column; gap: 40px; overflow: auto;">
+<header style="display: flex; align-items: center; justify-content: space-between;">
+<span style="display: flex; align-items: baseline; gap: 12px;"><span style="font-family: var(--font-display); font-size: 32px; line-height: 36px;">Valte</span><span style="font-size: 13px; line-height: 20px; color: var(--ink-muted);">con HappyRobot</span></span>
+<a href="Main.dc.html" class="back" aria-label="Cancelar y volver al inicio"><svg width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg></a>
+</header>
+<div style="display: flex; align-items: baseline; gap: 20px;"><span style="font-family: var(--font-mono); font-size: 13px; color: var(--ink-muted);">{{curNum}}</span><h1 style="margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 64px; line-height: 64px; letter-spacing: -0.015em;">{{curName}}</h1></div>
+<sc-if value="{{is1}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 32px;">
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;"><button type="button" class="{{sc_flood.cls}}" aria-pressed="{{sc_flood.on}}" sc-camel-on-click="{{sc_flood.pick}}"><svg width="28" height="28" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15c2 0 2-1.5 4.5-1.5S10 15 12 15s2-1.5 4.5-1.5S19 15 21 15"></path><path d="M3 19c2 0 2-1.5 4.5-1.5S10 19 12 19s2-1.5 4.5-1.5S19 19 21 19"></path><path d="M12 3c2.5 3 4 5 4 6.5a4 4 0 0 1-8 0C8 8 9.5 6 12 3z"></path></svg><span class="scn-name">Inundación</span></button><button type="button" class="{{sc_fire.cls}}" aria-pressed="{{sc_fire.on}}" sc-camel-on-click="{{sc_fire.pick}}"><svg width="28" height="28" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 0 2 1 3 2 3 0-3-1.5-5.5.5-8z"></path></svg><span class="scn-name">Incendio forestal</span></button><button type="button" class="{{sc_blackout.cls}}" aria-pressed="{{sc_blackout.on}}" sc-camel-on-click="{{sc_blackout.pick}}"><svg width="28" height="28" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L5 13h6l-1 9 8-11h-6z"></path></svg><span class="scn-name">Apagón</span></button><button type="button" class="{{sc_infra.cls}}" aria-pressed="{{sc_infra.on}}" sc-camel-on-click="{{sc_infra.pick}}"><svg width="28" height="28" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 20V11"></path><path d="M19 20V11"></path><path d="M3 11c4-5 14-5 18 0"></path><path d="M12 7v13"></path></svg><span class="scn-name">Fallo de infraestructura</span></button><button type="button" class="{{sc_mci.cls}}" aria-pressed="{{sc_mci.on}}" sc-camel-on-click="{{sc_mci.pick}}"><svg width="28" height="28" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"></path></svg><span class="scn-name">Víctimas múltiples</span></button><button type="button" class="{{sc_other.cls}}" aria-pressed="{{sc_other.on}}" sc-camel-on-click="{{sc_other.pick}}"><svg width="28" height="28" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="1.2"></circle><circle cx="12" cy="12" r="1.2"></circle><circle cx="18" cy="12" r="1.2"></circle></svg><span class="scn-name">Otro</span></button></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+<x-import component-from-global-scope="Valte.TextField" label="Nombre" default-value="Riada en Paiporta"></x-import>
+<x-import component-from-global-scope="Valte.TextField" label="Región" default-value="Horta Sud, Valencia"></x-import>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{is2}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: flex-end; gap: 12px;">
+<div style="flex-grow: 1;"><x-import component-from-global-scope="Valte.TextField" label="Añadir zona" placeholder="Buscar municipio…"></x-import></div>
+<x-import component-from-global-scope="Valte.Button" variant="secondary">Añadir</x-import>
+</div>
+<div style="display: flex; flex-direction: column;">
+<div class="hd" style="grid-template-columns: minmax(0,1fr) 110px 110px minmax(0,1.6fr) 36px;"><span>Zona</span><span>Habitantes</span><span>Origen</span><span>Propaga a</span><span></span></div>
+<sc-for list="{{zones}}" as="z" hint-placeholder-count="6">
+<div class="rw" style="grid-template-columns: minmax(0,1fr) 110px 110px minmax(0,1.6fr) 36px;">
+<span style="font-weight: 600;">{{z.name}}</span>
+<span style="font-family: var(--font-mono); font-size: 13px;">{{z.hab}}</span>
+<span><button type="button" class="{{z.togCls}}" aria-pressed="{{z.origin}}" sc-camel-on-click="{{z.toggle}}">{{z.togLabel}}</button></span>
+<span style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{z.to}}" as="t" hint-placeholder-count="1"><span class="chip">{{t}}</span></sc-for><button type="button" class="chip add">+ Conexión</button></span>
+<button type="button" class="ib" aria-label="Quitar zona"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M6 7l1 13h10l1-13"></path></svg></button>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{is3}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 28px;">
+<form class="addf" sc-camel-on-submit="{{addSource}}">
+<label class="fl"><span class="lbl">Nombre</span><input class="in" type="text" placeholder="Aforos CHJ" value="{{fName}}" sc-camel-on-change="{{setName}}"></label>
+<label class="fl" style="grid-column: 2 / 4;"><span class="lbl">Enlace <span style="text-transform: none; letter-spacing: 0; font-weight: 400;">· opcional</span></span><input class="in" type="url" placeholder="https://" value="{{fLink}}" sc-camel-on-change="{{setLink}}"></label>
+<label class="fl" style="grid-column: 1 / 4;"><span class="lbl">Descripción</span><textarea class="in ta" rows="2" placeholder="Caudal de la rambla del Poyo cada 5 minutos" value="{{fDesc}}" sc-camel-on-change="{{setDesc}}"></textarea></label>
+<div class="fl" role="group" aria-label="Fiabilidad" style="grid-column: 1 / 3;"><span class="lbl">Fiabilidad</span><span class="seg3" style="align-self: flex-start;"><button type="button" class="{{tr_high.cls}}" aria-pressed="{{tr_high.on}}" sc-camel-on-click="{{tr_high.pick}}">Alta</button><button type="button" class="{{tr_medium.cls}}" aria-pressed="{{tr_medium.on}}" sc-camel-on-click="{{tr_medium.pick}}">Media</button><button type="button" class="{{tr_low.cls}}" aria-pressed="{{tr_low.on}}" sc-camel-on-click="{{tr_low.pick}}">Baja</button></span></div>
+<div class="fl" style="justify-content: flex-end; align-items: flex-end;"><button type="submit" class="nav pri" style="height: 44px; flex-grow: 0; padding: 0 20px;">Añadir fuente</button></div>
+</form>
+<div style="display: flex; flex-direction: column;">
+<div class="hd" style="grid-template-columns: minmax(0,1fr) minmax(0,.8fr) 130px 36px;"><span>Fuente</span><span>Enlace</span><span>Fiabilidad</span><span></span></div>
+<sc-if value="{{noSources}}" hint-placeholder-val="{{true}}"><div style="padding: 28px 0; border-bottom: 1px solid var(--line); color: var(--ink-muted); font-size: 14px;">Sin fuentes</div></sc-if>
+<sc-for list="{{fuentes}}" as="f" hint-placeholder-count="0">
+<div class="rw" style="grid-template-columns: minmax(0,1fr) minmax(0,.8fr) 130px 36px;">
+<span style="display: flex; flex-direction: column; min-width: 0;"><span style="font-weight: 500;" class="ell">{{f.name}}</span><span style="font-size: 13px; line-height: 18px; color: var(--ink-muted);" class="ell">{{f.desc}}</span></span>
+<span style="min-width: 0;"><sc-if value="{{f.hasLink}}" hint-placeholder-val="{{false}}"><a href="{{f.link}}" target="_blank" rel="noopener" class="ell" style="display: block; font-family: var(--font-mono); font-size: 12px;">{{f.link}}</a></sc-if><sc-if value="{{f.noLink}}" hint-placeholder-val="{{true}}"><span style="color: var(--ink-muted);">—</span></sc-if></span>
+<span><x-import component-from-global-scope="Valte.StatusBadge" status="{{f.trust}}"></x-import></span>
+<button type="button" class="ib" aria-label="Quitar fuente" sc-camel-on-click="{{f.remove}}"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M6 7l1 13h10l1-13"></path></svg></button>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 16px; padding: 16px 20px; background: var(--agent-soft); border-radius: var(--radius-lg);">
+<span style="width: 10px; height: 10px; border-radius: 50%; background: var(--agent);"></span>
+<span style="display: flex; flex-direction: column; flex-grow: 1;"><span style="font-weight: 500;">Workflow de ingesta · HappyRobot</span><span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted);">ingesta-vlc-4821</span></span>
+<x-import component-from-global-scope="Valte.StatusBadge" tone="agent" glyph="●" label="Escucha todas las fuentes"></x-import>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{is4}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 28px;">
+<form class="addf" sc-camel-on-submit="{{addRes}}">
+<label class="fl"><span class="lbl">Nombre</span><input class="in" type="text" placeholder="Bombas de achique" value="{{rName}}" sc-camel-on-change="{{setRName}}"></label>
+<label class="fl"><span class="lbl">Cantidad</span><input class="in" type="number" min="0" placeholder="12" value="{{rQty}}" sc-camel-on-change="{{setRQty}}" style="font-family: var(--font-mono);"></label>
+<label class="fl"><span class="lbl">Unidad <span style="text-transform: none; letter-spacing: 0; font-weight: 400;">· opcional</span></span><input class="in" type="text" placeholder="ud., L, kits…" value="{{rUnit}}" sc-camel-on-change="{{setRUnit}}"></label>
+<label class="fl" style="grid-column: 1 / 4;"><span class="lbl">Descripción</span><textarea class="in ta" rows="2" placeholder="Dónde están, quién las gestiona, cuánto tardan en llegar…" value="{{rDesc}}" sc-camel-on-change="{{setRDesc}}"></textarea></label>
+<div class="fl" style="grid-column: 3 / 4; align-items: flex-end;"><button type="submit" class="nav pri" style="height: 44px; flex-grow: 0; padding: 0 20px;">Añadir recurso</button></div>
+</form>
+<div style="display: flex; flex-direction: column;">
+<div class="hd" style="grid-template-columns: minmax(0,1fr) 140px 36px;"><span>Recurso</span><span style="text-align: right;">Cantidad</span><span></span></div>
+<sc-if value="{{noRes}}" hint-placeholder-val="{{true}}"><div style="padding: 28px 0; border-bottom: 1px solid var(--line); color: var(--ink-muted); font-size: 14px;">Sin recursos</div></sc-if>
+<sc-for list="{{recursos}}" as="r" hint-placeholder-count="0">
+<div class="rw" style="grid-template-columns: minmax(0,1fr) 140px 36px;">
+<span style="display: flex; flex-direction: column; min-width: 0;"><span style="font-weight: 500;" class="ell">{{r.name}}</span><span style="font-size: 13px; line-height: 18px; color: var(--ink-muted);">{{r.desc}}</span></span>
+<span style="font-family: var(--font-mono); font-size: 15px; text-align: right;">{{r.qty}} <span style="font-size: 12px; color: var(--ink-muted);">{{r.unit}}</span></span>
+<button type="button" class="ib" aria-label="Quitar recurso" sc-camel-on-click="{{r.remove}}"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M6 7l1 13h10l1-13"></path></svg></button>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+</main>
+<aside data-theme="dark" style="width: 496px; flex-shrink: 0; position: relative; box-sizing: border-box; padding: 40px; display: flex; flex-direction: column; justify-content: flex-end; gap: 40px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden;">
+<svg width="720" height="720" sc-camel-view-box="0 0 720 720" aria-hidden="true" style="position: absolute; right: -360px; top: -360px;"><circle class="wave" cx="360" cy="360" r="48"></circle><circle class="wave" cx="360" cy="360" r="88"></circle><circle class="wave" cx="360" cy="360" r="128"></circle><circle class="wave" cx="360" cy="360" r="168"></circle><circle class="wave" cx="360" cy="360" r="208"></circle><circle class="wave" cx="360" cy="360" r="248"></circle><circle class="wave" cx="360" cy="360" r="288"></circle><circle class="wave" cx="360" cy="360" r="328"></circle></svg>
+<nav aria-label="Pasos" style="position: relative; display: flex; flex-direction: column; border-top: 1px solid var(--line-strong);">
+<sc-for list="{{steps}}" as="p" hint-placeholder-count="4">
+<button type="button" class="{{p.cls}}" aria-current="{{p.current}}" sc-camel-on-click="{{p.go}}">
+<span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px;">{{p.num}}</span>
+<span class="stp-name">{{p.name}}</span>
+<span style="font-size: 14px; color: var(--success);">{{p.mark}}</span>
+<span class="stp-sum">{{p.sum}}</span>
+</button>
+</sc-for>
+</nav>
+<div style="position: relative; display: flex; gap: 8px;">
+<sc-if value="{{canBack}}" hint-placeholder-val="{{false}}"><button type="button" class="nav sec" sc-camel-on-click="{{back}}">Atrás</button></sc-if>
+<sc-if value="{{isLast}}" hint-placeholder-val="{{false}}"><a href="PanelCoordinacion.dc.html" class="nav pri">Iniciar catástrofe<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></a></sc-if>
+<sc-if value="{{notLast}}" hint-placeholder-val="{{true}}"><button type="button" class="nav pri" sc-camel-on-click="{{next}}">Siguiente<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></button></sc-if>
+</div>
+</aside>
+</div>

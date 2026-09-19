@@ -1,0 +1,21 @@
+<header data-theme="dark" style="position: relative; flex-shrink: 0; box-sizing: border-box; padding: 20px 28px 24px; display: flex; flex-direction: column; gap: 20px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden;">
+<svg width="640" height="640" sc-camel-view-box="0 0 640 640" aria-hidden="true" style="position: absolute; right: -120px; top: -420px;"><circle class="wave" cx="320" cy="320" r="40"></circle><circle class="wave" cx="320" cy="320" r="80"></circle><circle class="wave" cx="320" cy="320" r="120"></circle><circle class="wave" cx="320" cy="320" r="160"></circle><circle class="wave" cx="320" cy="320" r="200"></circle><circle class="wave" cx="320" cy="320" r="240"></circle><circle class="wave" cx="320" cy="320" r="280"></circle><circle class="wave" cx="320" cy="320" r="320"></circle></svg>
+<div style="position: relative; display: flex; align-items: center; gap: 20px;">
+<a href="{{hd.backHref}}" class="back" aria-label="Volver"><svg width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="M11 6l-6 6 6 6"></path></svg></a>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<h1 style="margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 44px; letter-spacing: -0.01em;">{{hd.title}}</h1>
+<span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted);">{{hd.sub}}</span>
+</div>
+<div style="margin-left: 16px;"><x-import component-from-global-scope="Valte.SeverityMeter" value="{{hd.sev}}" trend="{{hd.trend}}"></x-import></div>
+<sc-if value="{{hd.level}}" hint-placeholder-val="{{false}}"><x-import component-from-global-scope="Valte.StatusBadge" tone="critical" glyph="▲" label="{{hd.levelLabel}}"></x-import></sc-if>
+<div style="flex-grow: 1;"></div>
+<nav aria-label="Entidad" style="display: flex; gap: 8px;"><sc-for list="{{hd.segs}}" as="s" hint-placeholder-count="3"><a href="{{s.href}}" class="{{s.cls}}"><span class="seg-kind">{{s.kind}}</span><span class="seg-name">{{s.name}}</span></a></sc-for></nav>
+</div>
+<div style="position: relative; display: flex; gap: 24px; padding-top: 16px; border-top: 1px solid var(--line-strong);"><sc-for list="{{hd.kpis}}" as="k" hint-placeholder-count="5"><a href="{{k.href}}" class="{{k.cls}}" style="{{k.style}}"><span class="lbl">{{k.label}}</span><span style="font-family: var(--font-mono); font-size: 28px; line-height: 32px; letter-spacing: -0.02em; color: {{k.color}};">{{k.num}}<span style="font-size: 14px; color: var(--ink-muted);"> {{k.rest}}</span></span><svg class="kpi-go" width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg></a></sc-for></div>
+<sc-for list="{{hd.ringing}}" as="r" hint-placeholder-count="0">
+<div class="ringbar"><span class="ringdot"></span><span style="flex-grow: 1;"><b>{{r.title}}</b> · {{r.ask}}</span><span class="count">{{r.meta}}</span>
+<sc-if value="{{r.canAnswer}}" hint-placeholder-val="{{false}}"><x-import component-from-global-scope="Valte.Button" size="sm" sc-camel-on-click="{{r.answer}}">Atender como {{r.entity}}</x-import></sc-if>
+<sc-if value="{{r.live}}" hint-placeholder-val="{{false}}"><x-import component-from-global-scope="Valte.Button" size="sm" variant="secondary" sc-camel-on-click="{{r.hangup}}">Colgar</x-import></sc-if>
+<a href="Contactos.dc.html" class="count" style="color: var(--ink);">ver ↗</a></div>
+</sc-for>
+</header>

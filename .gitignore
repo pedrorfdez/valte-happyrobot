@@ -1,0 +1,18 @@
+# secrets and machine state
+.env
+.env.*
+!.env.example
+.public_url
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+# tooling
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+node_modules/
+.claude/

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Valte · Mundo exterior</title>
+<style>
+:root{--bg:#0E0D0C;--panel:#1A1917;--panel2:#24221F;--ink:#F3F1E6;--muted:#A9A498;--line:#2E2B27;--line2:#6E695F;
+--critical:#FF8F66;--warn:#F2C230;--ok:#8FD19E;--agent:#6ED3CB;--info:#A4B8F2;
+--display:"Instrument Serif",Georgia,serif;--sans:"Geist","Helvetica Neue",Arial,sans-serif;--mono:"Geist Mono",ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans)}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 28px 60px;display:grid;grid-template-columns:400px 1fr;gap:28px}
+h1{font:400 44px/1 var(--display);margin:0;letter-spacing:-.01em}h2{font:400 26px/1.1 var(--display);margin:0 0 12px}
+.sub{color:var(--muted);font-size:13px;margin-top:6px}.mono{font-family:var(--mono)}.muted{color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
+label{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+select,input{width:100%;height:40px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2);color:var(--ink);padding:0 12px;font:inherit}
+button{font:500 14px/20px var(--sans);height:40px;padding:0 16px;border-radius:10px;border:1px solid var(--line2);background:transparent;color:var(--ink);cursor:pointer}
+button:hover{background:var(--panel2)}button:disabled{opacity:.4;cursor:not-allowed}
+#start{width:100%;height:84px;font:400 34px/1 var(--display);background:var(--ink);color:var(--bg);border:0;border-radius:14px;margin-top:20px}
+#start:hover{filter:brightness(.92)}#start.running{background:var(--critical);color:#0E0D0C}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.row button{flex:1}
+.big{font:400 40px/1 var(--mono);letter-spacing:-.02em}.kpis{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:4px}
+.kpis div span{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.bar{height:6px;background:var(--panel2);border-radius:999px;overflow:hidden;margin-top:14px}.bar i{display:block;height:100%;background:var(--agent);width:0;transition:width .6s}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--critical);margin-right:6px}.dot.ok{background:var(--ok)}
+.tl{max-height:420px;overflow:auto;margin-top:6px}.it{display:grid;grid-template-columns:56px 84px 1fr 70px;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;align-items:baseline}
+.it.sent{color:var(--muted)}.it.next{color:var(--ink)}.it.pending{color:#6E695F}.it.error{color:var(--critical)}
+.it .st{font-family:var(--mono);font-size:11px;text-align:right}.it.sent .st{color:var(--ok)}.it.next .st{color:var(--warn)}
+.log{max-height:230px;overflow:auto;font:12px/1.5 var(--mono)}.log div{padding:3px 0;border-bottom:1px solid var(--line)}
+.log .error{color:var(--critical)}.log .sent{color:var(--ink)}.log .info{color:var(--agent)}.log .warn{color:var(--warn)}
+.inj{display:grid;grid-template-columns:1fr 1fr;gap:8px}.inj button{height:auto;padding:10px 12px;text-align:left;line-height:1.3}
+.inj small{display:block;color:var(--muted);font-size:12px}a{color:var(--info)}
+.stack{display:flex;flex-direction:column;gap:20px}
+.feeds{display:flex;flex-direction:column;gap:8px}
+.feed{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;cursor:pointer;text-align:left;height:auto;width:100%}
+.feed.on{border-color:var(--ink);background:var(--panel2)}.feed b{font:400 22px/1.15 var(--display)}
+.feed .bar{grid-column:1/3;margin-top:8px}.feed .st{font:11px var(--mono);align-self:center}
+.st.run{color:var(--ok)}.st.pau{color:var(--warn)}.st.off{color:var(--muted)}.st.end{color:var(--critical)}
+</style></head><body>
+<div class="wrap">
+  <div class="stack">
+    <div>
+      <h1>Mundo exterior</h1>
+      <div class="sub">Valte · lo que pasa ahí fuera. Al pulsar Start empieza a llegar información al sistema: llamadas al 112, redes, medios y sensores.</div>
+    </div>
+    <div class="card">
+      <div><span id="bdot" class="dot"></span><span id="bstate" class="muted">conectando con el backend…</span></div>
+      <label for="target">Añadir a la pila</label>
+      <select id="target"></select>
+      <label for="speed">Velocidad del escenario</label>
+      <select id="speed"><option value="10">10× · pausado, para explicar</option><option value="20" selected>20× · demo (≈7 min)</option><option value="40">40× · rápido</option><option value="1">1× · tiempo real</option></select>
+      <button id="start">Start</button>
+      <div class="sub" style="margin-top:14px">Cada Start <b>añade</b> una crisis: las que ya están en marcha siguen su curso. Panel del sistema: <a id="dash" target="_blank" href="#">abrir dashboard ↗</a></div>
+    </div>
+    <div class="card">
+      <h2>Crisis en marcha <span class="muted mono" id="nfeeds" style="font-size:13px"></span></h2>
+      <div class="feeds" id="feeds"><div class="muted">Ninguna todavía. Pulsa Start.</div></div>
+      <div class="row"><button id="pause" disabled>Pausa</button><button id="resume" disabled>Reanudar</button><button id="stop" disabled>Parar envío</button></div>
+      <div class="row"><button id="close" disabled>Cerrar crisis</button><button id="remove" disabled>Quitar de la lista</button></div>
+      <div class="sub" style="margin-top:10px">Los botones actúan solo sobre la crisis seleccionada.</div>
+    </div>
+    <div class="card">
+      <h2>¿Y si…?</h2><!-- applies to the selected crisis -->
+      <div class="sub" style="margin:-6px 0 12px">Cambia el mundo a mitad de ejecución. El sistema no lo sabe hasta que lo percibe.</div>
+      <div class="inj">
+        <button data-inj='{"kind":"road_cut","zone":"picanya","note":"Pont vell de Picanya hundido: acceso norte cortado."}'>Se corta un puente<small>Picanya</small></button>
+        <button data-inj='{"kind":"entity_unreachable","entity":"bomberos-vlc","note":"Bomberos Consorcio deja de contestar"}'>Deja de contestar<small>Bomberos Consorcio</small></button>
+        <button data-inj='{"kind":"source_silent","source":"112","note":"Cae la centralita del 112"}'>Enmudece una fuente<small>112</small></button>
+        <button data-inj='{"kind":"resource_loss","resource":"embarcaciones","qty":3,"note":"Tres embarcaciones quedan inutilizadas."}'>Se pierden recursos<small>3 embarcaciones</small></button>
+        <button data-inj='{"kind":"signal","channel":"call","content":"Llamo desde el colegio de Massanassa, hay cincuenta personas refugiadas en el gimnasio y el agua ya entra por la puerta."}'>Aparecen 50 personas<small>llamada al 112 · Massanassa</small></button>
+        <button data-inj='{"kind":"hazard_jump","zone":"torrent","severity":9,"note":"El barranc de l’Horteta revienta el muro en Torrent."}'>Empeora de golpe<small>Torrent, severidad 9</small></button>
+      </div>
+      <label for="custom">Mensaje libre (entra como llamada al 112)</label>
+      <div class="row" style="margin-top:0"><input id="custom" placeholder="Hay gente atrapada en…" style="flex:3"><button id="sendc" style="flex:1">Enviar</button></div>
+    </div>
+  </div>
+  <div class="stack">
+    <div class="card">
+      <div class="kpis">
+        <div><span>Reloj del escenario</span><div class="big" id="clock">--:--</div><div class="muted mono" id="elapsed">T+00:00</div></div>
+        <div><span>Enviado</span><div class="big"><span id="sent">0</span><span class="muted" style="font-size:20px"> / <span id="total">0</span></span></div><div class="muted mono" id="speedlbl">—</div></div>
+        <div><span>Crisis</span><div style="font:400 26px/1.15 var(--display);margin-top:4px" id="cname">—</div><div class="muted mono" id="ccode"></div></div>
+      </div>
+      <div class="bar"><i id="prog"></i></div>
+    </div>
+    <div class="card"><h2>Guion del escenario</h2><div class="tl" id="tl"><div class="muted">Pulsa Start para cargar el guion.</div></div></div>
+    <div class="card"><h2>Registro</h2><div class="log" id="log"></div></div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const post = (path, body) => fetch(path, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body || {})})
+  .then(async r => { if (!r.ok) throw new Error((await r.json()).detail || r.statusText); return r.json(); })
+  .catch(e => alert(e.message));
+let lastTargets = '', selected = null;
+const q = extra => { const p = new URLSearchParams(extra || {}); if (selected) p.set('crisis_id', selected); const t = p.toString(); return t ? '?' + t : ''; };
+async function refresh() {
+  let s; try { s = await (await fetch('/api/status' + q())).json(); } catch (e) { return; }
+  if (!s.feeds.some(f => f.id === selected)) selected = s.selected;
+  $('bdot').className = 'dot' + (s.backend_ok ? ' ok' : '');
+  $('bstate').textContent = s.backend_ok ? 'backend conectado · ' + s.backend : 'sin conexión con ' + s.backend;
+  $('dash').href = s.dashboard;
+  const targets = JSON.stringify([s.packs.map(p => p.id), s.crises.map(c => c.id)]);
+  if (targets !== lastTargets) {
+    lastTargets = targets;
+    $('target').innerHTML = s.packs.map(p => `<option value="pack:${p.id}">Nueva · ${p.name}</option>`).join('') +
+      s.crises.map(c => `<option value="crisis:${c.id}">Alimentar · ${c.name} (${c.code})</option>`).join('');
+  }
+  $('nfeeds').textContent = s.feeds.length ? '· ' + s.feeds.length : '';
+  if (s.feeds.length) $('feeds').innerHTML = s.feeds.map(f => {
+    const st = f.status !== 'active' ? ['end', 'cerrada'] : f.clock.paused ? ['pau', 'en pausa'] : f.running ? ['run', 'enviando'] : ['off', 'parada'];
+    return `<button class="feed${f.id === selected ? ' on' : ''}" data-feed="${f.id}"><b>${esc(f.name)}</b><span class="st ${st[0]}">● ${st[1]}</span>` +
+      `<span class="muted mono">${f.code} · ${f.clock.clock} · ${f.clock.elapsed} · ${f.clock.speed}× · sev ${f.severity}/10</span><span class="muted mono">${f.sent}/${f.total}</span>` +
+      `<span class="bar"><i style="width:${f.total ? 100 * f.sent / f.total : 0}%"></i></span></button>`;
+  }).join('');
+  else $('feeds').innerHTML = '<div class="muted">Ninguna todavía. Pulsa Start.</div>';
+  document.querySelectorAll('[data-feed]').forEach(b => b.onclick = () => { selected = b.dataset.feed; refresh(); });
+  const c = s.crisis, live = !!c && c.status === 'active';
+  $('clock').textContent = c ? c.clock.clock : '--:--';
+  $('elapsed').textContent = c ? c.clock.elapsed + (c.clock.paused ? ' · en pausa' : c.clock.slowmo ? ' · 1× (llamada en curso)' : '') : 'T+00:00';
+  $('speedlbl').textContent = c ? c.clock.speed + '×' : '—';
+  $('cname').textContent = c ? c.name : '—'; $('ccode').textContent = c ? c.code + ' · severidad ' + c.severity + '/10' : '';
+  $('sent').textContent = s.sent; $('total').textContent = s.total;
+  $('prog').style.width = s.total ? (100 * s.sent / s.total) + '%' : '0';
+  $('start').disabled = !s.backend_ok;   // always available: a new Start stacks, it never replaces
+  $('pause').disabled = !live || c.clock.paused; $('resume').disabled = !live || (!c.clock.paused && s.running);
+  $('stop').disabled = !s.running; $('close').disabled = !live; $('remove').disabled = !c;
+  $('tl').innerHTML = s.items.length ? s.items.map(i => `<div class="it ${i.status}"><span class="mono">T+${String(i.at_min).padStart(3, '0')}</span><span>${i.icon}</span><span>${esc(i.label)}</span><span class="st">${{sent: '✓ ' + (i.ref || ''), next: 'en breve', pending: '', error: 'error'}[i.status]}</span></div>`).join('')
+    : '<div class="muted">Pulsa Start para cargar el guion.</div>';
+  $('log').innerHTML = s.log.map(l => `<div class="${l.kind}">${l.t} · ${esc(l.text)}</div>`).join('');
+}
+const esc = t => String(t).replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
+$('start').onclick = () => { const [kind, id] = $('target').value.split(':'); const speed = +$('speed').value;
+  post('/api/start', kind === 'crisis' ? {crisis_id: id, speed, pack: 'riada-paiporta'} : {pack: id, speed})
+    .then(r => { if (r && r.crisis_id) selected = r.crisis_id; refresh(); }); };
+$('pause').onclick = () => post('/api/pause' + q()).then(refresh);
+$('resume').onclick = () => post('/api/resume' + q()).then(refresh);
+$('stop').onclick = () => post('/api/stop' + q()).then(refresh);
+$('close').onclick = () => confirm('¿Cerrar SOLO esta crisis? El sistema guardará las lecciones aprendidas. Las demás siguen en marcha.') && post('/api/stop' + q({close: 'true'})).then(refresh);
+$('remove').onclick = () => post('/api/remove' + q()).then(() => { selected = null; refresh(); });
+$('speed').onchange = () => selected && post('/api/speed', {speed: +$('speed').value, crisis_id: selected});
+document.querySelectorAll('[data-inj]').forEach(b => b.onclick = () => post('/api/inject', Object.assign({crisis_id: selected}, JSON.parse(b.dataset.inj))).then(refresh));
+$('sendc').onclick = () => $('custom').value.trim() && post('/api/inject', {crisis_id: selected, kind: 'signal', channel: 'call', content: $('custom').value.trim()}).then(() => { $('custom').value = ''; refresh(); });
+refresh(); setInterval(refresh, 1000);
+</script></body></html>

@@ -1,0 +1,48 @@
+<sc-if value="{{has}}" hint-placeholder-val="{{true}}">
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 16px; display: flex; gap: 16px; background: var(--surface-000); color: var(--ink); font-family: var(--font-sans); overflow: hidden;">
+
+<main style="flex-grow: 1; box-sizing: border-box; padding: 24px 48px 48px; display: flex; flex-direction: column; justify-content: space-between; min-width: 0;">
+<header style="position: relative; display: flex; align-items: baseline; gap: 12px;">
+<span style="font-family: var(--font-display); font-size: 32px; line-height: 36px;">Valte</span>
+<span style="font-size: 13px; line-height: 20px; color: var(--ink-muted);">con HappyRobot</span>
+</header>
+<nav class="vl-stack" style="display: flex; flex-direction: column; border-top: 1px solid var(--line-strong);">
+<sc-for list="{{crises}}" as="c" hint-placeholder-count="3">
+<a href="{{c.href}}" class="row" style="text-decoration: none; display: flex; align-items: center; gap: 32px; padding: {{c.pad}}px 0; flex-shrink: 0;">
+<span style="font-family: var(--font-mono); font-size: 13px; line-height: 16px; color: var(--ink-muted); width: 24px;">{{c.num}}</span>
+<span class="row-name" style="flex-grow: 1; font-family: var(--font-display); font-size: {{c.size}}px; line-height: {{c.size}}px; letter-spacing: -0.015em; color: {{c.color}};">{{c.name}}</span>
+<span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted); text-align: right; white-space: nowrap;">{{c.meta}}</span>
+<svg width="32" height="32" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="row-arrow"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+</a>
+</sc-for>
+</nav>
+</main>
+
+<aside data-theme="dark" style="width: 496px; flex-shrink: 0; position: relative; box-sizing: border-box; padding: 40px; display: flex; flex-direction: column; justify-content: flex-end; gap: 40px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden;">
+<svg width="720" height="720" sc-camel-view-box="0 0 720 720" aria-hidden="true" style="position: absolute; right: -360px; top: -360px;"><circle class="wave" cx="360" cy="360" r="48"></circle><circle class="wave" cx="360" cy="360" r="88"></circle><circle class="wave" cx="360" cy="360" r="128"></circle><circle class="wave" cx="360" cy="360" r="168"></circle><circle class="wave" cx="360" cy="360" r="208"></circle><circle class="wave" cx="360" cy="360" r="248"></circle><circle class="wave" cx="360" cy="360" r="288"></circle><circle class="wave" cx="360" cy="360" r="328"></circle></svg>
+<div style="position: relative;"><ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; border-top: 1px solid var(--line-strong);"><li style="display: flex; align-items: baseline; gap: 24px; padding: 20px 0; border-bottom: 1px solid var(--line-strong);"><span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted); width: 24px;">01</span><span style="font-family: var(--font-display); font-size: 36px; line-height: 40px; letter-spacing: -0.01em;">Escenario</span></li>
+<li style="display: flex; align-items: baseline; gap: 24px; padding: 20px 0; border-bottom: 1px solid var(--line-strong);"><span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted); width: 24px;">02</span><span style="font-family: var(--font-display); font-size: 36px; line-height: 40px; letter-spacing: -0.01em;">Zonas</span></li>
+<li style="display: flex; align-items: baseline; gap: 24px; padding: 20px 0; border-bottom: 1px solid var(--line-strong);"><span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted); width: 24px;">03</span><span style="font-family: var(--font-display); font-size: 36px; line-height: 40px; letter-spacing: -0.01em;">Fuentes de datos</span></li>
+<li style="display: flex; align-items: baseline; gap: 24px; padding: 20px 0; border-bottom: 1px solid var(--line-strong);"><span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted); width: 24px;">04</span><span style="font-family: var(--font-display); font-size: 36px; line-height: 40px; letter-spacing: -0.01em;">Recursos disponibles</span></li></ol></div>
+<div style="position: relative; display: flex;"><a href="NuevaEscenario.dc.html" class="vt-btn vt-btn--primary cta" style="width: 100%; height: 64px; padding: 0 24px; justify-content: space-between; font-size: 16px; line-height: 24px; border-radius: var(--radius-md); text-decoration: none; box-sizing: border-box;">Iniciar catástrofe<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="cta-arrow"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></a></div>
+</aside>
+</div>
+</sc-if>
+<sc-if value="{{none}}" hint-placeholder-val="{{false}}">
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 16px; display: flex; background: var(--surface-000); font-family: var(--font-sans); overflow: hidden;">
+<div data-theme="dark" style="flex-grow: 1; position: relative; box-sizing: border-box; padding: 24px 48px 48px; display: flex; flex-direction: column; justify-content: space-between; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden;">
+<svg width="1200" height="1200" sc-camel-view-box="0 0 1200 1200" aria-hidden="true" style="position: absolute; right: -520px; top: -560px;"><circle class="wave" cx="600" cy="600" r="64"></circle><circle class="wave" cx="600" cy="600" r="112"></circle><circle class="wave" cx="600" cy="600" r="160"></circle><circle class="wave" cx="600" cy="600" r="208"></circle><circle class="wave" cx="600" cy="600" r="256"></circle><circle class="wave" cx="600" cy="600" r="304"></circle><circle class="wave" cx="600" cy="600" r="352"></circle><circle class="wave" cx="600" cy="600" r="400"></circle><circle class="wave" cx="600" cy="600" r="448"></circle><circle class="wave" cx="600" cy="600" r="496"></circle><circle class="wave" cx="600" cy="600" r="544"></circle><circle class="wave" cx="600" cy="600" r="592"></circle></svg>
+<header style="position: relative; display: flex; align-items: baseline; gap: 12px;">
+<span style="font-family: var(--font-display); font-size: 32px; line-height: 36px;">Valte</span>
+<span style="font-size: 13px; line-height: 20px; color: var(--ink-muted);">con HappyRobot</span>
+</header>
+<div style="position: relative; display: flex; align-items: flex-end; gap: 64px;">
+<div style="flex-grow: 1;"><ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; border-top: 1px solid var(--line-strong);"><li style="display: flex; align-items: baseline; gap: 24px; padding: 16px 0; border-bottom: 1px solid var(--line-strong);"><span style="font-family: var(--font-mono); font-size: 13px; line-height: 16px; color: var(--ink-muted); width: 24px;">01</span><span style="font-family: var(--font-display); font-size: 68px; line-height: 72px; letter-spacing: -0.01em;">Escenario</span></li>
+<li style="display: flex; align-items: baseline; gap: 24px; padding: 16px 0; border-bottom: 1px solid var(--line-strong);"><span style="font-family: var(--font-mono); font-size: 13px; line-height: 16px; color: var(--ink-muted); width: 24px;">02</span><span style="font-family: var(--font-display); font-size: 68px; line-height: 72px; letter-spacing: -0.01em;">Zonas</span></li>
+<li style="display: flex; align-items: baseline; gap: 24px; padding: 16px 0; border-bottom: 1px solid var(--line-strong);"><span style="font-family: var(--font-mono); font-size: 13px; line-height: 16px; color: var(--ink-muted); width: 24px;">03</span><span style="font-family: var(--font-display); font-size: 68px; line-height: 72px; letter-spacing: -0.01em;">Fuentes de datos</span></li>
+<li style="display: flex; align-items: baseline; gap: 24px; padding: 16px 0; border-bottom: 1px solid var(--line-strong);"><span style="font-family: var(--font-mono); font-size: 13px; line-height: 16px; color: var(--ink-muted); width: 24px;">04</span><span style="font-family: var(--font-display); font-size: 68px; line-height: 72px; letter-spacing: -0.01em;">Recursos disponibles</span></li></ol></div>
+<div style="width: 360px; flex-shrink: 0; display: flex;"><a href="NuevaEscenario.dc.html" class="vt-btn vt-btn--primary cta" style="width: 100%; height: 64px; padding: 0 24px; justify-content: space-between; font-size: 16px; line-height: 24px; border-radius: var(--radius-md); text-decoration: none; box-sizing: border-box;">Iniciar catástrofe<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="cta-arrow"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></a></div>
+</div>
+</div>
+</div>
+</sc-if>

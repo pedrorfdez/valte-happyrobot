@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nueva catástrofe · Valte</title>
+<script src="assets/react.production.min.js"></script>
+<script src="assets/react-dom.production.min.js"></script>
+<script src="assets/dc-runtime.js"></script>
+<link rel="stylesheet" href="assets/valte-tokens.css">
+<link rel="stylesheet" href="assets/valte-ds.css">
+<script src="assets/valte-ds.js"></script>
+<script src="assets/valte-live.js"></script>
+</head>
+<body>
+<x-dc><helmet>
+<style>
+body{margin:0;background:var(--surface-000);color:var(--ink);font-family:var(--font-sans);}
+a{color:var(--info);}a:hover{color:var(--ink);}
+.wave{fill:none;stroke:var(--line-strong);stroke-width:1;opacity:.5;}
+.seg{display:flex;flex-direction:column;gap:2px;padding:8px 14px;border-radius:var(--radius-md);border:1px solid var(--line-strong);color:var(--ink);text-decoration:none;min-width:150px;}
+.seg:hover{background:var(--surface-200);color:var(--ink);}
+.seg.is-on{background:var(--ink);border-color:var(--ink);color:var(--on-ink);}
+.seg.is-on .seg-kind{color:var(--on-ink);opacity:.7;}
+.seg-kind{font-size:11px;line-height:14px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);}
+.seg-name{font-size:14px;line-height:20px;font-weight:500;}
+.back{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--line-strong);color:var(--ink);}
+.back:hover{background:var(--surface-200);color:var(--ink);}
+.seg:focus-visible,.back:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;}
+.col-body{display:flex;flex-direction:column;gap:12px;overflow:auto;min-height:0;padding-bottom:8px;}
+.col-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--line-strong);}
+.col-title{font-family:var(--font-display);font-size:28px;line-height:32px;margin:0;font-weight:400;}
+.count{font-family:var(--font-mono);font-size:12px;line-height:16px;color:var(--ink-muted);}
+.lbl{font-size:12px;line-height:16px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);}
+.kpi-link{text-decoration:none;color:var(--ink);border-radius:var(--radius-md);margin:-8px -12px -8px 0;padding:8px 12px 8px 24px !important;position:relative;}
+.kpi-link:hover{background:var(--surface-200);color:var(--ink);}
+.kpi-link.is-on{background:var(--surface-200);box-shadow:inset 0 -2px 0 var(--ink);}
+.kpi-link:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.kpi-link .kpi-go{position:absolute;top:10px;right:12px;color:var(--ink-muted);transition:transform .2s ease;}
+.kpi-link:hover .kpi-go{transform:translateX(3px);color:var(--ink);}
+.scn{display:flex;flex-direction:column;justify-content:space-between;gap:24px;height:148px;box-sizing:border-box;padding:18px 20px;background:var(--surface-100);border:1px solid var(--line);border-radius:var(--radius-lg);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:border-color .15s ease;}
+.scn:hover{border-color:var(--ink);}
+.scn.is-on{background:var(--willow);border-color:var(--ink);}
+.scn:focus-visible,.stp:focus-visible,.tog:focus-visible,.chip:focus-visible,.ib:focus-visible,.num:focus-visible,.nav:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.scn-name{font-family:var(--font-display);font-size:30px;line-height:32px;}
+.hd{display:grid;column-gap:16px;padding:8px 0;font-size:11px;line-height:14px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--line-strong);}
+.rw{display:grid;column-gap:16px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px;line-height:22px;}
+.tog{height:32px;padding:0 12px;border-radius:var(--radius-pill);border:1px solid var(--line-strong);background:none;color:var(--ink-muted);font:inherit;font-size:13px;cursor:pointer;}
+.tog.is-on{background:var(--critical-soft);border-color:var(--critical);color:var(--critical);font-weight:500;}
+.chip{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:var(--radius-sm);background:var(--info-soft);color:var(--info);font-family:var(--font-mono);font-size:12px;border:0;}
+.chip.add{background:none;border:1px dashed var(--line-strong);color:var(--ink-muted);font-family:var(--font-sans);cursor:pointer;}
+.ib{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:var(--radius-md);border:0;background:none;color:var(--ink-muted);cursor:pointer;}
+.ib:hover{background:var(--surface-200);color:var(--ink);}
+.num{width:100%;box-sizing:border-box;height:36px;padding:0 10px;border:1px solid var(--line-strong);border-radius:var(--radius-md);background:var(--surface-100);color:var(--ink);font-family:var(--font-mono);font-size:14px;text-align:right;}
+.stp{display:grid;grid-template-columns:28px 1fr auto;align-items:baseline;column-gap:16px;width:100%;padding:18px 0;border:0;border-bottom:1px solid var(--line-strong);background:none;color:var(--ink-muted);font:inherit;text-align:left;cursor:pointer;}
+.stp.is-on{color:var(--ink);}
+.stp.is-done{color:var(--ink);}
+.stp-name{font-family:var(--font-display);font-size:36px;line-height:40px;letter-spacing:-.01em;}
+.stp-sum{grid-column:2 / 4;font-family:var(--font-mono);font-size:12px;line-height:16px;color:var(--ink-muted);padding-top:4px;}
+.nav{display:inline-flex;align-items:center;justify-content:space-between;gap:12px;height:64px;padding:0 24px;border-radius:var(--radius-md);font-size:16px;line-height:24px;font-weight:500;text-decoration:none;cursor:pointer;font-family:inherit;border:1px solid transparent;box-sizing:border-box;}
+.nav.pri{flex-grow:1;background:var(--ink);color:var(--on-ink);}
+.nav.pri:hover{opacity:.9;color:var(--on-ink);}
+.nav.sec{background:none;border-color:var(--line-strong);color:var(--ink);}
+.nav.sec:hover{background:var(--surface-200);color:var(--ink);}
+.wave{fill:none;stroke:var(--line-strong);stroke-width:1;opacity:.5;}
+.seg3{display:inline-flex;padding:2px;gap:2px;border:1px solid var(--line-strong);border-radius:var(--radius-md);}
+.seg3 button{height:30px;padding:0 10px;border:0;border-radius:8px;background:none;color:var(--ink-muted);font:inherit;font-size:13px;cursor:pointer;}
+.seg3 button:hover{background:var(--surface-200);color:var(--ink);}
+.seg3 button.is-on{background:var(--ink);color:var(--on-ink);}
+.seg3 button:focus-visible,.sw:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.sw{justify-self:end;position:relative;width:44px;height:26px;border-radius:var(--radius-pill);border:1px solid var(--line-strong);background:var(--surface-200);cursor:pointer;padding:0;}
+.sw .sw-knob{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--surface-100);border:1px solid var(--line-strong);box-sizing:border-box;transition:left .15s ease;}
+.sw.is-on{background:var(--agent);border-color:var(--agent);}
+.sw.is-on .sw-knob{left:20px;border-color:var(--agent);}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.addf{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 20px;padding:20px;background:var(--surface-100);border:1px solid var(--line);border-radius:var(--radius-lg);}
+.fl{display:flex;flex-direction:column;gap:6px;min-width:0;}
+.in{height:44px;box-sizing:border-box;padding:0 12px;border:1px solid var(--line-strong);border-radius:var(--radius-md);background:var(--surface-100);color:var(--ink);font:inherit;font-size:15px;}
+.in::placeholder{color:var(--ink-muted);}
+.in:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.types{display:flex;gap:6px;flex-wrap:wrap;}
+.types button{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 12px;border:1px solid var(--line-strong);border-radius:var(--radius-md);background:none;color:var(--ink-muted);font:inherit;font-size:13px;cursor:pointer;}
+.types button:hover{background:var(--surface-200);color:var(--ink);}
+.types button.is-on{background:var(--ink);border-color:var(--ink);color:var(--on-ink);}
+.types button:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.seg3 button{height:38px;}
+.ta{height:auto;min-height:64px;padding:10px 12px;resize:vertical;line-height:22px;}
+
+/* Additions for the live app (everything else is the design's own CSS). */
+html{background:var(--surface-000);}
+.vt-sev__num{display:none;} /* severity reads from the bars alone: no number beside them */
+.vl-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:9999;background:var(--ink);color:var(--on-ink);
+  font:500 14px/20px var(--font-sans);padding:10px 18px;border-radius:var(--radius-md);box-shadow:var(--shadow-pop);max-width:720px;}
+.vl-toast.is-ok{background:var(--success);color:#fff}.vl-toast.is-warn{background:var(--warning);color:var(--on-warning)}
+.vl-toast.is-bad{background:var(--critical);color:var(--on-critical)}
+.ringbar{position:relative;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:var(--radius-md);
+  background:var(--agent-soft);color:var(--ink);font-size:14px;line-height:20px;border:1px solid var(--agent);}
+.ringdot{width:10px;height:10px;border-radius:50%;background:var(--agent);animation:vl-pulse 1s ease-in-out infinite;flex-shrink:0;}
+@keyframes vl-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.5)}}
+.vl-empty{padding:24px 0;color:var(--ink-muted);font-size:14px;line-height:20px;}
+.vl-tab{appearance:none;cursor:pointer;}
+.vl-origin-tag{font-family:var(--font-mono);font-size:11px;color:var(--ink-muted);}
+.vl-change{display:grid;grid-template-columns:38px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:4px 0;font-size:13px;line-height:18px;color:var(--ink);text-decoration:none;}
+.vl-change:hover{color:var(--ink);background:var(--surface-200);}
+.vl-g{font-size:12px;text-align:center;}.vl-g.is-critical{color:var(--critical);}.vl-g.is-warning{color:var(--warning-text);}
+.vl-g.is-agent{color:var(--agent);}.vl-g.is-success{color:var(--success);}.vl-g.is-info{color:var(--info);}.vl-g.is-neutral{color:var(--ink-muted);}
+.tab.vl-zonechip{background:var(--info-soft);border-color:var(--info);color:var(--info);}
+.vl-change .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.vl-scrim{position:absolute;inset:0;border:0;padding:0;margin:0;background:rgba(14,13,12,.45);cursor:pointer;}
+.vl-dlg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:860px;max-height:840px;overflow:auto;box-sizing:border-box;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--surface-100);color:var(--ink);border-radius:var(--radius-lg);box-shadow:var(--shadow-pop);}
+.vl-x{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--line-strong);background:none;color:var(--ink);cursor:pointer;font-size:18px;}
+.vl-x:hover{background:var(--surface-200);}
+.vl-row{display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:20px;}
+.vl-prio{font-family:var(--font-mono);font-size:12px;font-weight:500;}
+.vl-prio.p0{color:var(--critical);}.vl-prio.p1{color:var(--warning-text);}.vl-prio.p2{color:var(--info);}.vl-prio.p3{color:var(--ink-muted);}
+.vl-sub{color:var(--ink-muted);font-size:12px;line-height:16px;}
+.vl-more{appearance:none;border:0;background:none;padding:6px 0 0;font:500 13px/18px var(--font-sans);color:var(--agent);cursor:pointer;text-align:left;}
+.vl-more:hover{text-decoration:underline;}
+.vl-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;}
+.vl-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.vl-chipbtn{appearance:none;font:500 13px/20px var(--font-sans);padding:6px 12px;border-radius:var(--radius-pill);border:1px solid var(--line-strong);background:none;color:var(--ink);cursor:pointer;}
+.vl-chipbtn:hover{background:var(--surface-200);}.vl-chipbtn.is-on{background:var(--ink);border-color:var(--ink);color:var(--on-ink);}
+.vl-fl{display:flex;flex-direction:column;gap:6px;}
+.vl-in{font:400 15px/22px var(--font-sans);color:var(--ink);background:var(--surface-100);border:1px solid var(--line-strong);border-radius:var(--radius-md);padding:9px 12px;width:100%;box-sizing:border-box;resize:none;}
+.vl-in:focus{outline:2px solid var(--focus);outline-offset:1px;}
+
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 16px; display: flex; gap: 16px; background: var(--surface-000); color: var(--ink); font-family: var(--font-sans); overflow: hidden;">
+<main style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 24px 48px 40px; display: flex; flex-direction: column; gap: 40px; overflow: auto;">
+<header style="display: flex; align-items: center; justify-content: space-between;">
+<span style="display: flex; align-items: baseline; gap: 12px;"><span style="font-family: var(--font-display); font-size: 32px; line-height: 36px;">Valte</span><span style="font-size: 13px; line-height: 20px; color: var(--ink-muted);">con HappyRobot</span></span>
+<a href="Main.dc.html" class="back" aria-label="Cancelar y volver al inicio"><svg width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg></a>
+</header>
+<div style="display: flex; align-items: baseline; gap: 20px;"><span style="font-family: var(--font-mono); font-size: 13px; color: var(--ink-muted);">{{curNum}}</span><h1 style="margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 64px; line-height: 64px; letter-spacing: -0.015em;">{{curName}}</h1></div>
+<sc-if value="{{is1}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 32px;">
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;"><button type="button" class="{{sc_flood.cls}}" aria-pressed="{{sc_flood.on}}" sc-camel-on-click="{{sc_flood.pick}}"><svg width="28" height="28" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15c2 0 2-1.5 4.5-1.5S10 15 12 15s2-1.5 4.5-1.5S19 15 21 15"></path><path d="M3 19c2 0 2-1.5 4.5-1.5S10 19 12 19s2-1.5 4.5-1.5S19 19 21 19"></path><path d="M12 3c2.5 3 4 5 4 6.5a4 4 0 0 1-8 0C8 8 9.5 6 12 3z"></path></svg><span class="scn-name">Inundación</span></button><button type="button" class="{{sc_fire.cls}}" aria-pressed="{{sc_fire.on}}" sc-camel-on-click="{{sc_fire.pick}}"><svg width="28" height="28" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 0 2 1 3 2 3 0-3-1.5-5.5.5-8z"></path></svg><span class="scn-name">Incendio forestal</span></button><button type="button" class="{{sc_blackout.cls}}" aria-pressed="{{sc_blackout.on}}" sc-camel-on-click="{{sc_blackout.pick}}"><svg width="28" height="28" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L5 13h6l-1 9 8-11h-6z"></path></svg><span class="scn-name">Apagón</span></button><button type="button" class="{{sc_infra.cls}}" aria-pressed="{{sc_infra.on}}" sc-camel-on-click="{{sc_infra.pick}}"><svg width="28" height="28" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 20V11"></path><path d="M19 20V11"></path><path d="M3 11c4-5 14-5 18 0"></path><path d="M12 7v13"></path></svg><span class="scn-name">Fallo de infraestructura</span></button><button type="button" class="{{sc_mci.cls}}" aria-pressed="{{sc_mci.on}}" sc-camel-on-click="{{sc_mci.pick}}"><svg width="28" height="28" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"></path></svg><span class="scn-name">Víctimas múltiples</span></button><button type="button" class="{{sc_other.cls}}" aria-pressed="{{sc_other.on}}" sc-camel-on-click="{{sc_other.pick}}"><svg width="28" height="28" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="1.2"></circle><circle cx="12" cy="12" r="1.2"></circle><circle cx="18" cy="12" r="1.2"></circle></svg><span class="scn-name">Otro</span></button></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+<x-import component-from-global-scope="Valte.TextField" label="Nombre" value="{{cName}}" placeholder="Riada en Paiporta" sc-camel-on-change="{{setCName}}"></x-import>
+<x-import component-from-global-scope="Valte.TextField" label="Región" value="{{cRegion}}" placeholder="Horta Sud, Valencia" sc-camel-on-change="{{setCRegion}}"></x-import>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{is2}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: flex-end; gap: 12px;">
+<div style="flex-grow: 1;"><x-import component-from-global-scope="Valte.TextField" label="Añadir zona" placeholder="Municipio · habitantes (p. ej. Alfafar · 21000)" value="{{zNew}}" sc-camel-on-change="{{setZNew}}"></x-import></div>
+<x-import component-from-global-scope="Valte.Button" variant="secondary" sc-camel-on-click="{{addZone}}">Añadir</x-import>
+</div>
+<div style="display: flex; flex-direction: column;">
+<div class="hd" style="grid-template-columns: minmax(0,1fr) 110px 110px minmax(0,1.6fr) 36px;"><span>Zona</span><span>Habitantes</span><span>Origen</span><span>Propaga a</span><span></span></div>
+<sc-for list="{{zones}}" as="z" hint-placeholder-count="6">
+<div class="rw" style="grid-template-columns: minmax(0,1fr) 110px 110px minmax(0,1.6fr) 36px;">
+<span style="font-weight: 600;">{{z.name}}</span>
+<span style="font-family: var(--font-mono); font-size: 13px;">{{z.hab}}</span>
+<span><button type="button" class="{{z.togCls}}" aria-pressed="{{z.origin}}" sc-camel-on-click="{{z.toggle}}">{{z.togLabel}}</button></span>
+<span style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{z.to}}" as="t" hint-placeholder-count="1"><span class="chip">{{t}}</span></sc-for><button type="button" class="chip add" sc-camel-on-click="{{z.connect}}">+ Conexión</button></span>
+<button type="button" class="ib" aria-label="Quitar zona" sc-camel-on-click="{{z.remove}}"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M6 7l1 13h10l1-13"></path></svg></button>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{is3}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 28px;">
+<form class="addf" sc-camel-on-submit="{{addSource}}">
+<label class="fl"><span class="lbl">Nombre</span><input class="in" type="text" placeholder="Aforos CHJ" value="{{fName}}" sc-camel-on-change="{{setName}}"></label>
+<label class="fl" style="grid-column: 2 / 4;"><span class="lbl">Enlace <span style="text-transform: none; letter-spacing: 0; font-weight: 400;">· opcional</span></span><input class="in" type="url" placeholder="https://" value="{{fLink}}" sc-camel-on-change="{{setLink}}"></label>
+<label class="fl" style="grid-column: 1 / 4;"><span class="lbl">Descripción</span><textarea class="in ta" rows="2" placeholder="Caudal de la rambla del Poyo cada 5 minutos" value="{{fDesc}}" sc-camel-on-change="{{setDesc}}"></textarea></label>
+<div class="fl" role="group" aria-label="Fiabilidad" style="grid-column: 1 / 3;"><span class="lbl">Fiabilidad</span><span class="seg3" style="align-self: flex-start;"><button type="button" class="{{tr_high.cls}}" aria-pressed="{{tr_high.on}}" sc-camel-on-click="{{tr_high.pick}}">Alta</button><button type="button" class="{{tr_medium.cls}}" aria-pressed="{{tr_medium.on}}" sc-camel-on-click="{{tr_medium.pick}}">Media</button><button type="button" class="{{tr_low.cls}}" aria-pressed="{{tr_low.on}}" sc-camel-on-click="{{tr_low.pick}}">Baja</button></span></div>
+<div class="fl" style="justify-content: flex-end; align-items: flex-end;"><button type="submit" class="nav pri" style="height: 44px; flex-grow: 0; padding: 0 20px;">Añadir fuente</button></div>
+</form>
+<div style="display: flex; flex-direction: column;">
+<div class="hd" style="grid-template-columns: minmax(0,1fr) minmax(0,.8fr) 130px 36px;"><span>Fuente</span><span>Enlace</span><span>Fiabilidad</span><span></span></div>
+<sc-if value="{{noSources}}" hint-placeholder-val="{{true}}"><div style="padding: 28px 0; border-bottom: 1px solid var(--line); color: var(--ink-muted); font-size: 14px;">Sin fuentes</div></sc-if>
+<sc-for list="{{fuentes}}" as="f" hint-placeholder-count="0">
+<div class="rw" style="grid-template-columns: minmax(0,1fr) minmax(0,.8fr) 130px 36px;">
+<span style="display: flex; flex-direction: column; min-width: 0;"><span style="font-weight: 500;" class="ell">{{f.name}}</span><span style="font-size: 13px; line-height: 18px; color: var(--ink-muted);" class="ell">{{f.desc}}</span></span>
+<span style="min-width: 0;"><sc-if value="{{f.hasLink}}" hint-placeholder-val="{{false}}"><a href="{{f.link}}" target="_blank" rel="noopener" class="ell" style="display: block; font-family: var(--font-mono); font-size: 12px;">{{f.link}}</a></sc-if><sc-if value="{{f.noLink}}" hint-placeholder-val="{{true}}"><span style="color: var(--ink-muted);">—</span></sc-if></span>
+<span><x-import component-from-global-scope="Valte.StatusBadge" status="{{f.trust}}"></x-import></span>
+<button type="button" class="ib" aria-label="Quitar fuente" sc-camel-on-click="{{f.remove}}"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M6 7l1 13h10l1-13"></path></svg></button>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 16px; padding: 16px 20px; background: var(--agent-soft); border-radius: var(--radius-lg);">
+<span style="width: 10px; height: 10px; border-radius: 50%; background: var(--agent);"></span>
+<span style="display: flex; flex-direction: column; flex-grow: 1;"><span style="font-weight: 500;">Workflow de ingesta · HappyRobot</span><span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted);">{{ingestName}}</span></span>
+<x-import component-from-global-scope="Valte.StatusBadge" tone="{{ingestTone}}" glyph="●" label="{{ingestLabel}}"></x-import>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{is4}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 28px;">
+<form class="addf" sc-camel-on-submit="{{addRes}}">
+<label class="fl"><span class="lbl">Nombre</span><input class="in" type="text" placeholder="Bombas de achique" value="{{rName}}" sc-camel-on-change="{{setRName}}"></label>
+<label class="fl"><span class="lbl">Cantidad</span><input class="in" type="number" min="0" placeholder="12" value="{{rQty}}" sc-camel-on-change="{{setRQty}}" style="font-family: var(--font-mono);"></label>
+<label class="fl"><span class="lbl">Unidad <span style="text-transform: none; letter-spacing: 0; font-weight: 400;">· opcional</span></span><input class="in" type="text" placeholder="ud., L, kits…" value="{{rUnit}}" sc-camel-on-change="{{setRUnit}}"></label>
+<label class="fl" style="grid-column: 1 / 4;"><span class="lbl">Descripción</span><textarea class="in ta" rows="2" placeholder="Dónde están, quién las gestiona, cuánto tardan en llegar…" value="{{rDesc}}" sc-camel-on-change="{{setRDesc}}"></textarea></label>
+<div class="fl" style="grid-column: 3 / 4; align-items: flex-end;"><button type="submit" class="nav pri" style="height: 44px; flex-grow: 0; padding: 0 20px;">Añadir recurso</button></div>
+</form>
+<div style="display: flex; flex-direction: column;">
+<div class="hd" style="grid-template-columns: minmax(0,1fr) 140px 36px;"><span>Recurso</span><span style="text-align: right;">Cantidad</span><span></span></div>
+<sc-if value="{{noRes}}" hint-placeholder-val="{{true}}"><div style="padding: 28px 0; border-bottom: 1px solid var(--line); color: var(--ink-muted); font-size: 14px;">Sin recursos</div></sc-if>
+<sc-for list="{{recursos}}" as="r" hint-placeholder-count="0">
+<div class="rw" style="grid-template-columns: minmax(0,1fr) 140px 36px;">
+<span style="display: flex; flex-direction: column; min-width: 0;"><span style="font-weight: 500;" class="ell">{{r.name}}</span><span style="font-size: 13px; line-height: 18px; color: var(--ink-muted);">{{r.desc}}</span></span>
+<span style="font-family: var(--font-mono); font-size: 15px; text-align: right;">{{r.qty}} <span style="font-size: 12px; color: var(--ink-muted);">{{r.unit}}</span></span>
+<button type="button" class="ib" aria-label="Quitar recurso" sc-camel-on-click="{{r.remove}}"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M6 7l1 13h10l1-13"></path></svg></button>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+</main>
+<aside data-theme="dark" style="width: 496px; flex-shrink: 0; position: relative; box-sizing: border-box; padding: 40px; display: flex; flex-direction: column; justify-content: flex-end; gap: 40px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden;">
+<svg width="720" height="720" sc-camel-view-box="0 0 720 720" aria-hidden="true" style="position: absolute; right: -360px; top: -360px;"><circle class="wave" cx="360" cy="360" r="48"></circle><circle class="wave" cx="360" cy="360" r="88"></circle><circle class="wave" cx="360" cy="360" r="128"></circle><circle class="wave" cx="360" cy="360" r="168"></circle><circle class="wave" cx="360" cy="360" r="208"></circle><circle class="wave" cx="360" cy="360" r="248"></circle><circle class="wave" cx="360" cy="360" r="288"></circle><circle class="wave" cx="360" cy="360" r="328"></circle></svg>
+<nav aria-label="Pasos" style="position: relative; display: flex; flex-direction: column; border-top: 1px solid var(--line-strong);">
+<sc-for list="{{steps}}" as="p" hint-placeholder-count="4">
+<button type="button" class="{{p.cls}}" aria-current="{{p.current}}" sc-camel-on-click="{{p.go}}">
+<span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px;">{{p.num}}</span>
+<span class="stp-name">{{p.name}}</span>
+<span style="font-size: 14px; color: var(--success);">{{p.mark}}</span>
+<span class="stp-sum">{{p.sum}}</span>
+</button>
+</sc-for>
+</nav>
+<div style="position: relative; display: flex; gap: 8px;">
+<sc-if value="{{canBack}}" hint-placeholder-val="{{false}}"><button type="button" class="nav sec" sc-camel-on-click="{{back}}">Atrás</button></sc-if>
+<sc-if value="{{isLast}}" hint-placeholder-val="{{false}}"><button type="button" class="nav pri" sc-camel-on-click="{{create}}" style="border: 0; cursor: pointer; font: inherit;">{{createLabel}}<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></button></sc-if>
+<sc-if value="{{notLast}}" hint-placeholder-val="{{true}}"><button type="button" class="nav pri" sc-camel-on-click="{{next}}">Siguiente<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></button></sc-if>
+</div>
+</aside>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  componentDidMount() {
+    const self = this;
+    // The flood scenario comes with the official plan (zones, entities, resources): prefill it, everything stays editable.
+    Promise.all([ValteLive.get('/packs/riada-paiporta'), ValteLive.get('/meta')]).then(([pack, meta]) => {
+      const names = Object.fromEntries(pack.zones.map(z => [z.id, z.name]));
+      self.setState({
+        pack, meta, cName: pack.name, cRegion: pack.region,
+        zones: pack.zones.map(z => ({ id: z.id, name: z.name, population: z.population, origin: !!z.is_origin,
+          to: (z.downstream || []).map(e => ({ name: names[e.to] || e.to, delay: e.delay_min })) })),
+        srcs: pack.entities.filter(e => e.kind === 'information_source').map(e => ({ id: e.id, name: e.name, desc: e.notes || '', link: '', trust: e.trust })),
+        res: pack.resources.map(r => ({ name: r.name, qty: String(r.total), unit: r.unit || '', desc: '' }))
+      });
+    }).catch(e => ValteLive.toast('Sin conexión con el backend: ' + e.message, 'bad'));
+  }
+
+  renderVals() {
+    const self = this, st = this.state || {};
+    const SCEN = [['flood', 'Inundación'], ['fire', 'Incendio forestal'], ['blackout', 'Apagón'], ['infra', 'Fallo de infraestructura'], ['mci', 'Víctimas múltiples'], ['other', 'Otro']];
+    const init = Number(new URLSearchParams(location.search).get('step')) || 1, step = st.step || init, scen = st.scen || 'flood';
+    const names = ['Escenario', 'Zonas', 'Fuentes de datos', 'Recursos disponibles'];
+    const zones = st.zones || [], srcs = st.srcs || [], res = st.res || [];
+    const fTrust = st.fTrust || 'high', nOrig = zones.filter(z => z.origin).length;
+    const sums = [`${SCEN.find(s => s[0] === scen)[1]} · ${st.cName || 'sin nombre'}`, `${zones.length} zonas · ${nOrig} ${nOrig === 1 ? 'origen' : 'orígenes'}`,
+      srcs.length ? `${srcs.length} ${srcs.length === 1 ? 'fuente' : 'fuentes'}` : 'Sin fuentes', res.length ? `${res.length} ${res.length === 1 ? 'recurso' : 'recursos'}` : 'Sin recursos'];
+    const go = n => () => self.setState({ step: n }), set = k => e => self.setState({ [k]: e.target.value });
+    const fmt = n => String(n || 0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    const vals = {};
+    SCEN.forEach(([id]) => { const on = id === scen; vals['sc_' + id] = { on: String(on), cls: 'scn' + (on ? ' is-on' : ''), pick: () => self.setState({ scen: id }) }; });
+    ['high', 'medium', 'low'].forEach(k => { const on = fTrust === k; vals['tr_' + k] = { on: String(on), cls: on ? 'is-on' : '', pick: () => self.setState({ fTrust: k }) }; });
+    const ready = (st.meta && Object.keys(st.meta.workflows || {}).length) || 0;
+
+    const create = () => {
+      if (st.creating) return;
+      if (!zones.length) { ValteLive.toast('Añade al menos una zona', 'warn'); self.setState({ step: 2 }); return; }
+      self.setState({ creating: true });
+      ValteLive.post('/crises', {
+        name: st.cName, region: st.cRegion, scenario: scen, pack: scen === 'flood' ? 'riada-paiporta' : null,
+        zones: zones.map(z => ({ id: z.id, name: z.name, population: z.population, is_origin: z.origin, to: z.to.map(t => `${t.name} · ${t.delay} min`) })),
+        sources: srcs, resources: res.map(r => ({ name: r.name, qty: r.qty, unit: r.unit, desc: r.desc })),
+        external_feed: true, start: true   // the data comes from the "Mundo exterior" app
+      }).then(c => { location.href = 'PanelCoordinacion.dc.html?c=' + c.id; })
+        .catch(e => { ValteLive.toast(e.message, 'bad'); self.setState({ creating: false }); });
+    };
+
+    return Object.assign(vals, {
+      is1: step === 1, is2: step === 2, is3: step === 3, is4: step === 4, curNum: '0' + step, curName: names[step - 1],
+      canBack: step > 1, isLast: step === 4, notLast: step < 4, back: go(Math.max(1, step - 1)), next: go(Math.min(4, step + 1)),
+      steps: names.map((n, i) => { const k = i + 1, done = k < step, on = k === step;
+        return { num: '0' + k, name: n, go: go(k), current: on ? 'step' : 'false', cls: 'stp' + (on ? ' is-on' : '') + (done ? ' is-done' : ''), mark: done ? '✓' : '', sum: done ? sums[i] : '' }; }),
+      cName: st.cName || '', cRegion: st.cRegion || '', setCName: set('cName'), setCRegion: set('cRegion'),
+      create, createLabel: st.creating ? 'Iniciando…' : 'Iniciar catástrofe',
+
+      zNew: st.zNew || '', setZNew: set('zNew'),
+      addZone: () => { const [name, pop] = (st.zNew || '').split('·').map(x => x.trim()); if (!name) return;
+        self.setState({ zones: zones.concat([{ name, population: parseInt((pop || '0').replace(/\D/g, ''), 10) || 0, origin: false, to: [] }]), zNew: '' }); },
+      zones: zones.map((z, i) => ({ name: z.name, hab: fmt(z.population), origin: String(z.origin), to: z.to.map(t => `${t.name} · ${t.delay} min`),
+        togCls: 'tog' + (z.origin ? ' is-on' : ''), togLabel: z.origin ? '● Origen' : 'Origen',
+        toggle: () => self.setState({ zones: zones.map((x, j) => j === i ? Object.assign({}, x, { origin: !x.origin }) : x) }),
+        remove: () => self.setState({ zones: zones.filter((_, j) => j !== i).map(x => Object.assign({}, x, { to: x.to.filter(t => t.name !== z.name) })) }),
+        connect: () => { const ans = prompt(`¿A qué zona propaga ${z.name} y en cuántos minutos?\nEjemplo: Picanya · 20`, ''); if (!ans) return;
+          const [name, delay] = ans.split('·').map(x => x.trim()); const target = zones.find(x => x.name.toLowerCase() === (name || '').toLowerCase());
+          if (!target || target === z) { ValteLive.toast('Esa zona no está en la lista', 'warn'); return; }
+          self.setState({ zones: zones.map((x, j) => j === i ? Object.assign({}, x, { to: x.to.filter(t => t.name !== target.name).concat([{ name: target.name, delay: parseInt(delay, 10) || 30 }]) }) : x) }); } })),
+
+      fName: st.fName || '', fDesc: st.fDesc || '', fLink: st.fLink || '', setName: set('fName'), setDesc: set('fDesc'), setLink: set('fLink'),
+      addSource: e => { if (e && e.preventDefault) e.preventDefault(); if (!(st.fName || '').trim()) return;
+        self.setState({ srcs: srcs.concat([{ name: st.fName.trim(), desc: (st.fDesc || '').trim(), link: (st.fLink || '').trim(), trust: fTrust }]), fName: '', fDesc: '', fLink: '' }); },
+      fuentes: srcs.map((f, i) => ({ name: f.name, desc: f.desc || '—', link: f.link, hasLink: !!f.link, noLink: !f.link, trust: f.trust,
+        remove: () => self.setState({ srcs: srcs.filter((_, j) => j !== i) }) })),
+      noSources: srcs.length === 0,
+      ingestName: ready ? 'PedroD-ingest-calls · -social · -news · PedroD-crisis-intake' : 'workflows sin aprovisionar: percepción local de respaldo',
+      ingestTone: ready ? 'agent' : 'warning', ingestLabel: ready ? 'HappyRobot escucha todas las fuentes' : 'Sin HappyRobot',
+
+      rName: st.rName || '', rQty: st.rQty || '', rUnit: st.rUnit || '', rDesc: st.rDesc || '',
+      setRName: set('rName'), setRQty: set('rQty'), setRUnit: set('rUnit'), setRDesc: set('rDesc'),
+      addRes: e => { if (e && e.preventDefault) e.preventDefault(); if (!(st.rName || '').trim()) return;
+        self.setState({ res: res.concat([{ name: st.rName.trim(), qty: String(st.rQty || '').trim(), unit: (st.rUnit || '').trim(), desc: (st.rDesc || '').trim() }]), rName: '', rQty: '', rUnit: '', rDesc: '' }); },
+      recursos: res.map((r, i) => ({ name: r.name, qty: r.qty || '—', unit: r.unit, desc: r.desc || '—', remove: () => self.setState({ res: res.filter((_, j) => j !== i) }) })),
+      noRes: res.length === 0
+    });
+  }
+}
+
+</script>
+</body></html>

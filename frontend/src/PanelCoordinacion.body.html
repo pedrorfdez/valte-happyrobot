@@ -1,0 +1,47 @@
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 24px; background: var(--surface-000); color: var(--ink); font-family: var(--font-sans); overflow: hidden; position: relative;">
+<!-- include: header -->
+<div style="flex-grow: 1; min-height: 0; display: flex; gap: 32px; padding: 0 12px;">
+<section class="col" style="width: 360px; flex-shrink: 0;"><div class="col-head"><h2 class="col-title">Zonas</h2><span class="count">{{zonesCount}}</span></div><div class="col-body"><sc-for list="{{zones}}" as="z" hint-placeholder-count="6"><a href="{{z.href}}" style="text-decoration: none; color: var(--ink); display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line);">
+<div style="display: flex; align-items: center; gap: 12px;"><span style="font-size: 16px; line-height: 24px; font-weight: 600; flex-grow: 1;">{{z.name}}</span><span class="count">{{z.etaShort}}</span><x-import component-from-global-scope="Valte.StatusBadge" tone="{{z.warnTone}}" glyph="{{z.warnGlyph}}" label="{{z.warnShort}}"></x-import></div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><x-import component-from-global-scope="Valte.SeverityMeter" value="{{z.severity}}" trend="{{z.trend}}"></x-import><span style="font-family: var(--font-mono); font-size: 13px; line-height: 20px; color: var(--critical);">{{z.accessText}}</span></div>
+</a></sc-for></div><div><x-import component-from-global-scope="Valte.Button" variant="secondary" block="{{yes}}" sc-camel-on-click="{{rp.show}}">⚑ Reportar incidencia</x-import></div></section><section class="col" style="flex-grow: 1;"><div class="col-head"><h2 class="col-title">Acciones</h2><span class="count">{{actsCount}}</span></div><div class="col-body"><sc-if value="{{hasNote}}" hint-placeholder-val="{{false}}"><div style="padding: 4px 0 12px; border-bottom: 1px solid var(--line);"><span class="lbl">{{noteLabel}}</span><p class="vt-reason" style="margin-top: 6px;"><span class="vt-reason__who">Agente</span>{{note}}</p><button type="button" class="vl-more" sc-camel-on-click="{{openPlan}}">Ver plan, reflejos y lo aprendido →</button></div></sc-if><sc-if value="{{hasChanges}}" hint-placeholder-val="{{false}}"><div style="display: flex; flex-direction: column; padding: 2px 0 8px; border-bottom: 1px solid var(--line);"><span class="lbl" style="padding-bottom: 4px;">Últimos cambios</span><sc-for list="{{changes}}" as="g" hint-placeholder-count="3"><a href="{{g.href}}" class="vl-change" title="{{g.text}}"><span class="mono muted">{{g.time}}</span><span class="{{g.cls}}">{{g.glyph}}</span><span class="ell">{{g.text}}</span></a></sc-for></div></sc-if><sc-if value="{{noActs}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Aún no hay acciones. El agente actuará en cuanto lleguen señales relevantes.</div></sc-if><sc-for list="{{acts}}" as="a" hint-placeholder-count="2"><x-import component-from-global-scope="Valte.ActionItem" action="{{a.action}}" time="{{a.time}}" verb-label="{{a.verbLabel}}" actor-name="{{a.actorName}}" deadline="{{a.deadline}}" sc-camel-on-approve="{{a.approve}}" sc-camel-on-reject="{{a.reject}}"></x-import></sc-for></div></section><section class="col" style="width: 400px; flex-shrink: 0;"><div class="col-head"><h2 class="col-title">Señales</h2><span class="count">{{sigsCount}}</span></div><div class="col-body"><sc-if value="{{noSigs}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Sin señales todavía. Pulsa Start en «Mundo exterior».</div></sc-if><sc-for list="{{sigs}}" as="s" hint-placeholder-count="3"><x-import component-from-global-scope="Valte.SignalItem" signal="{{s.signal}}" time="{{s.time}}" source-name="{{s.sourceName}}" noise="{{s.noise}}"></x-import></sc-for></div></section>
+</div>
+<sc-if value="{{planOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10;">
+<button type="button" class="vl-scrim" aria-label="Cerrar" sc-camel-on-click="{{closePlan}}"></button>
+<div class="vl-dlg" role="dialog" aria-modal="true" aria-labelledby="plan-title">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><span class="lbl">{{pl.kicker}}</span>
+<h2 id="plan-title" style="margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 44px;">{{pl.title}}</h2></div>
+<button type="button" class="vl-x" aria-label="Cerrar" sc-camel-on-click="{{closePlan}}">✕</button>
+</div>
+<p class="vt-reason" style="margin: 0;"><span class="vt-reason__who">Agente</span>{{pl.summary}}</p>
+<div class="vl-cols">
+<div style="display: flex; flex-direction: column;"><span class="lbl">Objetivos, por orden</span>
+<sc-for list="{{pl.objectives}}" as="o" hint-placeholder-count="3"><div class="vl-row"><span class="{{o.cls}}">{{o.priority}}</span><span>{{o.text}}<span class="vl-sub" style="display: block;">{{o.meta}}</span></span></div></sc-for>
+<sc-if value="{{pl.noObjectives}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Todavía no hay plan: el agente lo redacta cuando una zona llega a severidad 4.</div></sc-if>
+</div>
+<div style="display: flex; flex-direction: column;"><span class="lbl">Incidentes</span>
+<sc-for list="{{pl.incidents}}" as="i" hint-placeholder-count="2"><div class="vl-row"><span class="{{i.cls}}">{{i.priority}}</span><span>{{i.title}}<span class="vl-sub" style="display: block;">{{i.meta}}</span></span></div></sc-for>
+<sc-if value="{{pl.noIncidents}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Sin incidentes abiertos.</div></sc-if>
+</div>
+</div>
+<div class="vl-cols">
+<div style="display: flex; flex-direction: column;"><span class="lbl">Cuándo se tiró cada plan</span>
+<sc-for list="{{pl.history}}" as="p" hint-placeholder-count="2"><div class="vl-row"><span class="mono muted">{{p.version}}</span><span>{{p.why}}<span class="vl-sub" style="display: block;">{{p.meta}}</span></span></div></sc-for>
+<sc-if value="{{pl.noHistory}}" hint-placeholder-val="{{false}}"><div class="vl-empty">El plan vigente es el primero.</div></sc-if>
+</div>
+<div style="display: flex; flex-direction: column;"><span class="lbl">Reflejos armados (actúan sin esperar al agente)</span>
+<sc-for list="{{pl.tripwires}}" as="t" hint-placeholder-count="2"><div class="vl-row"><span class="{{t.cls}}">{{t.glyph}}</span><span>{{t.text}}<span class="vl-sub" style="display: block;">{{t.meta}}</span></span></div></sc-for>
+<sc-if value="{{pl.noTripwires}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Ninguno todavía.</div></sc-if>
+</div>
+</div>
+<div style="display: flex; flex-direction: column;"><span class="lbl">Aprendido de ejecuciones anteriores</span>
+<sc-for list="{{pl.lessons}}" as="l" hint-placeholder-count="2"><div class="vl-row"><span class="vl-prio p2">✎</span><span>{{l.text}}<span class="vl-sub" style="display: block;">{{l.meta}}</span></span></div></sc-for>
+<sc-if value="{{pl.noLessons}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Es la primera crisis de este tipo: al cerrarla, el sistema guarda qué fuentes fallaron, quién no contestó y cuánto tardaron los avisos, y lo aplica a la siguiente.</div></sc-if>
+</div>
+</div>
+</div>
+</sc-if>
+<!-- include: report -->
+</div>

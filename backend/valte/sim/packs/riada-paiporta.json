@@ -1,0 +1,1517 @@
+{
+ "id": "riada-paiporta",
+ "name": "Riada en Paiporta",
+ "hazard_type": "flood",
+ "region": "Horta Sud, Valencia",
+ "description": "Crecida súbita del barranco del Poyo: el agua baja de Chiva a l'Horta Sud en menos de una hora.",
+ "code_prefix": "VLC",
+ "tz": "Europe/Madrid",
+ "t0_time": "14:05",
+ "duration_min": 150,
+ "coordination_entity": "cecopi",
+ "approval_verbs": [
+  "order_evacuation",
+  "request_ume"
+ ],
+ "doctrine": [
+  "Decide on the propagation graph, never on local weather: a dry town downstream of a flooding zone has a countdown, not safety.",
+  "When an upstream zone reaches severity 7 (any confidence): activate_emergency_level 2, send_es_alert to that zone AND every zone downstream of it in one action, and request_ume early (it needs 180 min and human approval).",
+  "Upstream severity 4-6 with medium+ confidence: activate_emergency_level 1 and arm tripwires (gauge >= 7; gauge silence 20 min).",
+  "A gauge that goes silent is an escalation, not an absence of news: assume the last trend continued.",
+  "Trapped-people reports with medium+ confidence: rescue with the nearest responder that has free units; keep 2 units in reserve while zones downstream are still dry.",
+  "ES-Alert message in castellano and valencià: riada inminente, no bajar a garajes ni sótanos, subir a plantas altas, no coger el coche.",
+  "Secondhand rumours never raise severity on their own; corroboration across channels beats any single source.",
+  "A false alarm costs minutes; a late alarm costs lives. With ambiguity, act higher.",
+  "If an entity does not answer, use its escalation_to. Register new actors that offer help (register_entity) before relying on them."
+ ],
+ "tripwires": [
+  {
+   "id": "tw-gauge-silence",
+   "if": {
+    "type": "silence",
+    "source": "chj-gauges",
+    "silence_min": 20
+   },
+   "then": [
+    {
+     "actor": "cecopi",
+     "verb": "activate_emergency_level",
+     "target_zones": [],
+     "params": {
+      "level": 2
+     }
+    }
+   ],
+   "reason": "Plan de inundaciones: si el aforo enmudece con tendencia ascendente, se asume lo peor."
+  }
+ ],
+ "zones": [
+  {
+   "id": "chiva",
+   "centroid": {
+    "lat": 39.4717,
+    "lng": -0.7194
+   },
+   "name": "Chiva",
+   "population": 15800,
+   "is_origin": true,
+   "elevation": "high",
+   "base_at_risk_pct": 24,
+   "notes": "Cabecera de la rambla del Poyo. Aforo de la CHJ.",
+   "downstream": [
+    {
+     "to": "cheste",
+     "delay_min": 25
+    },
+    {
+     "to": "paiporta",
+     "delay_min": 38
+    }
+   ]
+  },
+  {
+   "id": "torrent",
+   "centroid": {
+    "lat": 39.4371,
+    "lng": -0.4655
+   },
+   "name": "Torrent",
+   "population": 87400,
+   "is_origin": true,
+   "elevation": "medium",
+   "base_at_risk_pct": 14,
+   "notes": "Barranc de l'Horteta; la avenida del Vedat es el punto bajo.",
+   "downstream": [
+    {
+     "to": "picanya",
+     "delay_min": 50
+    }
+   ]
+  },
+  {
+   "id": "cheste",
+   "centroid": {
+    "lat": 39.4936,
+    "lng": -0.6833
+   },
+   "name": "Cheste",
+   "population": 8900,
+   "is_origin": false,
+   "elevation": "medium",
+   "base_at_risk_pct": 18,
+   "notes": "El barranco cruza el casco urbano.",
+   "downstream": [
+    {
+     "to": "picanya",
+     "delay_min": 19
+    }
+   ]
+  },
+  {
+   "id": "paiporta",
+   "centroid": {
+    "lat": 39.4278,
+    "lng": -0.4172
+   },
+   "name": "Paiporta",
+   "population": 27180,
+   "is_origin": false,
+   "elevation": "low",
+   "base_at_risk_pct": 40,
+   "notes": "Cota baja junto al barranco. Muchos garajes y bajos: es donde se concentra el riesgo.",
+   "downstream": [
+    {
+     "to": "massanassa",
+     "delay_min": 17
+    }
+   ]
+  },
+  {
+   "id": "picanya",
+   "centroid": {
+    "lat": 39.4358,
+    "lng": -0.4336
+   },
+   "name": "Picanya",
+   "population": 11700,
+   "is_origin": false,
+   "elevation": "low",
+   "base_at_risk_pct": 28,
+   "notes": "Bajos de la calle Mayor junto al barranco.",
+   "downstream": [
+    {
+     "to": "massanassa",
+     "delay_min": 11
+    }
+   ]
+  },
+  {
+   "id": "massanassa",
+   "centroid": {
+    "lat": 39.4089,
+    "lng": -0.3986
+   },
+   "name": "Massanassa",
+   "population": 9800,
+   "is_origin": false,
+   "elevation": "low",
+   "base_at_risk_pct": 22,
+   "notes": "Última zona antes de l'Albufera. V-31 muy expuesta.",
+   "downstream": []
+  }
+ ],
+ "entities": [
+  {
+   "id": "cecopi",
+   "name": "CECOPI",
+   "kind": "authority",
+   "role": "coordination",
+   "weight": 10,
+   "trust": "high",
+   "jurisdiction": [],
+   "channel": {
+    "kind": "none"
+   },
+   "capabilities": [
+    "send_es_alert",
+    "activate_emergency_level",
+    "request_ume"
+   ],
+   "activation": {
+    "delay_min": 0,
+    "cost": "low"
+   }
+  },
+  {
+   "id": "delegacion-gobierno",
+   "name": "Delegación del Gobierno",
+   "kind": "authority",
+   "role": "authority",
+   "weight": 9,
+   "trust": "high",
+   "jurisdiction": [],
+   "channel": {
+    "kind": "email",
+    "address": "delegacion-gobierno@demo.valte"
+   },
+   "capabilities": [
+    "order_evacuation",
+    "close_road",
+    "open_shelter",
+    "request_ume"
+   ],
+   "activation": {
+    "delay_min": 0,
+    "cost": "low"
+   },
+   "escalation_to": null
+  },
+  {
+   "id": "alcaldia-paiporta",
+   "name": "Alcaldía de Paiporta",
+   "kind": "authority",
+   "role": "authority",
+   "weight": 8,
+   "trust": "high",
+   "jurisdiction": [
+    "paiporta"
+   ],
+   "channel": {
+    "kind": "voice",
+    "address": "+34 963 971 222"
+   },
+   "capabilities": [
+    "order_evacuation",
+    "open_shelter",
+    "close_road",
+    "send_es_alert"
+   ],
+   "activation": {
+    "delay_min": 0,
+    "cost": "low"
+   },
+   "escalation_to": "delegacion-gobierno"
+  },
+  {
+   "id": "ayto-chiva",
+   "name": "Ayuntamiento de Chiva",
+   "kind": "authority",
+   "role": "authority",
+   "weight": 7,
+   "trust": "high",
+   "jurisdiction": [
+    "chiva"
+   ],
+   "channel": {
+    "kind": "email",
+    "address": "ayto-chiva@demo.valte"
+   },
+   "capabilities": [
+    "order_evacuation",
+    "open_shelter",
+    "close_road",
+    "send_es_alert"
+   ],
+   "activation": {
+    "delay_min": 0,
+    "cost": "low"
+   },
+   "escalation_to": "delegacion-gobierno"
+  },
+  {
+   "id": "ayto-cheste",
+   "name": "Ayuntamiento de Cheste",
+   "kind": "authority",
+   "role": "authority",
+   "weight": 7,
+   "trust": "high",
+   "jurisdiction": [
+    "cheste"
+   ],
+   "channel": {
+    "kind": "email",
+    "address": "ayto-cheste@demo.valte"
+   },
+   "capabilities": [
+    "order_evacuation",
+    "open_shelter",
+    "close_road",
+    "send_es_alert"
+   ],
+   "activation": {
+    "delay_min": 0,
+    "cost": "low"
+   },
+   "escalation_to": "delegacion-gobierno"
+  },
+  {
+   "id": "ayto-torrent",
+   "name": "Ayuntamiento de Torrent",
+   "kind": "authority",
+   "role": "authority",
+   "weight": 7,
+   "trust": "high",
+   "jurisdiction": [
+    "torrent"
+   ],
+   "channel": {
+    "kind": "email",
+    "address": "ayto-torrent@demo.valte"
+   },
+   "capabilities": [
+    "order_evacuation",
+    "open_shelter",
+    "close_road",
+    "send_es_alert"
+   ],
+   "activation": {
+    "delay_min": 0,
+    "cost": "low"
+   },
+   "escalation_to": "delegacion-gobierno"
+  },
+  {
+   "id": "ayto-picanya",
+   "name": "Ayuntamiento de Picanya",
+   "kind": "authority",
+   "role": "authority",
+   "weight": 7,
+   "trust": "high",
+   "jurisdiction": [
+    "picanya"
+   ],
+   "channel": {
+    "kind": "email",
+    "address": "ayto-picanya@demo.valte"
+   },
+   "capabilities": [
+    "order_evacuation",
+    "open_shelter",
+    "close_road",
+    "send_es_alert"
+   ],
+   "activation": {
+    "delay_min": 0,
+    "cost": "low"
+   },
+   "escalation_to": "delegacion-gobierno"
+  },
+  {
+   "id": "ayto-massanassa",
+   "name": "Ayuntamiento de Massanassa",
+   "kind": "authority",
+   "role": "authority",
+   "weight": 7,
+   "trust": "high",
+   "jurisdiction": [
+    "massanassa"
+   ],
+   "channel": {
+    "kind": "email",
+    "address": "ayto-massanassa@demo.valte"
+   },
+   "capabilities": [
+    "order_evacuation",
+    "open_shelter",
+    "close_road",
+    "send_es_alert"
+   ],
+   "activation": {
+    "delay_min": 0,
+    "cost": "low"
+   },
+   "escalation_to": "delegacion-gobierno"
+  },
+  {
+   "id": "bomberos-vlc",
+   "name": "Bomberos Consorcio",
+   "kind": "responder",
+   "role": "responder",
+   "weight": 6,
+   "trust": "high",
+   "jurisdiction": [
+    "chiva",
+    "torrent",
+    "cheste",
+    "paiporta",
+    "picanya",
+    "massanassa"
+   ],
+   "channel": {
+    "kind": "email",
+    "address": "bomberos-vlc@demo.valte"
+   },
+   "capabilities": [
+    "rescue",
+    "pump_water"
+   ],
+   "units": {
+    "total": 40,
+    "available": 40
+   },
+   "activation": {
+    "delay_min": 0,
+    "cost": "low"
+   },
+   "escalation_to": "delegacion-gobierno",
+   "notes": ""
+  },
+  {
+   "id": "policia-local-paiporta",
+   "name": "Policía Local de Paiporta",
+   "kind": "responder",
+   "role": "responder",
+   "weight": 6,
+   "trust": "high",
+   "jurisdiction": [
+    "paiporta"
+   ],
+   "channel": {
+    "kind": "email",
+    "address": "policia-local-paiporta@demo.valte"
+   },
+   "capabilities": [
+    "close_road",
+    "wellness_check"
+   ],
+   "units": {
+    "total": 12,
+    "available": 12
+   },
+   "activation": {
+    "delay_min": 0,
+    "cost": "low"
+   },
+   "escalation_to": "guardia-civil-torrent",
+   "notes": ""
+  },
+  {
+   "id": "policia-local-torrent",
+   "name": "Policía Local de Torrent",
+   "kind": "responder",
+   "role": "responder",
+   "weight": 6,
+   "trust": "high",
+   "jurisdiction": [
+    "torrent"
+   ],
+   "channel": {
+    "kind": "voice",
+    "address": "+34 961 111 092"
+   },
+   "capabilities": [
+    "close_road",
+    "wellness_check"
+   ],
+   "units": {
+    "total": 10,
+    "available": 10
+   },
+   "activation": {
+    "delay_min": 0,
+    "cost": "low"
+   },
+   "escalation_to": "guardia-civil-torrent",
+   "notes": ""
+  },
+  {
+   "id": "guardia-civil-torrent",
+   "name": "Guardia Civil · Torrent",
+   "kind": "responder",
+   "role": "responder",
+   "weight": 6,
+   "trust": "high",
+   "jurisdiction": [
+    "torrent",
+    "picanya",
+    "paiporta",
+    "massanassa"
+   ],
+   "channel": {
+    "kind": "email",
+    "address": "guardia-civil-torrent@demo.valte"
+   },
+   "capabilities": [
+    "close_road",
+    "rescue",
+    "wellness_check"
+   ],
+   "units": {
+    "total": 14,
+    "available": 14
+   },
+   "activation": {
+    "delay_min": 10,
+    "cost": "low"
+   },
+   "escalation_to": "delegacion-gobierno",
+   "notes": ""
+  },
+  {
+   "id": "guardia-civil-chiva",
+   "name": "Guardia Civil · Chiva",
+   "kind": "responder",
+   "role": "responder",
+   "weight": 6,
+   "trust": "high",
+   "jurisdiction": [
+    "chiva",
+    "cheste"
+   ],
+   "channel": {
+    "kind": "email",
+    "address": "guardia-civil-chiva@demo.valte"
+   },
+   "capabilities": [
+    "close_road",
+    "rescue",
+    "wellness_check"
+   ],
+   "units": {
+    "total": 8,
+    "available": 8
+   },
+   "activation": {
+    "delay_min": 10,
+    "cost": "low"
+   },
+   "escalation_to": "delegacion-gobierno",
+   "notes": ""
+  },
+  {
+   "id": "samu",
+   "name": "SAMU",
+   "kind": "responder",
+   "role": "responder",
+   "weight": 6,
+   "trust": "high",
+   "jurisdiction": [
+    "paiporta",
+    "picanya",
+    "massanassa",
+    "torrent"
+   ],
+   "channel": {
+    "kind": "email",
+    "address": "samu@demo.valte"
+   },
+   "capabilities": [
+    "rescue",
+    "wellness_check"
+   ],
+   "units": {
+    "total": 8,
+    "available": 8
+   },
+   "activation": {
+    "delay_min": 5,
+    "cost": "low"
+   },
+   "escalation_to": "delegacion-gobierno",
+   "notes": ""
+  },
+  {
+   "id": "cruz-roja",
+   "name": "Cruz Roja",
+   "kind": "responder",
+   "role": "responder",
+   "weight": 6,
+   "trust": "high",
+   "jurisdiction": [
+    "chiva",
+    "torrent",
+    "cheste",
+    "paiporta",
+    "picanya",
+    "massanassa"
+   ],
+   "channel": {
+    "kind": "email",
+    "address": "cruz-roja@demo.valte"
+   },
+   "capabilities": [
+    "shelter",
+    "supplies",
+    "wellness_check"
+   ],
+   "units": {
+    "total": 10,
+    "available": 10
+   },
+   "activation": {
+    "delay_min": 15,
+    "cost": "low"
+   },
+   "escalation_to": "delegacion-gobierno",
+   "notes": ""
+  },
+  {
+   "id": "ume",
+   "name": "UME · 120 efectivos",
+   "kind": "responder",
+   "role": "responder",
+   "weight": 6,
+   "trust": "high",
+   "jurisdiction": [
+    "chiva",
+    "torrent",
+    "cheste",
+    "paiporta",
+    "picanya",
+    "massanassa"
+   ],
+   "channel": {
+    "kind": "email",
+    "address": "ume@demo.valte"
+   },
+   "capabilities": [
+    "rescue",
+    "pump_water"
+   ],
+   "units": {
+    "total": 120,
+    "available": 0
+   },
+   "activation": {
+    "delay_min": 180,
+    "cost": "high"
+   },
+   "escalation_to": "delegacion-gobierno",
+   "notes": "Not operational until request_ume is approved and 180 minutes pass."
+  },
+  {
+   "id": "112",
+   "name": "112 Comunitat Valenciana",
+   "kind": "information_source",
+   "weight": 3,
+   "trust": "high",
+   "jurisdiction": [],
+   "channel": {
+    "kind": "none"
+   },
+   "capabilities": [],
+   "notes": "Callers are sincere but often wrong about scale and origin."
+  },
+  {
+   "id": "chj-gauges",
+   "name": "Aforos CHJ",
+   "kind": "information_source",
+   "weight": 3,
+   "trust": "high",
+   "jurisdiction": [],
+   "channel": {
+    "kind": "none"
+   },
+   "capabilities": [],
+   "notes": "River gauges. Silence means the gauge is gone."
+  },
+  {
+   "id": "aemet",
+   "name": "AEMET",
+   "kind": "information_source",
+   "weight": 3,
+   "trust": "high",
+   "jurisdiction": [],
+   "channel": {
+    "kind": "none"
+   },
+   "capabilities": [],
+   "notes": ""
+  },
+  {
+   "id": "local-news",
+   "name": "À Punt",
+   "kind": "information_source",
+   "weight": 3,
+   "trust": "medium",
+   "jurisdiction": [],
+   "channel": {
+    "kind": "none"
+   },
+   "capabilities": [],
+   "notes": ""
+  },
+  {
+   "id": "levante-emv",
+   "name": "Levante-EMV",
+   "kind": "information_source",
+   "weight": 3,
+   "trust": "medium",
+   "jurisdiction": [],
+   "channel": {
+    "kind": "none"
+   },
+   "capabilities": [],
+   "notes": ""
+  },
+  {
+   "id": "social-media",
+   "name": "Redes sociales",
+   "kind": "information_source",
+   "weight": 3,
+   "trust": "low",
+   "jurisdiction": [],
+   "channel": {
+    "kind": "none"
+   },
+   "capabilities": [],
+   "notes": "Unverified. Heavy noise. Useful for early, street-level hints."
+  },
+  {
+   "id": "vecinos-chiva",
+   "name": "Vecinos · Chiva",
+   "kind": "population",
+   "weight": 1,
+   "trust": "low",
+   "jurisdiction": [
+    "chiva"
+   ],
+   "channel": {
+    "kind": "none"
+   },
+   "capabilities": [],
+   "zone": "chiva"
+  },
+  {
+   "id": "vecinos-torrent",
+   "name": "Vecinos · Torrent",
+   "kind": "population",
+   "weight": 1,
+   "trust": "low",
+   "jurisdiction": [
+    "torrent"
+   ],
+   "channel": {
+    "kind": "none"
+   },
+   "capabilities": [],
+   "zone": "torrent"
+  },
+  {
+   "id": "vecinos-cheste",
+   "name": "Vecinos · Cheste",
+   "kind": "population",
+   "weight": 1,
+   "trust": "low",
+   "jurisdiction": [
+    "cheste"
+   ],
+   "channel": {
+    "kind": "none"
+   },
+   "capabilities": [],
+   "zone": "cheste"
+  },
+  {
+   "id": "vecinos-paiporta",
+   "name": "Vecinos · Paiporta",
+   "kind": "population",
+   "weight": 1,
+   "trust": "low",
+   "jurisdiction": [
+    "paiporta"
+   ],
+   "channel": {
+    "kind": "none"
+   },
+   "capabilities": [],
+   "zone": "paiporta"
+  },
+  {
+   "id": "vecinos-picanya",
+   "name": "Vecinos · Picanya",
+   "kind": "population",
+   "weight": 1,
+   "trust": "low",
+   "jurisdiction": [
+    "picanya"
+   ],
+   "channel": {
+    "kind": "none"
+   },
+   "capabilities": [],
+   "zone": "picanya"
+  },
+  {
+   "id": "vecinos-massanassa",
+   "name": "Vecinos · Massanassa",
+   "kind": "population",
+   "weight": 1,
+   "trust": "low",
+   "jurisdiction": [
+    "massanassa"
+   ],
+   "channel": {
+    "kind": "none"
+   },
+   "capabilities": [],
+   "zone": "massanassa"
+  }
+ ],
+ "resources": [
+  {
+   "id": "agua",
+   "name": "Agua embotellada",
+   "unit": "L",
+   "total": 2400,
+   "available": 2400,
+   "owner_entity_id": "cruz-roja"
+  },
+  {
+   "id": "raciones",
+   "name": "Raciones de comida",
+   "unit": "",
+   "total": 3000,
+   "available": 3000,
+   "owner_entity_id": "cruz-roja"
+  },
+  {
+   "id": "mantas",
+   "name": "Mantas",
+   "unit": "",
+   "total": 800,
+   "available": 800,
+   "owner_entity_id": "cruz-roja"
+  },
+  {
+   "id": "medicamentos",
+   "name": "Medicamentos básicos",
+   "unit": "kits",
+   "total": 400,
+   "available": 400,
+   "owner_entity_id": "samu"
+  },
+  {
+   "id": "bombas-achique",
+   "name": "Bombas de achique",
+   "unit": "",
+   "total": 12,
+   "available": 12,
+   "owner_entity_id": "bomberos-vlc"
+  },
+  {
+   "id": "embarcaciones",
+   "name": "Embarcaciones",
+   "unit": "",
+   "total": 6,
+   "available": 6,
+   "owner_entity_id": "bomberos-vlc"
+  },
+  {
+   "id": "vehiculos-gc-torrent",
+   "name": "Todoterrenos",
+   "unit": "",
+   "total": 6,
+   "available": 6,
+   "owner_entity_id": "guardia-civil-torrent"
+  }
+ ],
+ "timeline": [
+  {
+   "at_min": 0,
+   "kind": "raw_input",
+   "channel": "news",
+   "source": "aemet",
+   "payload": {
+    "outlet": "AEMET",
+    "headline": "Aviso rojo por lluvias torrenciales en el interior norte de Valencia",
+    "body": "AEMET eleva a rojo el aviso: más de 180 l/m² en 12 horas en la Hoya de Buñol. Riesgo extremo de crecidas súbitas en ramblas y barrancos."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 4
+     }
+    ],
+    "zone": "",
+    "precision": "region",
+    "location_text": "interior norte de Valencia, Hoya de Buñol",
+    "summary": "AEMET issues a red warning for torrential rain over the upstream basin."
+   }
+  },
+  {
+   "at_min": 2,
+   "kind": "sensor",
+   "source": "chj-gauges",
+   "zone": "chiva",
+   "severity": 3,
+   "content": "Caudal 320 m³/s · Rambla del Poyo, Chiva"
+  },
+  {
+   "at_min": 5,
+   "kind": "raw_input",
+   "channel": "social",
+   "source": "social-media",
+   "payload": {
+    "author": "@vicent_vlc",
+    "text": "Qué día más gris, a ver si para para el partido."
+   },
+   "fallback": {
+    "is_noise": true,
+    "claims": [],
+    "zone": "",
+    "precision": "unknown",
+    "location_text": "",
+    "summary": "NOISE: weather small talk."
+   }
+  },
+  {
+   "at_min": 8,
+   "kind": "raw_input",
+   "channel": "social",
+   "source": "social-media",
+   "payload": {
+    "author": "@marta_chiva",
+    "text": "En Chiva está cayendo el diluvio universal, la rambla baja marrón y con muchísima fuerza. Nunca la había visto así."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 4
+     }
+    ],
+    "zone": "chiva",
+    "precision": "zone",
+    "location_text": "Chiva, la rambla",
+    "summary": "Resident reports the Chiva ravine running brown and strong."
+   }
+  },
+  {
+   "at_min": 12,
+   "kind": "sensor",
+   "source": "chj-gauges",
+   "zone": "chiva",
+   "severity": 5,
+   "content": "Caudal 610 m³/s y subiendo · Rambla del Poyo, Chiva"
+  },
+  {
+   "at_min": 15,
+   "kind": "raw_input",
+   "channel": "news",
+   "source": "local-news",
+   "payload": {
+    "outlet": "À Punt",
+    "headline": "Carreteras cortadas en la Hoya de Buñol",
+    "body": "À Punt: varias carreteras comarcales de la Hoya de Buñol cortadas por acumulación de agua. Se pide evitar desplazamientos."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 4
+     }
+    ],
+    "zone": "",
+    "precision": "region",
+    "location_text": "Hoya de Buñol",
+    "summary": "Regional TV reports roads closed by water upstream."
+   }
+  },
+  {
+   "at_min": 18,
+   "kind": "raw_input",
+   "channel": "social",
+   "source": "social-media",
+   "payload": {
+    "author": "@pepa_pai",
+    "text": "¿Alguien sabe si abren el Mercadona de Paiporta esta tarde?"
+   },
+   "fallback": {
+    "is_noise": true,
+    "claims": [],
+    "zone": "",
+    "precision": "unknown",
+    "location_text": "",
+    "summary": "NOISE: shopping question."
+   }
+  },
+  {
+   "at_min": 20,
+   "kind": "raw_input",
+   "channel": "call",
+   "source": "112",
+   "payload": {
+    "caller": "+34 6XX XXX 120",
+    "transcript": "Llamo desde Chiva, el barranco se está saliendo por la calle Ramón y Cajal, el agua ya entra en los bajos. Hay vecinos mayores en las plantas bajas."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 6
+     }
+    ],
+    "zone": "chiva",
+    "precision": "street",
+    "location_text": "calle Ramón y Cajal, Chiva",
+    "summary": "Caller in Chiva reports the ravine overflowing into ground floors on Ramón y Cajal street."
+   }
+  },
+  {
+   "at_min": 24,
+   "kind": "sensor",
+   "source": "chj-gauges",
+   "zone": "chiva",
+   "severity": 7,
+   "content": "Caudal 1.150 m³/s y subiendo · Rambla del Poyo, Chiva"
+  },
+  {
+   "at_min": 26,
+   "kind": "raw_input",
+   "channel": "social",
+   "source": "social-media",
+   "payload": {
+    "author": "@joan_cheste",
+    "text": "En Cheste el barranco ya se ha salido, esto va para abajo muy rápido."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 6
+     }
+    ],
+    "zone": "cheste",
+    "precision": "zone",
+    "location_text": "Cheste",
+    "summary": "Resident reports the ravine has overflowed in Cheste and is moving downstream fast."
+   }
+  },
+  {
+   "at_min": 28,
+   "kind": "raw_input",
+   "channel": "social",
+   "source": "social-media",
+   "payload": {
+    "author": "@memesvlc",
+    "text": "Yo viendo llover desde el sofá con mi mantita 😂"
+   },
+   "fallback": {
+    "is_noise": true,
+    "claims": [],
+    "zone": "",
+    "precision": "unknown",
+    "location_text": "",
+    "summary": "NOISE: joke."
+   }
+  },
+  {
+   "at_min": 30,
+   "kind": "raw_input",
+   "channel": "call",
+   "source": "112",
+   "payload": {
+    "caller": "+34 6XX XXX 233",
+    "transcript": "Estamos en Cheste, en la avenida hay coches arrastrados por el agua, no sabemos si hay gente dentro."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 7
+     }
+    ],
+    "zone": "cheste",
+    "precision": "street",
+    "location_text": "la avenida, Cheste",
+    "summary": "Caller in Cheste reports cars swept away on the avenue, occupants unknown."
+   }
+  },
+  {
+   "at_min": 33,
+   "kind": "sensor",
+   "source": "chj-gauges",
+   "zone": "torrent",
+   "severity": 5,
+   "content": "Nivel 2,1 m y subiendo · Barranc de l'Horteta, Torrent"
+  },
+  {
+   "at_min": 36,
+   "kind": "sensor",
+   "source": "chj-gauges",
+   "zone": "chiva",
+   "severity": 8,
+   "content": "Caudal 1.640 m³/s y subiendo · Rambla del Poyo, Chiva"
+  },
+  {
+   "at_min": 38,
+   "kind": "world",
+   "op": "source_silent",
+   "source": "chj-gauges",
+   "note": "El aforo de Chiva ha sido arrastrado por la riada."
+  },
+  {
+   "at_min": 40,
+   "kind": "raw_input",
+   "channel": "call",
+   "source": "112",
+   "payload": {
+    "caller": "+34 6XX XXX 871",
+    "transcript": "Avenida del Vedat en Torrent, el barranco se ha desbordado, hay un autobús parado con el agua por las ruedas y gente dentro."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 6
+     }
+    ],
+    "zone": "torrent",
+    "precision": "street",
+    "location_text": "avenida del Vedat, Torrent",
+    "summary": "Caller reports the Horteta ravine overflowing on Vedat avenue with a stranded bus."
+   }
+  },
+  {
+   "at_min": 42,
+   "kind": "world",
+   "op": "entity_unreachable",
+   "entity": "policia-local-torrent",
+   "note": "Repetidor caído: la Policía Local de Torrent no contesta."
+  },
+  {
+   "at_min": 45,
+   "kind": "raw_input",
+   "channel": "news",
+   "source": "levante-emv",
+   "payload": {
+    "outlet": "Levante-EMV",
+    "headline": "El barranco del Poyo se desborda en Chiva y Cheste",
+    "body": "Levante-EMV: el barranco del Poyo se ha desbordado a su paso por Chiva y Cheste. La CHJ ha perdido la señal del aforo de Chiva."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 7
+     }
+    ],
+    "zone": "chiva",
+    "precision": "zone",
+    "location_text": "Chiva y Cheste",
+    "summary": "Newspaper confirms overflow in Chiva and Cheste and the loss of the Chiva gauge."
+   }
+  },
+  {
+   "at_min": 48,
+   "kind": "raw_input",
+   "channel": "social",
+   "source": "social-media",
+   "payload": {
+    "author": "@tiosam",
+    "text": "Llueve. Qué novedad en octubre."
+   },
+   "fallback": {
+    "is_noise": true,
+    "claims": [],
+    "zone": "",
+    "precision": "unknown",
+    "location_text": "",
+    "summary": "NOISE: sarcasm."
+   }
+  },
+  {
+   "at_min": 50,
+   "kind": "raw_input",
+   "channel": "social",
+   "source": "social-media",
+   "payload": {
+    "author": "@laia_picanya",
+    "text": "Desde Picanya: el barranco viene muy cargado, los vecinos de la calle Mayor están sacando los coches de los garajes."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 5
+     }
+    ],
+    "zone": "picanya",
+    "precision": "street",
+    "location_text": "calle Mayor, Picanya",
+    "summary": "Resident reports the ravine rising in Picanya and neighbours emptying garages."
+   }
+  },
+  {
+   "at_min": 52,
+   "kind": "raw_input",
+   "channel": "social",
+   "source": "social-media",
+   "payload": {
+    "author": "@alertas_fake",
+    "text": "DICEN que ha reventado la presa de Forata!!! Difundid!!!"
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 3
+     }
+    ],
+    "zone": "",
+    "precision": "unknown",
+    "location_text": "presa de Forata",
+    "summary": "Unverified secondhand rumour of a dam failure at Forata."
+   }
+  },
+  {
+   "at_min": 55,
+   "kind": "raw_input",
+   "channel": "call",
+   "source": "112",
+   "payload": {
+    "caller": "+34 6XX XXX 402",
+    "transcript": "El agua ya entra en el garaje de la calle Mestre Serrano, hay dos personas dentro de un coche."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 8
+     }
+    ],
+    "zone": "paiporta",
+    "precision": "street",
+    "location_text": "garaje de la calle Mestre Serrano",
+    "summary": "Caller reports water entering a garage on Mestre Serrano street with two people trapped in a car."
+   }
+  },
+  {
+   "at_min": 58,
+   "kind": "raw_input",
+   "channel": "social",
+   "source": "social-media",
+   "payload": {
+    "author": "@voluntaris_picanya",
+    "text": "Somos un grupo de voluntarios en Picanya con 12 furgonetas y una zodiac. Decidnos dónde hacemos falta. Tel. 600 123 456."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 2
+     }
+    ],
+    "zone": "picanya",
+    "precision": "zone",
+    "location_text": "Picanya",
+    "summary": "A volunteer group in Picanya offers 12 vans and a boat; contact 600 123 456."
+   }
+  },
+  {
+   "at_min": 60,
+   "kind": "raw_input",
+   "channel": "call",
+   "source": "112",
+   "payload": {
+    "caller": "+34 6XX XXX 518",
+    "transcript": "Estamos en un bajo de la calle Mayor, el agua nos llega por la rodilla, hay una persona mayor que no puede subir escaleras."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 7
+     }
+    ],
+    "zone": "picanya",
+    "precision": "street",
+    "location_text": "bajo en la calle Mayor",
+    "summary": "Caller in Picanya reports knee-high water in a ground floor with an elderly person who cannot climb stairs."
+   }
+  },
+  {
+   "at_min": 63,
+   "kind": "world",
+   "op": "road_cut",
+   "zone": "paiporta",
+   "note": "Puente de la calle Sant Antoni hundido: acceso sur a Paiporta cortado."
+  },
+  {
+   "at_min": 64,
+   "kind": "raw_input",
+   "channel": "news",
+   "source": "local-news",
+   "payload": {
+    "outlet": "À Punt",
+    "headline": "Cortes de luz en Picanya y Paiporta",
+    "body": "À Punt: cortes de luz en Picanya y Paiporta, calles anegadas en la zona baja."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 6
+     }
+    ],
+    "zone": "",
+    "precision": "region",
+    "location_text": "Picanya y Paiporta",
+    "summary": "Regional TV reports power cuts and flooded streets in Picanya and Paiporta."
+   }
+  },
+  {
+   "at_min": 66,
+   "kind": "raw_input",
+   "channel": "social",
+   "source": "social-media",
+   "payload": {
+    "author": "@runner_vlc",
+    "text": "Pues yo he salido a correr y tampoco es para tanto, exagerados."
+   },
+   "fallback": {
+    "is_noise": true,
+    "claims": [],
+    "zone": "",
+    "precision": "unknown",
+    "location_text": "",
+    "summary": "NOISE: opinion."
+   }
+  },
+  {
+   "at_min": 70,
+   "kind": "raw_input",
+   "channel": "call",
+   "source": "112",
+   "payload": {
+    "caller": "+34 6XX XXX 077",
+    "transcript": "Llamo de la residencia de mayores de Paiporta: la planta baja se está inundando, tenemos 50 residentes y no podemos subirlos a todos. Necesitamos evacuar ya."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 9
+     }
+    ],
+    "zone": "paiporta",
+    "precision": "street",
+    "location_text": "residencia de mayores, Paiporta",
+    "summary": "A care home in Paiporta reports its ground floor flooding with 50 residents who cannot be moved upstairs."
+   }
+  },
+  {
+   "at_min": 75,
+   "kind": "world",
+   "op": "resource_loss",
+   "resource": "bombas-achique",
+   "qty": 4,
+   "note": "Un camión con 4 bombas de achique queda atrapado en la CV-36."
+  },
+  {
+   "at_min": 80,
+   "kind": "raw_input",
+   "channel": "call",
+   "source": "112",
+   "payload": {
+    "caller": "+34 6XX XXX 655",
+    "transcript": "En Massanassa empieza a entrar agua por la carretera de Paiporta, viene muy rápido."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 5
+     }
+    ],
+    "zone": "massanassa",
+    "precision": "street",
+    "location_text": "carretera de Paiporta, Massanassa",
+    "summary": "Caller reports water entering Massanassa along the Paiporta road."
+   }
+  },
+  {
+   "at_min": 85,
+   "kind": "raw_input",
+   "channel": "social",
+   "source": "social-media",
+   "payload": {
+    "author": "@laia_picanya",
+    "text": "Picanya sin luz y el pont vell cerrado por la policía. No bajéis a los garajes."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 6
+     }
+    ],
+    "zone": "picanya",
+    "precision": "street",
+    "location_text": "pont vell, Picanya",
+    "summary": "Resident reports a blackout in Picanya and the old bridge closed."
+   }
+  },
+  {
+   "at_min": 90,
+   "kind": "raw_input",
+   "channel": "news",
+   "source": "levante-emv",
+   "payload": {
+    "outlet": "Levante-EMV",
+    "headline": "Cientos de vehículos atrapados en la V-31",
+    "body": "Levante-EMV: la Generalitat pide no circular por la V-31; cientos de vehículos atrapados entre Massanassa y Alfafar."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 7
+     }
+    ],
+    "zone": "massanassa",
+    "precision": "zone",
+    "location_text": "V-31, Massanassa",
+    "summary": "Newspaper reports hundreds of vehicles trapped on the V-31 near Massanassa."
+   }
+  },
+  {
+   "at_min": 100,
+   "kind": "raw_input",
+   "channel": "call",
+   "source": "112",
+   "payload": {
+    "caller": "+34 6XX XXX 910",
+    "transcript": "Estamos seis personas en el tejado de una nave en el polígono de Paiporta, el agua sigue subiendo."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 9
+     }
+    ],
+    "zone": "paiporta",
+    "precision": "street",
+    "location_text": "polígono industrial, Paiporta",
+    "summary": "Six people report being on a warehouse roof in the Paiporta industrial estate with water rising."
+   }
+  },
+  {
+   "at_min": 104,
+   "kind": "raw_input",
+   "channel": "social",
+   "source": "social-media",
+   "payload": {
+    "author": "@pepa_pai",
+    "text": "¿A alguien más le va fatal el 4G?"
+   },
+   "fallback": {
+    "is_noise": true,
+    "claims": [],
+    "zone": "",
+    "precision": "unknown",
+    "location_text": "",
+    "summary": "NOISE: connectivity complaint."
+   }
+  },
+  {
+   "at_min": 120,
+   "kind": "raw_input",
+   "channel": "social",
+   "source": "social-media",
+   "payload": {
+    "author": "@marta_chiva",
+    "text": "En Chiva parece que el agua empieza a bajar. Todo lleno de barro."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 3
+     }
+    ],
+    "zone": "chiva",
+    "precision": "zone",
+    "location_text": "Chiva",
+    "summary": "Resident reports the water starting to recede in Chiva."
+   }
+  },
+  {
+   "at_min": 135,
+   "kind": "raw_input",
+   "channel": "news",
+   "source": "local-news",
+   "payload": {
+    "outlet": "À Punt",
+    "headline": "El nivel desciende en Chiva y Cheste",
+    "body": "À Punt: el nivel desciende en Chiva y Cheste; la punta de la riada avanza hacia l'Albufera."
+   },
+   "fallback": {
+    "is_noise": false,
+    "claims": [
+     {
+      "hazard_type": "flood",
+      "severity_hint": 3
+     }
+    ],
+    "zone": "cheste",
+    "precision": "zone",
+    "location_text": "Chiva y Cheste",
+    "summary": "Regional TV reports levels dropping in Chiva and Cheste while the peak moves towards l'Albufera."
+   }
+  }
+ ]
+}

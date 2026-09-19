@@ -1,0 +1,33 @@
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 24px; background: var(--surface-000); color: var(--ink); font-family: var(--font-sans); overflow: hidden;">
+<!-- include: header -->
+<div style="flex-grow: 1; min-height: 0; display: flex; gap: 32px; padding: 0 12px;">
+<section class="col" style="flex-grow: 1;"><div class="col-head"><h2 class="col-title">Directorio</h2><span class="count">{{dirCount}}</span></div><div class="col-body"><div class="tabs" role="tablist"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="4"><button type="button" role="tab" class="{{t.cls}}" aria-selected="{{t.sel}}" sc-camel-on-click="{{t.pick}}">{{t.label}}</button></sc-for></div><div style="display: flex; flex-direction: column;"><div class="thead" style="grid-template-columns: minmax(0,1fr) 92px 176px 136px 40px 48px;"><span>Entidad</span><span>Canal</span><span>Destino</span><span>Estado</span><span>Com.</span><span>Últ.</span></div><sc-for list="{{rows}}" as="e" hint-placeholder-count="8"><button type="button" class="{{e.cls}}" style="grid-template-columns: minmax(0,1fr) 92px 176px 136px 40px 48px;" sc-camel-on-click="{{e.pick}}"><span style="display: flex; flex-direction: column; min-width: 0;"><span class="ell" style="font-weight: 500;">{{e.name}}</span><span class="muted ell" style="font-size: 12px; line-height: 16px;">{{e.kind}}</span></span><span><x-import component-from-global-scope="Valte.StatusBadge" tone="{{e.ch.tone}}" glyph="{{e.ch.glyph}}" label="{{e.ch.label}}"></x-import></span><span class="mono ell">{{e.address}}</span><span><x-import component-from-global-scope="Valte.StatusBadge" tone="{{e.st.tone}}" glyph="{{e.st.glyph}}" label="{{e.st.label}}"></x-import></span><span class="mono">{{e.n}}</span><span class="mono muted">{{e.last}}</span></button></sc-for><sc-if value="{{noRows}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Nadie en este filtro.</div></sc-if></div></div></section><section class="col" style="width: 500px; flex-shrink: 0;"><div class="col-head"><h2 class="col-title">Seleccionado</h2><span class="count">{{selCount}}</span></div><div class="col-body"><sc-if value="{{hasSel}}" hint-placeholder-val="{{false}}"><div class="panel">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span class="lbl">{{sel.kind}}</span><span style="font-size: 20px; line-height: 28px; font-weight: 500;">{{sel.name}}</span><span class="mono muted">{{sel.address}}</span></div>
+<x-import component-from-global-scope="Valte.StatusBadge" tone="{{sel.st.tone}}" glyph="{{sel.st.glyph}}" label="{{sel.st.label}}"></x-import>
+</div>
+<div style="display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; font-size: 13px; line-height: 20px;">
+<span class="muted">Jurisdicción</span><span>{{sel.zones}}</span>
+<span class="muted">Puede</span><span>{{sel.can}}</span>
+<span class="muted">Si no responde</span><span>{{sel.escalates}}</span>
+</div>
+<form style="display: flex; gap: 8px; align-items: flex-end;" sc-camel-on-submit="{{sel.send}}">
+<div style="flex-grow: 1;"><x-import component-from-global-scope="Valte.TextField" label="{{sel.sendLabel}}" placeholder="Escribe el mensaje: el agente lo transmite por su canal" value="{{msg}}" sc-camel-on-change="{{setMsg}}"></x-import></div>
+<x-import component-from-global-scope="Valte.Button" sc-camel-on-click="{{sel.send}}">{{sel.sendVerb}}</x-import>
+</form>
+</div>
+<span class="lbl" style="padding-top: 8px;">{{sel.commsLabel}}</span>
+<sc-if value="{{sel.noComms}}" hint-placeholder-val="{{false}}"><div class="vl-empty" style="padding: 4px 0;">Todavía no ha habido ninguna comunicación con esta entidad.</div></sc-if>
+<sc-for list="{{sel.comms}}" as="k" hint-placeholder-count="2"><div class="panel" style="gap: 10px; padding: 16px;">
+<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"><span class="mono muted">{{k.time}}</span><x-import component-from-global-scope="Valte.StatusBadge" tone="{{k.ch.tone}}" glyph="{{k.ch.glyph}}" label="{{k.ch.label}}"></x-import><span style="flex-grow: 1;"></span><x-import component-from-global-scope="Valte.StatusBadge" tone="{{k.st.tone}}" glyph="{{k.st.glyph}}" label="{{k.st.label}}"></x-import><span class="mono muted">{{k.duration}}</span></div>
+<div style="font-size: 13px; line-height: 20px;">{{k.purpose}} <span class="mono" style="color: var(--info);">{{k.action}}</span> {{k.verb}}</div>
+<sc-if value="{{k.hasEvidence}}" hint-placeholder-val="{{false}}"><div class="mono" style="color: var(--info);">{{k.evidence}}</div></sc-if>
+<sc-if value="{{k.hasOutcome}}" hint-placeholder-val="{{false}}"><div class="muted" style="font-size: 13px; line-height: 20px;">{{k.outcome}}</div></sc-if>
+<div class="vl-clamp" style="display: flex; flex-direction: column; gap: 6px;"><sc-for list="{{k.lines}}" as="l" hint-placeholder-count="1"><div class="{{l.cls}}"><span class="who">{{l.who}}</span><span style="white-space: pre-wrap;">{{l.text}}</span></div></sc-for></div>
+<sc-if value="{{k.noLines}}" hint-placeholder-val="{{false}}"><div class="muted" style="font-size: 13px; line-height: 20px;">{{k.waiting}}</div></sc-if>
+<sc-if value="{{k.ringing}}" hint-placeholder-val="{{false}}"><div style="display: flex; gap: 8px;"><x-import component-from-global-scope="Valte.Button" block="{{yes}}" sc-camel-on-click="{{k.answer}}">Atender como {{k.entity}}</x-import></div></sc-if>
+<sc-if value="{{k.live}}" hint-placeholder-val="{{false}}"><div style="display: flex; gap: 8px;"><x-import component-from-global-scope="Valte.Button" style="flex-grow: 1;" block="{{yes}}" sc-camel-on-click="{{k.takeover}}">Tomar la llamada</x-import><x-import component-from-global-scope="Valte.Button" variant="secondary" sc-camel-on-click="{{k.listen}}">Escuchar</x-import><x-import component-from-global-scope="Valte.Button" variant="ghost" sc-camel-on-click="{{k.hangup}}">Colgar</x-import></div></sc-if>
+</div></sc-for>
+</sc-if><sc-if value="{{noSel}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Selecciona una entidad para ver cómo se la contacta y todo lo que se ha hablado con ella.</div></sc-if></div></section>
+</div>
+</div>

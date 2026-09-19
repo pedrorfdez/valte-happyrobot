@@ -1,0 +1,22 @@
+<sc-if value="{{rp.open}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 12;">
+<button type="button" class="vl-scrim" aria-label="Cerrar" sc-camel-on-click="{{rp.close}}"></button>
+<div class="vl-dlg" role="dialog" aria-modal="true" aria-labelledby="rp-title" style="width: 760px;">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><span class="lbl">Canal de incidencias · {{rp.who}}</span>
+<h2 id="rp-title" style="margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 44px;">Reportar incidencia</h2></div>
+<button type="button" class="vl-x" aria-label="Cerrar" sc-camel-on-click="{{rp.close}}">✕</button>
+</div>
+<label class="vl-fl"><span class="lbl">Nombre</span>
+<input class="vl-in" type="text" placeholder="Se hunde el puente de la CV-36 en Paiporta" value="{{rp.name}}" sc-camel-on-change="{{rp.setName}}"></label>
+<div style="display: flex; flex-direction: column; gap: 8px;"><span class="lbl">Tipo</span>
+<div class="vl-chips"><sc-for list="{{rp.kinds}}" as="k" hint-placeholder-count="6"><button type="button" class="{{k.cls}}" aria-pressed="{{k.on}}" sc-camel-on-click="{{k.pick}}">{{k.label}}</button></sc-for></div></div>
+<div style="display: flex; gap: 8px; justify-content: flex-end;">
+<x-import component-from-global-scope="Valte.Button" variant="secondary" sc-camel-on-click="{{rp.close}}">Cancelar</x-import>
+<x-import component-from-global-scope="Valte.Button" sc-camel-on-click="{{rp.send}}">{{rp.sendLabel}}</x-import>
+</div>
+<sc-if value="{{rp.hasMine}}" hint-placeholder-val="{{false}}"><div style="display: flex; flex-direction: column;"><span class="lbl">Tus últimas incidencias y lo que cambiaron</span>
+<sc-for list="{{rp.mine}}" as="m" hint-placeholder-count="2"><div class="vl-row"><span class="mono muted">{{m.time}}</span><span>{{m.title}}<span class="vl-sub" style="display: block;">{{m.effects}}</span></span></div></sc-for></div></sc-if>
+</div>
+</div>
+</sc-if>
