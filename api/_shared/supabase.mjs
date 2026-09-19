@@ -1,8 +1,28 @@
-const required = (name) => {
-  const value = process.env[name];
+export function readEnv(name) {
+  return globalThis.Deno?.env?.get?.(name)
+    ?? globalThis.process?.env?.[name];
+}
+
+export function requiredEnv(name) {
+  const value = readEnv(name);
   if (!value) throw new Error(`${name} is required`);
   return value;
-};
+}
+
+function supabaseSecretKey() {
+  const rawKeys = readEnv("SUPABASE_SECRET_KEYS");
+  if (rawKeys) {
+    let keys;
+    try {
+      keys = JSON.parse(rawKeys);
+    } catch {
+      throw new Error("SUPABASE_SECRET_KEYS must be valid JSON");
+    }
+    if (typeof keys?.default === "string" && keys.default) return keys.default;
+    throw new Error("SUPABASE_SECRET_KEYS.default is required");
+  }
+  return requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+}
 
 const REQUEST_TIMEOUT_MS = 15_000;
 
@@ -13,7 +33,7 @@ export const jsonResponse = (status, body) => ({
 });
 
 export function requireGatewayAuth(req, context) {
-  const token = process.env.GATEWAY_TOKEN;
+  const token = readEnv("GATEWAY_TOKEN");
   if (!token) return;
   const provided = req.headers?.["x-gateway-token"] ?? req.headers?.["X-Gateway-Token"];
   if (provided !== token) {
@@ -26,8 +46,8 @@ export function requireGatewayAuth(req, context) {
 }
 
 export async function supabaseRequest(path, { method = "GET", body } = {}) {
-  const baseUrl = required("SUPABASE_URL").replace(/\/$/, "");
-  const serviceKey = required("SUPABASE_SERVICE_ROLE_KEY");
+  const baseUrl = requiredEnv("SUPABASE_URL").replace(/\/$/, "");
+  const serviceKey = supabaseSecretKey();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   let response;

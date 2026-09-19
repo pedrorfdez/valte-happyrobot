@@ -1,10 +1,4 @@
-import { callRpc, jsonResponse, requireGatewayAuth } from "../_shared/supabase.mjs";
-
-const required = (name) => {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is required`);
-  return value;
-};
+import { callRpc, jsonResponse, requireGatewayAuth, requiredEnv } from "../_shared/supabase.mjs";
 
 const HAPPYROBOT_TIMEOUT_MS = 20_000;
 const interactionModes = new Set(["dry-run", "web_voice", "email", "pstn"]);
@@ -16,7 +10,7 @@ const workflowSettingByDestination = {
 };
 
 async function happyRobot(path, options = {}) {
-  const baseUrl = required("HAPPYROBOT_BASE_URL").replace(/\/$/, "");
+  const baseUrl = requiredEnv("HAPPYROBOT_BASE_URL").replace(/\/$/, "");
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), HAPPYROBOT_TIMEOUT_MS);
   let response;
@@ -24,7 +18,7 @@ async function happyRobot(path, options = {}) {
     response = await fetch(`${baseUrl}${path}`, {
       ...options,
       headers: {
-        authorization: `Bearer ${required("HAPPYROBOT_KEY")}`,
+        authorization: `Bearer ${requiredEnv("HAPPYROBOT_KEY")}`,
         "content-type": "application/json",
         accept: "application/json",
         ...options.headers
@@ -98,7 +92,7 @@ export default async function eventRouter(context, req) {
     try {
       const settingName = workflowSettingByDestination[job.destination];
       if (!settingName) throw new Error(`destination is not allowlisted: ${job.destination}`);
-      const workflowId = required(settingName);
+      const workflowId = requiredEnv(settingName);
       const workflowPayload = {
         dispatch_id: job.dispatch_id,
         run_id: job.run_id,
@@ -110,7 +104,7 @@ export default async function eventRouter(context, req) {
       const launched = await happyRobot(`/workflows/${workflowId}/runs`, {
         method: "POST",
         body: JSON.stringify({
-          environment: required("HAPPYROBOT_ENV"),
+          environment: requiredEnv("HAPPYROBOT_ENV"),
           payload: workflowPayload
         })
       });
