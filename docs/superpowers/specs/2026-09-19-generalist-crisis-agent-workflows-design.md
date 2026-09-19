@@ -277,7 +277,7 @@ Las revisiones son append-only y apuntan a la revisión sustituida. Una Action g
 
 Con estado `unresolved`, `ambiguous` o `provisional`, el Plan puede verificar, contactar, preparar y crear una reserva `held`. Un aviso reversible puede cubrir todas las zonas candidatas solo si su plantilla indica incertidumbre y la policy lo permite. Ningún efecto dirigido a una ubicación concreta puede ejecutarse por debajo del mínimo declarado; una aprobación humana solo basta cuando la policy contempla explícitamente esa excepción y no puede saltarse una restricción dura.
 
-Al verificarse o contradecirse una hipótesis, el Gateway usa `evidence_dependencies` para marcar Incident, Plan, Action y Approval dependientes como `needs_reassessment`. Una corrección nunca modifica en sitio el objetivo de una Action: si aún no comenzó, el siguiente Plan la conserva, cancela o sustituye y ajusta su reserva atómicamente; si es P0/P1 o ya comenzó, cualquier redirección mantiene la aprobación exigida por el lifecycle normal. Los intentos y Outcomes anteriores permanecen históricos.
+Al verificarse o contradecirse una hipótesis, el Gateway usa `evidence_dependencies` para marcar Incident, Plan y Action dependientes como `needs_reassessment`, y las ApprovalRequest `pending` cuya base la utilizaba como `superseded`. Una corrección nunca modifica en sitio el objetivo de una Action: si aún no comenzó, el siguiente Plan la conserva, cancela o sustituye y ajusta su reserva atómicamente; si es P0/P1 o ya comenzó, cualquier redirección mantiene la aprobación exigida por el lifecycle normal. Los intentos y Outcomes anteriores permanecen históricos.
 
 ### 6.2 Incident
 
@@ -312,13 +312,13 @@ Un Plan es una revisión coherente y global. Incluye `plan_version`, objetivos, 
 
 ### 6.4 Action
 
-Una Action es una intención operativa concreta vinculada a un plan. Incluye actor, capacidad, objetivo, parámetros validados, `action_effect_fingerprint`, evidencia, razonamiento, prioridad, reserva, riesgo y política de aprobación.
+Una Action es una intención operativa concreta vinculada a un plan. `action_id` identifica la intención y `action_revision` su base inmutable: actor, capacidad, objetivo, parámetros validados, `action_effect_fingerprint`, evidencia, razonamiento, prioridad, recurso, riesgo y policy de aprobación. El estado operativo evoluciona sin reescribir esa revisión. Un Plan posterior puede referenciar expresamente la misma revisión sin cambios; alterar cualquier elemento de la base crea una revisión nueva y no hereda su ApprovalRequest.
 
 Su ciclo de vida es:
 
 ```text
 proposed
-  ├─ pending_approval → approved
+  ├─ pending_approval → approved | rejected | timed_out | canceled
   └─ approved
 approved → dispatching → delivered ───────────────→ completed
                               └─→ accepted → executing → completed
@@ -332,7 +332,23 @@ Una acción P2/P3 sin iniciar puede preemptarse automáticamente. Preemptar o re
 
 Las evidencias son referencias tipadas a Signal, Incident, Outcome o HumanDirective; no se limitan a IDs de señales. Una referencia a Signal incluye siempre `signal_id` y `revision`, nunca solo el identificador estable.
 
-### 6.5 Outcome
+### 6.5 ApprovalRequest
+
+Una `ApprovalRequest` representa una decisión humana pendiente sobre una revisión concreta de Action. Conserva `approval_request_id`, `action_id`, revisión de Action, `plan_version`, `state_version`, `approval_basis_hash`, snapshot de la policy, decisiones permitidas, `requested_at_scenario`, `due_scenario_at`, referencia del token, estado, decisión, actor, razón y timestamps.
+
+Su lifecycle es:
+
+```text
+pending → approved | rejected | expired | superseded | canceled
+```
+
+`approval_basis_hash` cubre el objetivo y parámetros de la Action, evidencia y revisiones de ubicación, recurso o capacidad, HumanDirective aplicables y policy utilizada. Una revisión posterior del Plan puede conservar la solicitud solo si incluye expresamente la misma revisión de Action con el mismo hash. Cualquier cambio de base mientras sigue `pending` la marca `superseded`; nunca se transporta una aprobación a una Action materialmente distinta. Una solicitud ya decidida conserva su estado histórico: si su Action aprobada pierde vigencia, se bloquea o reevalúa la Action sin reescribir la decisión humana pasada.
+
+La primera decisión válida se confirma atómicamente y gana. Una respuesta solo es puntual si `scenario_now < due_scenario_at`; al alcanzar el deadline, `expire_approval` tiene precedencia determinista sobre cualquier decisión concurrente. Si un POST llega con `scenario_now >= due_scenario_at` antes de que el evento programado se drene, el propio comando ejecuta idempotentemente la transición de expiración y devuelve `approval_stale`. Una repetición idempotente devuelve el resultado original; una decisión diferente posterior responde `approval_already_decided`. Una solicitud que ya no está `pending` o cuya base no sigue vigente responde `approval_stale` sin mutación operativa y el intento queda auditado en `commands`. Si el run está cerrado, responde `run_closed` y guarda únicamente un evento tardío, sin reabrirlo.
+
+Cada transición cierra también su Action y reserva de forma explícita: `approved` lleva la Action a `approved` y conserva `held`; `rejected` lleva la Action a `rejected` y la reserva a `released`; `superseded` o `canceled` llevan una Action no iniciada a `canceled` y la reserva a `released`. Al alcanzar `due_scenario_at`, Scenario Controller envía `expire_approval`; en una sola transacción, el Gateway marca la solicitud `expired`, la Action `timed_out`, su reserva `held` como `expired` y crea trabajo de replanteamiento. Nunca interpreta ausencia de respuesta como aprobación. El fallback declarado por la policy solo orienta el próximo Plan: Commander debe proponer una nueva Action, que recorre de nuevo validación y aprobación si corresponde.
+
+### 6.6 Outcome
 
 Un Outcome es append-only y representa el resultado de un intento: éxito, resultado parcial, fallo conocido, ausencia de respuesta o resultado incierto. Una observación nueva genera otra Signal en vez de modificar retrospectivamente el Outcome.
 
@@ -345,7 +361,7 @@ El modelo lógico incluye:
 - `entities` y `resources`, con `resources` como único ledger de capacidad y modo `reusable` o `consumable`;
 - `resource_reservations`, vinculadas a acción, unidades, estado y expiración;
 - `signals`, `signal_revisions`, `signal_location_hypotheses`, `source_clusters`, `signal_provenance_links`, `incidents`, `incident_signals`, `incident_lineage`, `incident_reconciliation_candidates` y `evidence_dependencies`;
-- `plans`, `actions`, `approvals`, `action_attempts` y `outcomes`;
+- `plans`, `actions`, `approval_requests`, `action_attempts` y `outcomes`;
 - `human_directives` con razón y expiración;
 - `commands`, `events` y `outbox`, con carril de prioridad, clave de lote, disponibilidad y lease;
 - `late_external_events`, append-only y separados del estado operativo cerrado;
@@ -385,28 +401,29 @@ Reglas de transición:
 - `pending_approval` y `approved` antes del despacho mantienen `held`.
 - `accepted` o `executing` convierten la reserva en `committed`.
 - rechazo, cancelación, supersession o preemption antes del efecto producen `released`.
+- `ApprovalRequest.expired` antes del efecto produce Action `timed_out` y reserva `expired` en la misma transacción.
 - vencer `expires_at_scenario` antes de comenzar produce una reserva `expired`, una Action `timed_out` y activa replanteamiento.
 - un fallo conocido sin despliegue produce `released`.
 - `completed` produce `released` para un recurso reutilizable o `consumed` para unidades consumibles, según el Outcome y el Action Catalog.
 - `unknown` desde `held` o `committed` produce `quarantined`; ni el agente ni un timeout pueden liberarla automáticamente.
 - `timed_out` libera solo cuando existe confirmación de que el actor no aceptó ni empezó; en caso contrario debe clasificarse como `unknown`.
 
-Cada entrada del Action Catalog que usa recursos declara `reservation_ttl_scenario` y su disposición al completar: liberar un recurso reutilizable o descontar unidades consumibles. Una P2/P3 no iniciada puede liberar o transferir su reserva por preemption; una P0/P1 o reserva `committed` requiere aprobación.
+Cada entrada del Action Catalog que usa recursos declara `reservation_ttl_scenario` y su disposición al completar: liberar un recurso reutilizable o descontar unidades consumibles. Para una Action pendiente, `due_scenario_at` de la aprobación debe ser anterior a `expires_at_scenario` de la reserva. Una P2/P3 no iniciada puede liberar o transferir su reserva por preemption; una P0/P1 o reserva `committed` requiere aprobación.
 
 ### 7.2 Retractación de evidencia
 
-`evidence_dependencies` mantiene el índice desde una revisión concreta de Signal o LocationHypothesis hasta los Incident, Plan, Action y Approval que la utilizaron. Cada Action mantiene además `evidence_status`: `valid`, `needs_reassessment` o `invalidated`. El comando `retract_signal_revision` ejecuta en una única transacción:
+`evidence_dependencies` mantiene el índice desde una revisión concreta de Signal o LocationHypothesis hasta los Incident, Plan, Action y ApprovalRequest que la utilizaron. Cada Action mantiene además `evidence_status`: `valid`, `needs_reassessment` o `invalidated`. El comando `retract_signal_revision` ejecuta en una única transacción:
 
 1. cambia la revisión `active` a `retracted` y registra la revisión final que la sustituye, si existe;
 2. marca los Incident dependientes como `needs_reassessment`;
 3. bloquea nuevas autorizaciones de las Action dependientes con `evidence_status=needs_reassessment`;
 4. reevalúa las reglas de evidencia de `policies.json` usando únicamente revisiones todavía activas;
 5. cancela las Action sin `dispatch_authorized_at` cuya evidencia restante resulte insuficiente, establece `evidence_status=invalidated` y libera sus reservas;
-6. marca como `superseded` las Approval pendientes de esas acciones invalidadas;
+6. marca como `superseded` toda ApprovalRequest pendiente cuya base incluía la revisión retractada, aunque la evidencia restante todavía permita proponer una Action nueva;
 7. marca las Action autorizadas o iniciadas con evidencia insuficiente como `evidence_status=invalidated` sin fingir que el efecto desapareció;
 8. añade un evento `evidence.retracted` y el trabajo de replanteamiento al outbox.
 
-Si las evidencias activas restantes todavía cumplen la policy, Command puede revalidar la Action dentro de una nueva revisión del plan y devolver `evidence_status` a `valid`; la retractación no la cancela automáticamente.
+Si las evidencias activas restantes todavía cumplen la policy, Command puede revalidar la intención mediante una nueva revisión de Action dentro de un Plan nuevo y devolver `evidence_status` a `valid`; si continúa requiriendo aprobación, crea una ApprovalRequest nueva. La retractación no cancela automáticamente una Action cuya evidencia sigue siendo suficiente.
 
 Para una Action ya autorizada:
 
@@ -502,6 +519,7 @@ Allowlist mínima:
 | `route.blocked` / `resource.unavailable` | `crisis-command` |
 | `human_directive.activated` / `expired` / `superseded` | `crisis-command` |
 | `action.approved` | `crisis-response-coordination` |
+| `approval.rejected` / `expired` / `superseded` / `canceled` | `crisis-command` |
 | `mission.rejected` / `timed_out` / `failed` / `unknown` | `crisis-command` |
 
 `incident.created`, `incident.linked`, `incident.merged` e `incident.split` producidos dentro del mismo comando que confirma un Plan no vuelven a disparar al Commander. `plan.proposed`, `action.proposed` y `message.sent` tampoco lo hacen. Estas exclusiones evitan bucles; una decisión humana sobre un candidato sí activa una nueva revisión mediante los eventos de la allowlist.
@@ -545,15 +563,15 @@ ready → running ⇄ paused → completed
 
 - `Pause scenario` congela estímulos y timeouts simulados.
 - Las respuestas externas que lleguen durante la pausa se registran, pero no avanzan el reloj.
-- Las expiraciones de reservas también se congelan porque usan tiempo de escenario.
+- Las expiraciones de reservas y ApprovalRequest se congelan porque usan tiempo de escenario.
 - `Stop external actions` bloquea nuevos efectos externos sin pausar la evolución simulada.
 - `Abort` cierra el run y habilita el postmortem.
 
 Los eventos programados usan `due_scenario_at` y solo se disparan en `running`. El run termina al alcanzar una condición del pack, su duración máxima o un aborto humano. El motivo distingue éxito, timeout y fallo técnico sin multiplicar estados de lifecycle.
 
-La transición terminal es atómica y guarda como `terminal_state_version` la versión resultante, además de `closed_scenario_at` y `closed_at`. Esa versión fija el snapshot evaluable del run. Las entradas de outbox todavía no despachadas quedan suprimidas y no pueden obtener nuevas autorizaciones de efecto externo. Los intentos autorizados antes del fence permanecen visibles como in-flight y pueden originar un evento tardío.
+La transición terminal es atómica y guarda como `terminal_state_version` la versión resultante, además de `closed_scenario_at` y `closed_at`. Esa versión fija el snapshot evaluable del run. En la misma transacción, las ApprovalRequest pendientes pasan a `canceled`, sus Actions no iniciadas a `canceled` y sus reservas `held` a `released`. Las entradas de outbox todavía no despachadas quedan suprimidas y no pueden obtener nuevas autorizaciones de efecto externo. Los intentos autorizados antes del fence permanecen visibles como in-flight y pueden originar un evento tardío.
 
-Los callbacks recibidos después del cierre se deduplican por identificador del proveedor o fingerprint y responden con éxito una vez persistidos, evitando reintentos innecesarios. Conservan `run_id`, `action_id`, `dispatch_id`, procedencia, `received_at`, resumen y referencia al payload. No cambian Action, Outcome, reservas, plan ni puntuación, y no despiertan al Commander.
+Los callbacks y decisiones de aprobación recibidos después del cierre se deduplican por identificador del proveedor, token o fingerprint y responden una vez persistidos, evitando reintentos innecesarios. Conservan `run_id`, tipo, procedencia, `received_at`, resumen, referencia al payload y, cuando corresponda, `action_id`, `dispatch_id` o `approval_request_id`. No cambian ApprovalRequest, Action, Outcome, reservas, plan ni puntuación, y no despiertan al Commander.
 
 ## 11. Autonomía, aprobación y supervisión
 
@@ -565,7 +583,9 @@ Los callbacks recibidos después del cierre se deduplican por identificador del 
 
 El dashboard usa un lease de operador de 60 segundos. Solo el operador con lease puede mutar desde `/ops`; observadores son read-only. Al expirar, otra persona puede pulsar `Take control`. El lease evita colisiones, no constituye autenticación.
 
-Los enlaces `/approve/:token` son una vía separada: token aleatorio, opaco, de un solo uso, vinculado a acción, decisión, versión y expiración. GET solo presenta información mínima; POST decide. La primera decisión válida gana y no necesita el lease de `/ops`.
+Los enlaces `/approve/:token` son una vía separada: token aleatorio, opaco, de un solo uso, vinculado a una ApprovalRequest y sus decisiones permitidas. GET solo presenta información mínima y el estado vigente; POST decide. La primera decisión válida gana y no necesita el lease de `/ops`.
+
+El plazo operacional usa `due_scenario_at`, no el reloj del navegador, y se congela durante `paused`. Antes de aceptar un POST, el Gateway comprueba run, estado `pending`, `approval_basis_hash`, Action, Plan, evidencia, ubicación, recurso y policy. Rechazo, supersession y cancelación llevan la reserva `held` a `released`; expiración la lleva a `expired`. Todas activan Command y ninguna ejecuta un fallback directamente. El dashboard muestra tiempo restante de escenario, base aprobada, estado, razón de cierre y estrategia de fallback que Commander podrá considerar.
 
 ### 11.1 HumanDirective y precedencia
 
@@ -695,9 +715,9 @@ Las únicas primitivas ejecutables por el motor son:
 
 `action-catalog.json` traduce verbos del escenario a estas primitivas mediante parámetros cerrados. No admite scripts arbitrarios.
 
-`policies.json` declara por categoría de acción si admite evidencia provisional, cuántos clusters `confirmed_independent` y qué clases de origen constituyen corroboración suficiente, qué riesgo exige aprobación humana y cómo se actúa al retractarse o reagruparse una evidencia. También declara `minimum_location_status`, `minimum_location_precision`, si admite una excepción aprobada y qué avisos pueden abarcar todos los candidatos mientras expresan incertidumbre. Finalmente define las claves exactas admisibles para correlacionar Incidents, usando campos genéricos como referencia externa, clase de hazard, zona, activo y ventana temporal; una clave no declarada nunca habilita un merge automático. Cada regla se clasifica como `hard_constraint` u `objective`: las restricciones duras participan en el nivel 2 de precedencia y los objetivos en el nivel 4. Estas reglas son deterministas y no sustituyen el razonamiento cualitativo de prioridad.
+`policies.json` declara por categoría de acción si admite evidencia provisional, cuántos clusters `confirmed_independent` y qué clases de origen constituyen corroboración suficiente, qué riesgo exige aprobación humana y cómo se actúa al retractarse o reagruparse una evidencia. Para las categorías sujetas a aprobación declara decisiones permitidas, `approval_timeout_scenario` y una estrategia de expiración que referencia alternativas reversibles del Action Catalog o exige `replan_only`; esa estrategia nunca ejecuta una Action por sí misma. También declara `minimum_location_status`, `minimum_location_precision`, si admite una excepción aprobada y qué avisos pueden abarcar todos los candidatos mientras expresan incertidumbre. Finalmente define las claves exactas admisibles para correlacionar Incidents, usando campos genéricos como referencia externa, clase de hazard, zona, activo y ventana temporal; una clave no declarada nunca habilita un merge automático. Cada regla se clasifica como `hard_constraint` u `objective`: las restricciones duras participan en el nivel 2 de precedencia y los objetivos en el nivel 4. Estas reglas son deterministas y no sustituyen el razonamiento cualitativo de prioridad.
 
-El preflight valida JSON Schema, referencias internas, IDs, aliases y landmarks normalizados, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, clasificación y completitud de las policies de evidencia, localización, corroboración, retractación y correlación de Incidents, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Nombres visibles duplicados son válidos únicamente si resuelven a IDs diferentes y aportan metadatos de desambiguación. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
+El preflight valida JSON Schema, referencias internas, IDs, aliases y landmarks normalizados, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, deadlines y fallbacks de ApprovalRequest, clasificación y completitud de las policies de evidencia, localización, corroboración, retractación y correlación de Incidents, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Para acciones con reserva exige `approval_timeout_scenario < reservation_ttl_scenario`; todo fallback debe resolver al Action Catalog y no puede reducir los requisitos de aprobación de la alternativa. Nombres visibles duplicados son válidos únicamente si resuelven a IDs diferentes y aportan metadatos de desambiguación. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
 
 El motor ejecuta exactamente un pack por run. Un pack puede contener varios hazards y cascadas mediante los grafos de impacto y dependencia, pero no puede importar ni combinar otro pack en runtime.
 
@@ -752,6 +772,9 @@ Estos packs no son variaciones nominales de DANA: ejercitan propagación, depend
 | Ubicación activa contradicha | Bloquea la autorización pendiente, marca dependientes y activa replanificación prioritaria |
 | Correlación de Incident ambigua | Mantiene Incidents separados, crea `possible_duplicate` y solicita decisión humana |
 | Merge/split contra versión obsoleta | Rechaza toda la operación sin cambiar Incident, Plan, Actions ni reservas |
+| ApprovalRequest expirada | Nunca autoaprueba; cierra Action y reserva de forma atómica y activa Command |
+| Decisiones de aprobación simultáneas | La primera transición válida gana; las demás reciben el resultado vigente |
+| Aprobación tardía u obsoleta | Devuelve `approval_stale`, queda auditada y no muta el dominio |
 | Directiva incompatible | Se rechaza con invariantes o directivas en conflicto; no cambia el dominio |
 | Integración ausente | Usa fallback declarado antes de crear intento |
 | Fallo conocido sin efecto, bajo riesgo | Reintento limitado |
@@ -805,6 +828,8 @@ Todos los E2E comprueban:
 - un recurso reutilizable se libera y una unidad consumible se descuenta exactamente una vez tras su Outcome;
 - rechazo de planes y acciones obsoletos;
 - ninguna acción de alto impacto sin aprobación;
+- ninguna ApprovalRequest no pendiente puede autorizar una Action y ninguna ausencia de respuesta equivale a aprobación;
+- toda ApprovalRequest pendiente usa tiempo de escenario y conserva una base de aprobación vigente;
 - una directiva válida afecta al siguiente Plan y una directiva incompatible se rechaza sin mutación parcial;
 - ningún reintento ciego tras un efecto incierto;
 - ruido insuficiente como única base para una acción irreversible;
@@ -851,7 +876,23 @@ La prueba exige que:
 - la contradicción active replanificación prioritaria, reevalúe ruta y Action y libere o mantenga la reserva según su lifecycle;
 - redirigir una Action P0/P1 o ya iniciada siga requiriendo la aprobación definida por sus reglas normales.
 
-### 18.5 E2E de saturación y prioridad
+### 18.5 E2E de aprobación expirada y obsoleta
+
+Una Action de alto impacto reserva un recurso y crea una ApprovalRequest `pending` con deadline de escenario y fallback reversible. Poco antes del deadline se pausa el run y se avanza el reloj real; la solicitud debe seguir pendiente. Al reanudar y alcanzar `due_scenario_at`, el Gateway confirma atómicamente `ApprovalRequest.expired`, `Action.timed_out`, `reservation.expired` y el trabajo para Command.
+
+Commander propone después la alternativa declarada, pero esta recorre de nuevo validación y su propia policy. Un clic sobre el enlace anterior devuelve `approval_stale`, aparece en auditoría y no reactiva Action ni reserva.
+
+La prueba incluye además dos decisiones concurrentes sobre una segunda solicitud y una revisión del Plan mientras está pendiente. Exige que:
+
+- la primera decisión válida gane exactamente una vez;
+- una decisión con `scenario_now == due_scenario_at` ejecute la expiración y no pueda aprobar;
+- el deadline permanezca congelado durante `paused`;
+- una revisión del Plan conserve la solicitud solo con la misma revisión de Action y `approval_basis_hash`;
+- cambiar objetivo, evidencia, ubicación, recurso o policy produzca `superseded`;
+- rechazo, expiración o supersession nunca autoricen efectos externos;
+- ningún fallback se ejecute directamente desde el timeout ni herede una aprobación anterior.
+
+### 18.6 E2E de saturación y prioridad
 
 Una prueba adicional inyecta 500 entradas estructuradas, incluidas entregas idempotentes repetidas y numerosos ecos del mismo origen. Mientras `signal_batch` mantiene trabajo pendiente, introduce una aprobación, un cierre de ruta y un Outcome crítico.
 
@@ -865,11 +906,11 @@ La prueba exige que:
 - `queue_depth`, antigüedad y retraso reflejen la saturación y el estado pase a `degraded`;
 - tras drenar la cola, el Plan incorpore los eventos urgentes y todas sus decisiones conserven evidencia trazable.
 
-### 18.6 Ensayo live
+### 18.7 Ensayo live
 
 Solo DANA exige ensayo live completo. Usa destinatarios controlados, whitelist, entorno development y mensajes `SIMULACIÓN`. Los otros cinco packs prueban generalidad mediante E2E de sistema sin exigir seis integraciones reales distintas.
 
-### 18.7 Postmortem y aprendizaje
+### 18.8 Postmortem y aprendizaje
 
 Al completar o abortar:
 
@@ -895,7 +936,7 @@ El postmortem se calcula contra `terminal_state_version`. Los eventos de `late_e
 6. El reloj de escenario no retrocede ni se deriva del reloj del servidor.
 7. La verdad oculta no es visible para workflows, operador o facilitador durante un run activo.
 8. Existe como máximo un Commander activo por crisis.
-9. Una acción pertenece a una revisión concreta del plan.
+9. Toda revisión de Action nace en un Plan concreto y solo puede aparecer en otro mediante carry-forward explícito y sin cambios.
 10. Una acción siempre conserva evidencia observable y razonamiento.
 11. Un recurso no puede estar reservado de forma incompatible por dos acciones.
 12. Un efecto simulado se aplica por un outcome confirmado, no por una intención.
@@ -921,6 +962,10 @@ El postmortem se calcula contra `terminal_state_version`. Los eventos de `late_e
 32. La ubicación original declarada y todas sus revisiones permanecen consultables aunque cambie el candidato seleccionado.
 33. Solo una regla determinista o confirmación humana respaldada por evidencia puede producir una LocationHypothesis `verified`.
 34. Todo efecto geográficamente dirigido referencia una revisión activa que cumple la policy de ubicación en el momento de autorización.
+35. Una ApprovalRequest solo puede abandonar `pending` una vez y nunca vuelve a ese estado.
+36. Toda aprobación válida corresponde a la misma revisión de Action y `approval_basis_hash` que revisó la persona.
+37. Expirar, rechazar, cancelar o sustituir una ApprovalRequest nunca autoriza un efecto ni ejecuta directamente un fallback.
+38. Los deadlines de aprobación usan exclusivamente tiempo de escenario y permanecen congelados durante `paused`.
 
 ## 20. Evolución del repositorio actual
 
@@ -932,7 +977,7 @@ La implementación debe:
 - impedir la aceptación runtime de contratos sin versión;
 - mover propagación, verbos y policies específicos al Scenario Pack;
 - separar recursos de entidades y evitar contadores duplicados;
-- crear schemas para hipótesis de ubicación, Incident, lineage, candidatos de reconciliación, Plan, Outcome, Command, Approval y eventos;
+- crear schemas para hipótesis de ubicación, Incident, lineage, candidatos de reconciliación, Plan, Outcome, Command, ApprovalRequest y eventos;
 - actualizar README y ejemplos para reflejar los tres workflows y el Gateway;
 - mantener la decisión existente de usar REST/Webhooks de HappyRobot y no MCP.
 
@@ -949,6 +994,7 @@ Los ejemplos anteriores de incendio o logística son material histórico, no con
 - Scripts arbitrarios en packs: rompen auditabilidad y aislamiento.
 - Merge automático por similitud semántica: puede confundir emergencias próximas y duplicar o desviar la respuesta.
 - Sobrescribir una única ubicación estimada: pierde alternativas, procedencia e historial de correcciones.
+- Autoaprobar o ejecutar un fallback al vencer: convierte la ausencia humana en consentimiento y puede usar una decisión obsoleta.
 - Reintento ciego de efectos externos: puede duplicar comunicaciones o acciones.
 - Twin, Redis, Sheets o MCP como dependencia central: no están disponibles ni son necesarios.
 
@@ -970,5 +1016,6 @@ El diseño se considera implementado cuando:
 12. un E2E de intervención aplica una directiva válida, rechaza otra que usa una ruta cerrada y replantea al expirar;
 13. el E2E de correlación conserva fuentes independientes, evita Actions duplicadas y demuestra merge/split reversible y atómico;
 14. el E2E de ubicación ambigua conserva candidatos, separa confianza geográfica y de contenido y bloquea despachos prematuros;
-15. el E2E de saturación conserva todas las entradas únicas, prioriza control y outcomes y respeta los límites de concurrencia;
-16. ninguna dependencia opcional es necesaria para que funcione el camino base.
+15. el E2E de aprobación congela deadlines al pausar, expira de forma atómica, rechaza decisiones obsoletas y replantea sin autoaprobar;
+16. el E2E de saturación conserva todas las entradas únicas, prioriza control y outcomes y respeta los límites de concurrencia;
+17. ninguna dependencia opcional es necesaria para que funcione el camino base.
