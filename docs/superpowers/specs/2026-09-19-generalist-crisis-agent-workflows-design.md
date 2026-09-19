@@ -154,10 +154,11 @@ Proceso:
 2. Conserva el contenido y la procedencia originales.
 3. Extrae claims sin presentarlos como hechos confirmados.
 4. Separa contenido relevante de ruido.
-5. Resuelve ubicación con Locate/Maps si está disponible o con el catálogo local de zonas.
-6. Expresa precisión, confianza, contradicciones y necesidad de verificación.
-7. Durante una llamada publica una observación provisional.
-8. Al finalizar revisa el transcript completo y publica una revisión final.
+5. Calcula `content_fingerprint`, enlaza derivaciones conocidas y asigna un cluster de procedencia.
+6. Resuelve ubicación con Locate/Maps si está disponible o con el catálogo local de zonas.
+7. Expresa precisión, confianza, independencia, contradicciones y necesidad de verificación.
+8. Durante una llamada publica una observación provisional.
+9. Al finalizar revisa el transcript completo y publica una revisión final.
 
 La idempotencia de las revisiones usa `report_id:revision`. Cada revisión es inmutable y puede quedar `active`, `superseded` o `retracted`. Una revisión final puede corregir o retirar una observación provisional sin borrar su historial ni cambiar retrospectivamente lo que el sistema conocía.
 
@@ -248,7 +249,9 @@ Cada run de la demo contiene exactamente un agregado de crisis. `crisis_id` iden
 
 ### 6.1 Signal
 
-Una Signal es evidencia observable, no ground truth. Contiene contenido original, claims, fuente, modalidad, ubicación, precisión, confianza y revisión. Distingue el prior `source_trust_snapshot` de la confianza calculada `signal_confidence`. Sus revisiones son append-only; `superseded` significa reemplazada por información más reciente y `retracted` significa que sus claims ya no deben sustentar decisiones activas.
+Una Signal es evidencia observable, no ground truth. Contiene contenido original, claims, fuente, modalidad, ubicación, precisión, confianza, procedencia y revisión. Distingue el prior `source_trust_snapshot` de la confianza calculada `signal_confidence`. Sus revisiones son append-only; `superseded` significa reemplazada por información más reciente y `retracted` significa que sus claims ya no deben sustentar decisiones activas.
+
+Su procedencia incluye `reporter_id`, `origin_reference` cuando se conoce, `derived_from_signal_id`, `content_fingerprint`, `source_cluster_id` e `independence_status`. Este último puede ser `confirmed_independent`, `likely_same_origin` o `unknown`.
 
 ### 6.2 Incident
 
@@ -292,7 +295,7 @@ El modelo lógico incluye:
 - `zones`, `impact_edges`, `routes` y `dependency_edges`;
 - `entities` y `resources`, con `resources` como único ledger de capacidad y modo `reusable` o `consumable`;
 - `resource_reservations`, vinculadas a acción, unidades, estado y expiración;
-- `signals`, `signal_revisions`, `incidents`, `incident_signals` y `evidence_dependencies`;
+- `signals`, `signal_revisions`, `source_clusters`, `signal_provenance_links`, `incidents`, `incident_signals` y `evidence_dependencies`;
 - `plans`, `actions`, `approvals`, `action_attempts` y `outcomes`;
 - `human_directives` con razón y expiración;
 - `commands`, `events` y `outbox`;
@@ -365,6 +368,23 @@ Para una Action ya autorizada:
 
 Una retractación nunca borra Signals, planes, acciones, outcomes ni mensajes ya emitidos.
 
+### 7.3 Clusters de procedencia
+
+Los clusters representan hipótesis de origen común, no incidentes ni claims. Una Signal siempre conserva su identidad aunque comparta cluster con otras.
+
+Reglas de agrupación:
+
+- el mismo identificador externo o payload exacto se trata como duplicado idempotente;
+- una referencia explícita al mismo mensaje, URL, grabación o sensor asigna el mismo `source_cluster_id`;
+- contenido casi idéntico con claims, tiempo y localización compatibles puede proponer `likely_same_origin`;
+- la IA puede sugerir una agrupación, pero debe registrar razones y no puede declarar por sí sola `confirmed_independent`;
+- `confirmed_independent` requiere procedencia observable que demuestre un origen distinto, como sensores independientes o sesiones de llamada separadas cuyos reporteros declaran observación directa; la mera ausencia de un enlace conocido conserva `unknown`;
+- `unknown` aumenta la necesidad de verificación, pero no cuenta como corroboración independiente para acciones de alto impacto.
+
+La confianza y las policies cuentan clusters independientes, no el número bruto de Signals. Veinte copias de un rumor pertenecientes al mismo cluster aportan una sola procedencia. El prior de confianza de cada reportero sigue visible, pero no multiplica el origen subyacente.
+
+Una agrupación puede corregirse mediante merge o split versionado. `source_cluster.merged` o `source_cluster.split` recalcula la confianza de las Signals afectadas y reutiliza `evidence_dependencies` para marcar decisiones `needs_reassessment`. Si deja de cumplirse la policy de evidencia, se aplica la misma cancelación segura y liberación de reservas que en una retractación. Nunca se eliminan las Signals originales.
+
 ## 8. Transactional State Gateway
 
 Toda mutación usa:
@@ -427,6 +447,7 @@ Allowlist mínima:
 | `source_input.received` | `crisis-intake` |
 | `signal.created` / `signal.revised` | `crisis-command` |
 | `evidence.retracted` | `crisis-command`, prioridad inmediata |
+| `source_cluster.merged` / `source_cluster.split` | `crisis-command` |
 | `route.blocked` / `resource.unavailable` | `crisis-command` |
 | `action.approved` | `crisis-response-coordination` |
 | `mission.rejected` / `timed_out` / `failed` / `unknown` | `crisis-command` |
@@ -484,6 +505,7 @@ Una HumanDirective contiene motivo, alcance, autor de demo, creación y expiraci
 - incidentes P0–P3 y confianza;
 - plan activo, versión, diff, supuestos y evidencia;
 - revisiones de evidencia retractadas y decisiones dependientes pendientes de reevaluación;
+- número de Signals frente a número de clusters independientes, con explicación de agrupaciones;
 - recursos disponibles, reservados y en ejecución;
 - reservas `held`, `committed`, `expired`, `quarantined` y `consumed`, con acción y vencimiento;
 - acciones, aprobaciones, timeouts y elementos `unknown`;
@@ -564,9 +586,9 @@ Las únicas primitivas ejecutables por el motor son:
 
 `action-catalog.json` traduce verbos del escenario a estas primitivas mediante parámetros cerrados. No admite scripts arbitrarios.
 
-`policies.json` declara por categoría de acción si admite evidencia provisional, qué clases de fuentes independientes constituyen corroboración suficiente, qué riesgo exige aprobación humana y cómo se actúa al retractarse una evidencia. Estas reglas son deterministas y no sustituyen el razonamiento cualitativo de prioridad.
+`policies.json` declara por categoría de acción si admite evidencia provisional, cuántos clusters `confirmed_independent` y qué clases de origen constituyen corroboración suficiente, qué riesgo exige aprobación humana y cómo se actúa al retractarse o reagruparse una evidencia. Estas reglas son deterministas y no sustituyen el razonamiento cualitativo de prioridad.
 
-El preflight valida JSON Schema, referencias internas, IDs, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, completitud de las policies de evidencia y retractación, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
+El preflight valida JSON Schema, referencias internas, IDs, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, completitud de las policies de evidencia, corroboración y retractación, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
 
 El motor ejecuta exactamente un pack por run. Un pack puede contener varios hazards y cascadas mediante los grafos de impacto y dependencia, pero no puede importar ni combinar otro pack en runtime.
 
@@ -589,7 +611,7 @@ Escenario históricamente inspirado en la DANA de Valencia 2024, con todos los h
 
 La demo dura 8–10 minutos comprimidos y muestra entrada, ruido, priorización, contacto real controlado, aprobación, bloqueo, replanificación y postmortem.
 
-El E2E de DANA solo pasa si el equipo se reserva primero para A, B recibe preparación sin doble asignación, C no provoca un despliegue irreversible basado únicamente en ruido y la ruta cerrada deja de utilizarse tras la replanificación.
+El E2E de DANA solo pasa si el equipo se reserva primero para A, B recibe preparación sin doble asignación, C no provoca un despliegue irreversible basado únicamente en ruido y la ruta cerrada deja de utilizarse tras la replanificación. Para C, un rumor original y veinte reenvíos o reformulaciones con IDs distintos deben mostrarse como 21 Signals pero un único cluster de procedencia; solo una observación realmente independiente puede aumentar la corroboración.
 
 ### 16.2 Cinco packs mínimos
 
@@ -670,6 +692,7 @@ Todos los E2E comprueban:
 - ninguna acción de alto impacto sin aprobación;
 - ningún reintento ciego tras un efecto incierto;
 - ruido insuficiente como única base para una acción irreversible;
+- múltiples copias del mismo origen cuentan como un cluster, no como corroboraciones independientes;
 - una revisión retractada no sustenta nuevas autorizaciones; las acciones sin evidencia activa suficiente se cancelan antes del despacho;
 - rutas cerradas no utilizadas después de su actualización;
 - todo incidente activo atendido, verificado o aplazado con razón y `revisit_at`;
@@ -728,6 +751,7 @@ El postmortem se calcula contra `terminal_state_version`. Los eventos de `late_e
 23. Todo efecto externo está respaldado por una autorización persistida mientras el run estaba activo.
 24. Ninguna decisión nueva puede usar una revisión `superseded` o `retracted` como evidencia activa.
 25. Retractar evidencia no elimina ni reescribe decisiones o comunicaciones históricas.
+26. La corroboración para acciones de alto impacto se calcula por clusters `confirmed_independent`, nunca por cantidad bruta de Signals.
 
 ## 20. Evolución del repositorio actual
 
@@ -771,4 +795,5 @@ El diseño se considera implementado cuando:
 8. los E2E prueban expiración, liberación, consumo y cuarentena de reservas sin sobreasignación;
 9. un callback posterior al cierre queda en el anexo sin alterar estado ni evaluación;
 10. un E2E provisional → retractación reevalúa dependientes, invalida los insuficientes, libera la reserva segura y conserva la historia;
-11. ninguna dependencia opcional es necesaria para que funcione el camino base.
+11. el E2E de rumor replicado demuestra que 21 Signals no idénticas de un mismo origen cuentan como un solo cluster;
+12. ninguna dependencia opcional es necesaria para que funcione el camino base.
