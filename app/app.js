@@ -12,7 +12,8 @@ const state = {
   inFlight: new Set(),
   lastSuccessfulSync: 0,
   consecutiveFailures: 0,
-  realtimeSubscribed: false
+  realtimeSubscribed: false,
+  lastRenderedFingerprint: null
 };
 
 const COLLECTION_KEYS = [
@@ -191,6 +192,14 @@ function announceRecovery() {
   }, 4000);
 }
 
+function snapshotFingerprint(snapshot) {
+  try {
+    return JSON.stringify(snapshot);
+  } catch {
+    return String(snapshot?.run?.state_version ?? Date.now());
+  }
+}
+
 async function refreshSnapshot(reason) {
   const failuresBeforeRequest = state.consecutiveFailures;
 
@@ -201,11 +210,18 @@ async function refreshSnapshot(reason) {
 
     const currentVersion = state.snapshot?.run?.state_version;
     const nextVersion = nextSnapshot.run.state_version;
+    const fingerprint = snapshotFingerprint(nextSnapshot);
+    const shouldRender = state.lastRenderedFingerprint !== fingerprint;
     // Outbox dispatch can change after the domain transaction without increasing
     // state_version, so equal-version snapshots remain authoritative and renderable.
+    // However, identical observable content must not trigger a new render — health and
+    // last sync still update on every valid response.
     if (currentVersion === undefined || nextVersion >= currentVersion) {
       state.snapshot = nextSnapshot;
-      render();
+      if (shouldRender) {
+        state.lastRenderedFingerprint = fingerprint;
+        render();
+      }
     }
 
     if (failuresBeforeRequest > 0) {
@@ -459,6 +475,15 @@ function renderPlan() {
   container.append(record);
 }
 
+function isActionApprovable(action) {
+  const plan = state.snapshot.plan;
+  if (!plan || !Array.isArray(plan.action_ids)) return false;
+  return plan.action_ids.includes(action.action_id)
+    && action.plan_id === plan.plan_id
+    && action.status === "pending_approval"
+    && action.approval_policy === "human_required";
+}
+
 function renderActions() {
   const container = byId("actions-list");
   const actions = state.snapshot.actions;
@@ -490,7 +515,15 @@ function renderActions() {
     addBodyLine(body, "Params", formatObject(action.params), "technical");
     addBodyLine(body, "Evidencia", formatEvidence(action.evidence), "technical");
 
-    if (action.status === "pending_approval") {
+    const approvable = isActionApprovable(action);
+    const isHistoricalPending = action.status === "pending_approval"
+      && !approvable;
+    if (isHistoricalPending) {
+      addBadge(badges, "histórica · Plan sustituido", "warning");
+      addBodyLine(body, "Plan", "Histórica — pertenece a un Plan sustituido, sin controles operativos.", "technical");
+    }
+
+    if (approvable) {
       const controls = record.querySelector("[data-action-controls]");
       controls.hidden = false;
       for (const [decision, label] of [["approve", "Aprobar"], ["reject", "Rechazar"]]) {
