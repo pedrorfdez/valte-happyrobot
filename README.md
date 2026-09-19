@@ -21,11 +21,11 @@ It is scenario-neutral: the same contracts and HappyRobot workflows run a DANA/f
 | Generic v2 contracts | Available now |
 | DANA and wildfire contract examples | Available now |
 | Contract validator | Available now |
-| Supabase Edge Gateway | Stable public Gateway deployed through Supabase; connected DANA and wildfire E2E passed |
+| Supabase State Gateway | Connected DANA and wildfire E2E passed against Supabase; local demo needs no Azure deployment |
 | Scenario Controller and packs | Implemented; DANA and wildfire dry-runs available |
-| Three HappyRobot workflows | Declarative definitions and fixtures implemented; Platform publication requires credentials |
-| Local dashboard | Implemented and verified; served locally for the demo |
-| Controlled interaction and E2E runner | Implemented; mock E2E passed, connected smoke requires external services |
+| Three HappyRobot workflows | Published in HappyRobot `development`; connected E2E passed |
+| Azure Static Web Apps dashboard | Local dashboard implemented and verified; Azure deployment is optional |
+| Controlled interaction and E2E runner | Connected E2E passed in `dry-run`; live external channels intentionally not exercised |
 
 ## 2. Quick contract check
 
@@ -48,7 +48,7 @@ The original prototypes remain in `schemas/v1/`. New work uses `schemas/v2/`.
 
 ## 3. Full local demo
 
-> The connected demo has passed end to end with the public Supabase Edge Gateway, a local dashboard, and the three published HappyRobot `development` workflows. External communication remains in `dry-run`.
+> The connected local demo has passed end to end with Supabase and the three published HappyRobot `development` workflows. It needs Azure Functions Core Tools, but does not need an Azure deployment. External communication remains in `dry-run`.
 
 ### Step 1 — Check prerequisites
 
@@ -85,6 +85,7 @@ Fill `.env` without committing it:
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_ANON_KEY=your_public_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_server_only_service_role_key
+SUPABASE_ACCESS_TOKEN=your_management_api_personal_access_token
 DATABASE_URL=postgresql://your_connection_string
 
 GATEWAY_URL=https://your-project-ref.supabase.co/functions/v1/gateway
@@ -112,7 +113,7 @@ source ./.env
 set +a
 ```
 
-`SUPABASE_ANON_KEY` is public and used only for dashboard notifications. `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `HAPPYROBOT_KEY`, and real recipient details must remain outside browser code and Git.
+`SUPABASE_ANON_KEY` is public and used only for dashboard notifications. `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ACCESS_TOKEN`, `DATABASE_URL`, `HAPPYROBOT_KEY`, and real recipient details must remain outside browser code and Git. The access token is used only by the demo reset script.
 Configure `DEMO_CONTACT_EMAIL` and `DEMO_CONTACT_PHONE` only as hidden HappyRobot development variables; do not place real contact values in the repository.
 
 ### Step 3 — Prepare Supabase
@@ -184,7 +185,7 @@ Continue when `jq` prints `true`. The Gateway remains stable and publicly reacha
 
 ### Step 5 — Configure HappyRobot
 
-In the HappyRobot `development` environment, configure these three workflows from the versioned repository definitions:
+The connected demo already has these three workflows published in HappyRobot `development`. Repeat the setup below only for a fresh workspace or after changing workflow definitions:
 
 1. `crisis-intake`
 2. `crisis-command`
@@ -325,13 +326,20 @@ Azure is not used by this demo. The Gateway is the deployed Supabase Edge Functi
 
 Stop the local dashboard with `Ctrl-C` in its terminal. The Supabase Edge Gateway remains deployed.
 
-To reset only the two named demo runs:
+To preview the reset scope, load `.env` and run:
 
 ```bash
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --file supabase/seed.sql
+node scripts/reset-demo.mjs
 ```
 
-Never broaden the seed's deletion targets beyond `run-dana-demo` and `run-wildfire-demo`.
+It validates that `supabase/seed.sql` only targets `run-dana-demo` and `run-wildfire-demo`. To apply that reset through the Supabase Management API:
+
+```bash
+set -a; source ./.env; set +a
+node scripts/reset-demo.mjs --apply
+```
+
+The apply command requires `SUPABASE_ACCESS_TOKEN` with database write permission. Never broaden the seed's deletion targets beyond those two demo runs.
 
 ## 7. Troubleshooting
 
@@ -339,8 +347,9 @@ Never broaden the seed's deletion targets beyond `run-dana-demo` and `run-wildfi
 | --- | --- |
 | `npm run contracts:check` fails | Run `npm ci`, then inspect the first schema/fixture error. |
 | `SUPABASE_*` or `HAPPYROBOT_* is required` | Reload `.env` with `set -a; source ./.env; set +a`. |
-| Snapshot returns `run_not_found` | Reapply `supabase/seed.sql` and use the two fixed run IDs. |
-| E2E says the run is not clean | Reapply the seed; do not make the runner delete data automatically. |
+| Snapshot returns `run_not_found` | Run `node scripts/reset-demo.mjs --apply` and use the two fixed run IDs. |
+| E2E says the run is not clean | Run the reset script; the runner intentionally never deletes data automatically. |
+| Direct `psql` reset hangs | Use `node scripts/reset-demo.mjs --apply` with the Management API token loaded from `.env`. |
 | Gateway returns `version_conflict` | Refresh the snapshot and retry the human decision with a new command ID. |
 | Router reports workflow not found | Verify the three workflow IDs and `HAPPYROBOT_ENV=development`. |
 | Dashboard says `degraded` | Realtime is unavailable; confirm snapshots still refresh by polling. |

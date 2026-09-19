@@ -7,3 +7,4 @@ node_modules/
 artifacts/e2e/*.json
 artifacts/e2e/*/
 !artifacts/e2e/.gitkeep
+supabase/.temp/
