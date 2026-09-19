@@ -33,6 +33,7 @@ def risk_bar(pct, width=20):
 
 
 def render():
+    run = get("/runs/current")
     state = get("/state")
     sit = state.get("situation") or {}
     tws = state.get("active_tripwires") or []
@@ -55,6 +56,9 @@ def render():
     out = []
     out.append(f"{BOLD}== VALTE CRISIS SYSTEM == level {sit.get('emergency_level', '-')}"
                f"  {DIM}{time.strftime('%H:%M:%S')}{END}")
+    out.append(f"{DIM}run {str(run.get('id'))[:8]} '{run.get('notes') or run.get('scenario_id')}'"
+               f" started {str(run.get('started_at'))[11:19]} UTC"
+               f" | new run: POST /runs{END}")
     out.append(f"{DIM}{(sit.get('notes') or 'no situation yet')[:110]}{END}")
     out.append("")
     out.append(f"{BOLD}ZONES{END}                hazard(truth)   population at risk")
