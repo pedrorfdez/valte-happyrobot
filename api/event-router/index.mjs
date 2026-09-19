@@ -122,11 +122,16 @@ export default async function eventRouter(context, req) {
       errorMessage = error.message;
     }
 
+    const retryable = !(
+      job.destination === "crisis-response-coordination"
+      && interactionMode !== "dry-run"
+    );
     const receipt = await callRpc("finish_outbox", {
       p_outbox_id: job.outbox_id,
       p_dispatch_id: job.dispatch_id,
       p_succeeded: succeeded,
-      p_error: errorMessage
+      p_error: errorMessage,
+      p_retryable: retryable
     });
     const results = [{
       outbox_id: job.outbox_id,
