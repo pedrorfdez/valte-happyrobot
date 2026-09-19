@@ -50,6 +50,11 @@ function normalizeUrl(value, name) {
   return parsed.href.replace(/\/$/, "");
 }
 
+function gatewayApiUrl(path) {
+  const cleanPath = String(path).replace(/^\/+/, "");
+  return new URL(`${state.config.gatewayUrl}/${cleanPath}`);
+}
+
 function readConfig() {
   const params = new URLSearchParams(location.search);
   const runId = params.get("run_id")?.trim();
@@ -57,8 +62,8 @@ function readConfig() {
     throw new Error("Falta el parámetro requerido run_id para abrir la simulación.");
   }
 
-  // Production keeps the Gateway same-origin so the SWA CSP can stay on 'self'.
-  // gateway_url is only an explicit override for local/demo hosts without SWA headers.
+  // The dashboard may run locally while the Gateway uses a stable public Edge URL.
+  // gateway_url is an explicit override; same-origin remains useful for other hosts.
   const gatewayUrl = normalizeUrl(
     params.get("gateway_url")?.trim() || location.origin,
     "gateway_url"
@@ -134,7 +139,7 @@ async function fetchSnapshot() {
   }
 
   state.snapshotPromise = (async () => {
-    const url = new URL("/api/snapshot", state.config.gatewayUrl);
+    const url = gatewayApiUrl("api/snapshot");
     url.searchParams.set("run_id", state.config.runId);
     const response = await fetch(url, { headers: { Accept: "application/json" } });
 
@@ -848,7 +853,7 @@ async function sendCommand(commandType, payload, control, affectedPanel) {
   control.textContent = "Enviando… · SIMULACIÓN";
 
   try {
-    const url = new URL("/api/commands", state.config.gatewayUrl);
+    const url = gatewayApiUrl("api/commands");
     const response = await fetch(url, {
       method: "POST",
       headers: {
