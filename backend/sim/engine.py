@@ -41,6 +41,7 @@ class Engine:
         self.emitter.emit(channel, mode, payload)
         if self._truth:
             self._truth.write(json.dumps(signal, ensure_ascii=False) + "\n")
+            self._truth.flush()  # survive hard kills; this log is the eval ground truth
         self.emitted += 1
         self._maybe_cascade(signal)
 
