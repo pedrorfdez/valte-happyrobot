@@ -37,11 +37,11 @@ insert into resources (run_id, resource_id, resource_mode, capacity, available, 
 values
   (
     'run-dana-demo', 'water-rescue-team-1', 'reusable', 1, 1,
-    '{"resource_id":"water-rescue-team-1","resource_mode":"reusable","capacity":1,"available":1,"capabilities":["water_rescue"],"zone_id":"catarroja-health-centre"}'::jsonb
+    '{"resource_id":"water-rescue-team-1","owner_entity_id":"rescue-team","name":"Equipo de rescate acuático 1","resource_mode":"reusable","capacity":1,"available":1,"capabilities":["water_rescue"],"initial_zone_id":"catarroja-health-centre"}'::jsonb
   ),
   (
     'run-wildfire-demo', 'wildfire-brigade-1', 'reusable', 1, 1,
-    '{"resource_id":"wildfire-brigade-1","resource_mode":"reusable","capacity":1,"available":1,"capabilities":["wildfire_response"],"zone_id":"corredor-sur"}'::jsonb
+    '{"resource_id":"wildfire-brigade-1","owner_entity_id":"wildfire-brigade-1","name":"Brigada forestal 1","resource_mode":"reusable","capacity":1,"available":1,"capabilities":["wildfire_response"],"initial_zone_id":"corredor-sur"}'::jsonb
   );
 
 commit;

@@ -57,8 +57,8 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "
   delete from signals where run_id='run-dana-demo-2';
   delete from source_inputs where run_id='run-dana-demo-2';
   delete from resources where run_id='run-dana-demo-2';
-  insert into resources (run_id, resource_id, resource_mode, capacity, available, document)
-  values ('run-dana-demo-2', 'water-rescue-team-1', 'reusable', 1, 1, '{\"resource_id\":\"water-rescue-team-1\",\"resource_mode\":\"reusable\",\"capacity\":1,\"available\":1,\"capabilities\":[\"water_rescue\"],\"zone_id\":\"catarroja-health-centre\"}'::jsonb)
+   insert into resources (run_id, resource_id, resource_mode, capacity, available, document)
+  values ('run-dana-demo-2', 'water-rescue-team-1', 'reusable', 1, 1, '{\"resource_id\":\"water-rescue-team-1\",\"owner_entity_id\":\"rescue-team\",\"name\":\"Equipo de rescate acuático 1\",\"resource_mode\":\"reusable\",\"capacity\":1,\"available\":1,\"capabilities\":[\"water_rescue\"],\"initial_zone_id\":\"catarroja-health-centre\"}'::jsonb)
   on conflict (run_id, resource_id) do update set capacity=excluded.capacity, available=excluded.available, document=excluded.document;
 " >/dev/null || true
 echo "→ Seeding zones/entities catalogues from scenario-packs..."

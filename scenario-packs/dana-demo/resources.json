@@ -2,6 +2,7 @@
   "resources": [
     {
       "resource_id": "water-rescue-team-1",
+      "owner_entity_id": "rescue-team",
       "name": "Equipo de rescate acuático 1",
       "resource_mode": "reusable",
       "capacity": 1,

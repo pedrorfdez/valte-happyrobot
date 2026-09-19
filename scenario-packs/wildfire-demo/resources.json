@@ -2,6 +2,7 @@
   "resources": [
     {
       "resource_id": "wildfire-brigade-1",
+      "owner_entity_id": "wildfire-brigade-1",
       "name": "Brigada forestal 1",
       "resource_mode": "reusable",
       "capacity": 1,
