@@ -105,7 +105,15 @@ export default async function eventRouter(context, req) {
           payload: workflowPayload
         })
       });
-      workflowRunId = launched?.id ?? launched?.data?.id ?? null;
+      workflowRunId = launched?.run_id
+        ?? launched?.queued_run_ids?.[0]
+        ?? launched?.id
+        ?? launched?.data?.run_id
+        ?? launched?.data?.queued_run_ids?.[0]
+        ?? launched?.data?.id
+        ?? launched?.data?.run?.run_id
+        ?? launched?.data?.run?.id
+        ?? null;
       succeeded = true;
     } catch (error) {
       errorMessage = error.message;
@@ -133,7 +141,8 @@ export default async function eventRouter(context, req) {
       results
     });
   } catch (error) {
-    context.log.error(error);
-    context.res = jsonResponse(500, { error: "event_router_failure", message: error.message });
+    context.log.error(error, error.details ?? error.message);
+    const message = error.exposeMessage === false ? "internal error" : "event router failure";
+    context.res = jsonResponse(500, { error: "event_router_failure", message });
   }
 }

@@ -338,6 +338,33 @@ async function drainRouter(args, recorder, runId, phase) {
   return response.body;
 }
 
+async function getWorkflowRunStatus(runId) {
+  const baseUrl = process.env.HAPPYROBOT_BASE_URL;
+  const apiKey = process.env.HAPPYROBOT_KEY;
+  // Runner por defecto NO necesita HAPPYROBOT_KEY (ver docs/superpowers/plans/2026-09-19-crisis-e2e-demo.md:66).
+  // Si no hay credenciales, se omite el polling de HappyRobot y se usa solo state_version (modo demo/hackathon).
+  if (!baseUrl || !apiKey) return null;
+
+  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/runs/${encodeURIComponent(runId)}`, {
+    headers: { authorization: `Bearer ${apiKey}`, accept: "application/json" },
+    signal: AbortSignal.timeout(HTTP_TIMEOUT_MS)
+  });
+  const text = await response.text();
+  let body;
+  try {
+    body = text ? JSON.parse(text) : {};
+  } catch {
+    throw new E2EAssertionError("workflow_run_status", "HappyRobot returned non-JSON run status");
+  }
+  if (!response.ok || typeof body.status !== "string") {
+    throw new E2EAssertionError(
+      "workflow_run_status",
+      `could not read HappyRobot run ${runId} (${response.status})`
+    );
+  }
+  return body.status;
+}
+
 function assertPackIdentity(snapshot, pack, config) {
   const run = snapshot.run;
   const manifest = pack.manifest;
@@ -590,10 +617,25 @@ async function waitForSnapshot({ config, pack, args, recorder, deadline, phase, 
     const router = await drainRouter(args, recorder, config.runId, phase);
 
     if (router.dispatched === 1) {
-      do {
-        await delay(Math.min(POLL_MS, deadlineRemaining(deadline, phase)));
-        snapshot = await observeSnapshot(config, pack, args, recorder, phase);
-      } while (snapshot.run.state_version <= beforeVersion);
+      const workflowRunId = router.results?.[0]?.workflow_run_id;
+      const hasWorkflowRunId = typeof workflowRunId === "string" && workflowRunId;
+      if (hasWorkflowRunId) {
+        while (true) {
+          await delay(Math.min(POLL_MS, deadlineRemaining(deadline, phase)));
+          snapshot = await observeSnapshot(config, pack, args, recorder, phase);
+          const status = await getWorkflowRunStatus(workflowRunId);
+          if (status && ["failed", "cancelled", "canceled"].includes(status)) {
+            throw new E2EAssertionError("workflow_failed", `HappyRobot run ${workflowRunId} ended with ${status}`);
+          }
+          if (snapshot.run.state_version > beforeVersion || status === "completed") break;
+        }
+      } else {
+        // Sin HappyRobot conectado (mock/dry-run local): espera solo avance de versión
+        do {
+          await delay(Math.min(POLL_MS, deadlineRemaining(deadline, phase)));
+          snapshot = await observeSnapshot(config, pack, args, recorder, phase);
+        } while (snapshot.run.state_version <= beforeVersion);
+      }
       continue;
     }
 

@@ -45,9 +45,11 @@ export async function supabaseRequest(path, { method = "GET", body } = {}) {
   }
 
   if (!response.ok) {
-    const error = new Error(data?.message ?? `Supabase request failed with ${response.status}`);
+    const safeMessage = `Supabase request failed with ${response.status}`;
+    const error = new Error(safeMessage);
     error.status = response.status;
     error.details = data;
+    error.exposeMessage = false;
     throw error;
   }
 

@@ -17,11 +17,16 @@ function invalid(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return "body must be an object";
   const missing = requiredFields.filter((field) => !(field in body));
   if (missing.length) return `missing fields: ${missing.join(", ")}`;
+  if (typeof body.command_id !== "string" || !/^[A-Za-z0-9._:-]{8,128}$/.test(body.command_id)) return "command_id must match ^[A-Za-z0-9._:-]{8,128}$";
+  if (typeof body.run_id !== "string" || !body.run_id.trim()) return "run_id must be a non-empty string";
+  if (typeof body.causation_id !== "string" && body.causation_id !== null) return "causation_id must be string or null";
   if (!actors.has(body.actor)) return "actor is not allowlisted";
   if (!commandTypes.has(body.command_type)) return "command_type is not allowlisted";
   if (!Number.isSafeInteger(body.expected_state_version) || body.expected_state_version < 0) return "expected_state_version must be a non-negative safe integer";
   if (!/^[a-f0-9]{64}$/.test(body.pack_digest)) return "pack_digest must be 64 lowercase hexadecimal characters";
   if (!body.payload || typeof body.payload !== "object" || Array.isArray(body.payload)) return "payload must be an object";
+  // Límites defensivos contra payloads gigantes
+  if (JSON.stringify(body).length > 200_000) return "command payload too large";
   return null;
 }
 
@@ -84,11 +89,14 @@ export default async function commands(context, req) {
     const result = await callRpc("apply_command", { p_command: command });
     context.res = jsonResponse(result.error ? errorStatus(result.error) : 200, result);
   } catch (error) {
-    context.log.error(error);
+    context.log.error(error, error.details ?? error.message);
+    const message = error.exposeMessage === false
+      ? "internal error"
+      : "gateway failure";
     context.res = jsonResponse(500, {
       ok: false,
       error: "gateway_failure",
-      message: error.message
+      message
     });
   }
 }

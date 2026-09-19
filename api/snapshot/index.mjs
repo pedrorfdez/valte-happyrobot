@@ -15,7 +15,8 @@ export default async function snapshot(context, req) {
     }
     context.res = jsonResponse(200, result);
   } catch (error) {
-    context.log.error(error);
-    context.res = jsonResponse(500, { error: "snapshot_failure", message: error.message });
+    context.log.error(error, error.details ?? error.message);
+    const message = error.exposeMessage === false ? "internal error" : "snapshot failure";
+    context.res = jsonResponse(500, { error: "snapshot_failure", message });
   }
 }

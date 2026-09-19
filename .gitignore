@@ -1,5 +1,9 @@
 .env
+api/local.settings.json
 node_modules/
+.DS_Store
+**/.DS_Store
+.playwright-cli/
 artifacts/e2e/*.json
 artifacts/e2e/*/
 !artifacts/e2e/.gitkeep

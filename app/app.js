@@ -66,7 +66,7 @@ function readConfig() {
   const supabaseUrlValue = params.get("supabase_url")?.trim();
   const supabaseAnonKey = params.get("supabase_anon_key")?.trim();
 
-  return {
+  const result = {
     runId,
     gatewayUrl,
     supabaseUrl: supabaseUrlValue
@@ -75,6 +75,20 @@ function readConfig() {
     supabaseAnonKey: supabaseUrlValue && supabaseAnonKey ? supabaseAnonKey : null,
     realtimeEnabled: Boolean(supabaseUrlValue && supabaseAnonKey)
   };
+
+  // Limpia anon_key de la URL para evitar leak en history/Referer/screenshots
+  if (supabaseUrlValue || supabaseAnonKey) {
+    try {
+      const cleanUrl = new URL(location.href);
+      cleanUrl.searchParams.delete("supabase_url");
+      cleanUrl.searchParams.delete("supabase_anon_key");
+      history.replaceState(null, "", cleanUrl.toString());
+    } catch {
+      // noop: si falla el replace, la app sigue funcionando con polling
+    }
+  }
+
+  return result;
 }
 
 function responseError(status, body) {
@@ -751,7 +765,7 @@ async function startRealtime() {
 
   try {
     const { createClient } = await import(
-      "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"
+      "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm"
     );
     state.realtimeClient = createClient(
       state.config.supabaseUrl,
