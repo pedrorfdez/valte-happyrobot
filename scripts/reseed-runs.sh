@@ -23,9 +23,13 @@ else
   fi
 fi
 
-echo "→ Aplicando migración (idempotente)..."
+echo "→ Aplicando migraciones (idempotente)..."
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction \
   --file "$ROOT/supabase/migrations/202609190001_crisis_core.sql"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction \
+  --file "$ROOT/supabase/migrations/202609190002_non_retryable_live_dispatch.sql" || true
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction \
+  --file "$ROOT/supabase/migrations/202609190003_agent_simulation_lessons.sql" || true
 echo "→ Reseed run-dana-demo + run-wildfire-demo (state_version=0, ready)..."
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --file "$ROOT/supabase/seed.sql"
 # Limpia lecciones históricas para evitar contaminación cross-run (agent_simulation)

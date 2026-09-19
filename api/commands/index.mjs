@@ -8,7 +8,7 @@ const actors = new Set(["scenario-controller", "happyrobot", "operator"]);
 const commandTypes = new Set([
   "receive_source_input", "upsert_signal", "replace_plan",
   "approve_action", "reject_action", "record_outcome",
-  "advance_clock", "pause_run", "resume_run", "abort_run"
+  "advance_clock", "pause_run", "resume_run", "abort_run", "complete_run", "create_lesson"
 ]);
 const requiredFields = [
   "command_id", "run_id", "pack_id", "pack_version", "pack_digest",

@@ -61,6 +61,31 @@ node scripts/e2e-demo.mjs \
 
 Debe terminar con cinco líneas PASS —DANA, aborto DANA, incendio, aborto incendio y aislamiento— más la ruta a `summary.md`.
 
+## 3b. Simulación agente (`agent_simulation`) y aprendizaje histórico
+
+Para demostrar conversación agente-a-agente sin PSTN/Web Voice real y aprendizaje entre runs del mismo pack:
+
+```bash
+./scripts/reseed-runs.sh --yes
+node scripts/e2e-historical-learning.mjs \
+  --gateway "$GATEWAY_URL" \
+  --dana-run run-dana-demo --dana-run2 run-dana-demo-2 \
+  --wildfire-run run-wildfire-demo \
+  --effects agent_simulation
+```
+
+Debe terminar con:
+
+```
+PASS dana1: agent_simulation transcript → Outcome → replan
+PASS lesson created for dana1
+PASS lesson injection: dana2 sees lesson, wildfire isolated
+PASS dana2 applied lesson to plan and recorded link
+PASS wildfire isolation: no dana lesson
+```
+
+El Outcome de `dana1` contiene `observed_effects.interaction_mode=agent_simulation` y `simulated_transcript` (2-6 líneas, primera `SIMULACIÓN —`). El `crisis-review` crea una `Lesson` pack-scoped (`lessons` table, `source_run_id` único) y `dana2` la recibe en `GET /api/snapshot` (`lessons` array) y la aplica: `plan_lessons` registra el enlace y el nuevo `Plan` cambia `objectives` con la instrucción. `wildfire` nunca recibe la lección DANA.
+
 ## 4. Activación live: modo exacto y doble barrera
 
 Hazlo solo después de comprobar visualmente que el destinatario está en whitelist y que todo mensaje empieza con `SIMULACIÓN`:
