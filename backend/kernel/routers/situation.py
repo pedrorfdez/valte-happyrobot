@@ -25,6 +25,7 @@ def put_situation(request: Request, doc: dict | None = Body(None)):
             raise HTTPException(422, "situation_json is not valid JSON")
     if not isinstance(doc, dict):
         raise HTTPException(422, "situation must be a JSON object")
-    q("update situation set doc=%s, updated_at=now() where run_id=%s",
-      (js(doc), current_run_id()))
+    rid = current_run_id()
+    q("update situation set doc=%s, updated_at=now() where run_id=%s", (js(doc), rid))
+    q("insert into situation_history (run_id, doc) values (%s, %s)", (rid, js(doc)))
     return {"situation": doc}

@@ -9,8 +9,8 @@ from fastapi import FastAPI
 
 from .config import settings
 from .db import current_run_id, pool, q
-from .routers import (actions, entities, perceptions, runs, signals, situation,
-                      state, tripwires, world)
+from .routers import (actions, dashboard, entities, perceptions, runs, signals,
+                      situation, state, tripwires, world)
 from .services import executor, outbox, reflexes
 
 
@@ -58,7 +58,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Valte crisis kernel", lifespan=lifespan)
-for r in (runs, state, entities, signals, perceptions, actions, situation, tripwires, world):
+for r in (runs, state, entities, signals, perceptions, actions, situation,
+          tripwires, world, dashboard):
     app.include_router(r.router)
 
 

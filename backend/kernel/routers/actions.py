@@ -83,6 +83,7 @@ def submit_decisions(request: Request, req_body: dict | None = Body(None)):
     note. Invalid actions are reported per item, valid ones proceed."""
     body = _body_or_query(request, req_body, "decisions_json")
     rid = _run()
+    hr_run_id = body.get("hr_run_id") or request.query_params.get("hr_run_id")
     raw_actions = body.get("actions") or []
     if isinstance(raw_actions, str):
         try:
@@ -100,8 +101,15 @@ def submit_decisions(request: Request, req_body: dict | None = Body(None)):
         try:
             results.append({"index": i, "id": action.get("id"),
                             **submit_action(rid, action, None)})
+            if hr_run_id:
+                q("update actions set hr_run_id=%s where run_id=%s and id=%s",
+                  (hr_run_id, rid, action["id"]))
         except HTTPException as e:
             results.append({"index": i, "id": action.get("id"), "error": str(e.detail)})
+            # a refused decision is part of the story; keep it
+            q("insert into events (run_id, type, lane, payload, status) values (%s,'action_rejected','audit',%s,'logged')",
+              (rid, js({"attempted": action, "reason": str(e.detail),
+                        "hr_run_id": hr_run_id})))
     situation_note = body.get("situation_note")
     if situation_note:
         row = q("select doc from situation where run_id=%s", (rid,), one=True)
@@ -112,7 +120,10 @@ def submit_decisions(request: Request, req_body: dict | None = Body(None)):
                 doc["emergency_level"] = int(body["emergency_level"])
             except (TypeError, ValueError):
                 pass
+        if hr_run_id:
+            doc["hr_run_id"] = hr_run_id
         q("update situation set doc=%s, updated_at=now() where run_id=%s", (js(doc), rid))
+        q("insert into situation_history (run_id, doc) values (%s, %s)", (rid, js(doc)))
     mark_agent_responded()  # reopen the coordinator wake-up gate
     accepted = sum(1 for r in results if "error" not in r)
     return {"accepted": accepted, "rejected": len(results) - accepted, "results": results}
