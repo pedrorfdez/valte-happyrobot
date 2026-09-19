@@ -28,6 +28,31 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction \
   --file "$ROOT/supabase/migrations/202609190001_crisis_core.sql"
 echo "→ Reseed run-dana-demo + run-wildfire-demo (state_version=0, ready)..."
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --file "$ROOT/supabase/seed.sql"
+# Limpia lecciones históricas para evitar contaminación cross-run (agent_simulation)
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "
+  delete from plan_lessons where run_id in ('run-dana-demo','run-wildfire-demo','run-dana-demo-2');
+  delete from lessons where source_run_id in ('run-dana-demo','run-wildfire-demo','run-dana-demo-2');
+" >/dev/null || true
+# Crea run adicional para historical learning (pack dana) si no existe
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "
+  insert into scenario_runs (run_id, pack_id, pack_version, pack_digest, status, scenario_now, state_version)
+  values ('run-dana-demo-2', 'dana-demo', '1.0.0', repeat('c',64), 'ready', '2026-09-19T10:00:00Z', 0)
+  on conflict (run_id) do update set pack_id=excluded.pack_id, pack_version=excluded.pack_version, pack_digest=excluded.pack_digest, status='ready', scenario_now=excluded.scenario_now, state_version=0, updated_at=now();
+  delete from plan_lessons where run_id='run-dana-demo-2';
+  delete from outbox where run_id='run-dana-demo-2';
+  delete from events where run_id='run-dana-demo-2';
+  delete from commands where run_id='run-dana-demo-2';
+  delete from outcomes where run_id='run-dana-demo-2';
+  delete from actions where run_id='run-dana-demo-2';
+  delete from plans where run_id='run-dana-demo-2';
+  delete from incidents where run_id='run-dana-demo-2';
+  delete from signals where run_id='run-dana-demo-2';
+  delete from source_inputs where run_id='run-dana-demo-2';
+  delete from resources where run_id='run-dana-demo-2';
+  insert into resources (run_id, resource_id, resource_mode, capacity, available, document)
+  values ('run-dana-demo-2', 'water-rescue-team-1', 'reusable', 1, 1, '{\"resource_id\":\"water-rescue-team-1\",\"resource_mode\":\"reusable\",\"capacity\":1,\"available\":1,\"capabilities\":[\"water_rescue\"],\"zone_id\":\"catarroja-health-centre\"}'::jsonb)
+  on conflict (run_id, resource_id) do update set capacity=excluded.capacity, available=excluded.available, document=excluded.document;
+" >/dev/null || true
 echo "→ Verificación:"
 psql "$DATABASE_URL" -Atc "select run_id || '|' || pack_id || '|' || status || '|' || state_version from scenario_runs where run_id in ('run-dana-demo','run-wildfire-demo') order by run_id;"
 for valte_run in run-dana-demo run-wildfire-demo; do

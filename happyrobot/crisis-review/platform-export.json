@@ -1,0 +1,50 @@
+{
+  "version": {
+    "workflow_name": "crisis-review",
+    "name": "crisis-review-1.0.0",
+    "engine": "v3",
+    "environment": "development",
+    "export_status": "declarative_only"
+  },
+  "nodes": [
+    {
+      "name": "Terminal Snapshot",
+      "type": "incoming_hook_trigger",
+      "config": {
+        "event_type": "run.aborted",
+        "input_schema": "input.schema.json"
+      }
+    },
+    {
+      "name": "Review Terminal Run",
+      "type": "ai_agent",
+      "config": {
+        "prompt": "prompt.md",
+        "output_format": "json",
+        "output_schema": "output.schema.json"
+      }
+    },
+    {
+      "name": "Create Lesson If Any",
+      "type": "http_action",
+      "config": {
+        "method": "POST",
+        "url": "{{GATEWAY_URL}}/api/commands",
+        "content_type": "application/json",
+        "body": {
+          "command_id": "review:{{snapshot.run.run_id}}:{{snapshot.run.state_version}}",
+          "run_id": "{{snapshot.run.run_id}}",
+          "pack_id": "{{snapshot.run.pack_id}}",
+          "pack_version": "{{snapshot.run.pack_version}}",
+          "pack_digest": "{{snapshot.run.pack_digest}}",
+          "expected_state_version": "{{snapshot.run.state_version}}",
+          "actor": "happyrobot",
+          "command_type": "create_lesson",
+          "payload": { "lesson": "{{review_terminal_run.lesson}}" },
+          "causation_id": "{{event.event_id}}"
+        },
+        "condition": "review_terminal_run.lesson != null"
+      }
+    }
+  ]
+}

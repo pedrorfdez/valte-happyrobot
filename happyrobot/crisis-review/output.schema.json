@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/happyrobot/crisis-review/output.schema.json",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["no_lesson"],
+      "properties": {
+        "no_lesson": { "const": true },
+        "reason": { "type": "string", "minLength": 3, "maxLength": 300 }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["lesson"],
+      "properties": {
+        "lesson": {
+          "type": "object",
+          "required": ["instruction", "evidence_action_id", "evidence_outcome_id"],
+          "properties": {
+            "instruction": { "type": "string", "minLength": 10, "maxLength": 500 },
+            "evidence_action_id": { "type": "string", "minLength": 1 },
+            "evidence_outcome_id": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}
