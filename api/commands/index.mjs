@@ -104,6 +104,20 @@ function validateApproverAllowlist(command) {
   return null;
 }
 
+function validateDecisionPayload(command) {
+  if (command.command_type !== "approve_action" && command.command_type !== "reject_action") return null;
+  const payload = command.payload;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return "payload must be an object";
+  if (typeof payload.action_id !== "string" || !payload.action_id.trim()) return "action_id must be a non-empty string";
+  if (typeof payload.deciding_entity_id !== "string" || !payload.deciding_entity_id.trim()) return "deciding_entity_id must be a non-empty string";
+  if (payload.deciding_entity_id.length > 128) return "deciding_entity_id must be <=128 chars";
+  if ("note" in payload && payload.note !== null && payload.note !== undefined) {
+    if (typeof payload.note !== "string") return "note must be a string";
+    if (payload.note.length > 2000) return "note must be <=2000 chars";
+  }
+  return null;
+}
+
 const errorStatus = (code) => {
   if (code === "run_not_found") return 404;
   if (["version_conflict", "idempotency_mismatch", "pack_context_mismatch"].includes(code)) return 409;
@@ -140,6 +154,12 @@ export default async function commands(context, req) {
     const approverError = validateApproverAllowlist(command);
     if (approverError) {
       context.res = jsonResponse(400, { ok: false, error: "invalid_approver", message: approverError });
+      return;
+    }
+
+    const decisionError = validateDecisionPayload(command);
+    if (decisionError) {
+      context.res = jsonResponse(400, { ok: false, error: "invalid_command", message: decisionError });
       return;
     }
 
