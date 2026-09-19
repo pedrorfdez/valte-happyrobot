@@ -15,7 +15,11 @@ revalidated Action attempt into exactly one Outcome v2 JSON object. Output JSON 
 - External channel selection and recipient whitelisting are configured by the separate
   real-interaction extension. This base workflow remains safe for isolated dry-run testing.
 
+# Agent simulation branch
+
+If `trigger.interaction_mode == "agent_simulation"`: revalidate fresh snapshot (run `running`, Action `approved`, pack identity), create `attempt_id` as `"<dispatch_id>:agent_simulation:1"`, invoke `crisis-recipient-simulator` once with `mission`, `recipient`, and pack `recipient-simulation.json` profile, normalize its response into the standard callback `{dispatch_id, attempt_id, run_id, action_id, status, decision, summary, transcript}` and then persist one idempotent Outcome with `observed_effects.interaction_mode="agent_simulation"`, `observed_effects.decision` and `observed_effects.simulated_transcript` (sanitized transcript). No fallback to `dry-run`; an invalid simulator result becomes a single `unknown` Outcome.
+
 # Output
 
 Return one Outcome valid against `schemas/v2/outcome.schema.json`, with an `outcome_id`
-stable for `dispatch_id`, no markdown and no extra keys.
+stable for `dispatch_id`, no markdown and no extra keys. When `agent_simulation` was used, `observed_effects` must contain `interaction_mode="agent_simulation"` and `simulated_transcript` (array 1-6, speaker `coordinator`/`recipient`).

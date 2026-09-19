@@ -6,7 +6,7 @@
   "properties": {
     "dispatch_id": { "type": "string", "minLength": 1 },
     "run_id": { "type": "string", "minLength": 1 },
-    "interaction_mode": { "enum": ["dry-run", "web_voice", "email", "pstn"] },
+    "interaction_mode": { "enum": ["dry-run", "web_voice", "email", "pstn", "agent_simulation"] },
     "event": {
       "type": "object",
       "required": ["event_id", "run_id", "state_version", "event_type", "causation_id", "payload"],

@@ -1,7 +1,7 @@
 import { callRpc, jsonResponse, requireGatewayAuth, requiredEnv } from "../_shared/supabase.mjs";
 
 const HAPPYROBOT_TIMEOUT_MS = 20_000;
-const interactionModes = new Set(["dry-run", "web_voice", "email", "pstn"]);
+const interactionModes = new Set(["dry-run", "web_voice", "email", "pstn", "agent_simulation"]);
 
 const workflowSettingByDestination = {
   "crisis-intake": "HAPPYROBOT_INTAKE_WORKFLOW_ID",
@@ -78,7 +78,7 @@ export default async function eventRouter(context, req) {
   if (!interactionModes.has(interactionMode)) {
     context.res = jsonResponse(400, {
       error: "invalid_request",
-      message: "interaction_mode must be dry-run, web_voice, email, or pstn"
+      message: "interaction_mode must be dry-run, web_voice, email, pstn, or agent_simulation"
     });
     return;
   }
@@ -129,7 +129,7 @@ export default async function eventRouter(context, req) {
 
     const retryable = !(
       job.destination === "crisis-response-coordination"
-      && interactionMode !== "dry-run"
+      && !["dry-run", "agent_simulation"].includes(interactionMode)
     );
     const receipt = await callRpc("finish_outbox", {
       p_outbox_id: job.outbox_id,
