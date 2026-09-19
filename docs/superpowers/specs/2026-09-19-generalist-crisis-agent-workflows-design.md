@@ -198,7 +198,7 @@ Las propuestas pasan por validación determinista de:
 - política de riesgo y aprobación;
 - `state_version` y versión del plan.
 
-El asignador elige solo entre candidatos válidos usando prioridad, disponibilidad, demora de activación, ajuste de capacidad y un desempate estable por identificador. La reserva se confirma mediante el State Gateway; el modelo no puede saltársela.
+El asignador elige solo entre candidatos válidos usando prioridad, disponibilidad, demora de activación, ajuste de capacidad y un desempate estable por identificador. La acción y su reserva `held` se confirman atómicamente mediante el State Gateway; el modelo no puede saltarse el ledger de reservas.
 
 Si una propuesta no es válida, se permite una sola reparación razonada. Un segundo fallo la deja en `needs_human_review` sin efecto lateral.
 
@@ -217,6 +217,8 @@ Proceso:
 5. Registra entrega, aceptación, rechazo, ejecución, timeout o incertidumbre.
 6. Convierte nueva información obtenida en otra Signal, sin reescribir el pasado.
 7. Solicita replanteamiento cuando cambia una capacidad, respuesta, deadline o resultado.
+
+La aceptación o el inicio de la misión convierte su reserva `held` en `committed`. Un rechazo o fallo confirmado antes del despliegue la libera. Un resultado `unknown` la convierte en `quarantined` hasta reconciliación humana.
 
 No mantiene esperas largas dentro del workflow. Los deadlines se registran como `due_scenario_at` y el Scenario Controller/Event Router despierta el siguiente paso cuando corresponde.
 
@@ -288,7 +290,8 @@ El modelo lógico incluye:
 
 - `scenario_runs`: pack, estado, reloj, velocidad, versión global y motivo de cierre;
 - `zones`, `impact_edges`, `routes` y `dependency_edges`;
-- `entities` y `resources`, con `resources` como único ledger de capacidad;
+- `entities` y `resources`, con `resources` como único ledger de capacidad y modo `reusable` o `consumable`;
+- `resource_reservations`, vinculadas a acción, unidades, estado y expiración;
 - `signals`, `incidents` e `incident_signals`;
 - `plans`, `actions`, `approvals`, `action_attempts` y `outcomes`;
 - `human_directives` con razón y expiración;
@@ -303,6 +306,39 @@ Los grafos son independientes:
 - **dependency:** relación funcional entre servicios, activos o recursos.
 
 Una arista nunca adquiere semántica de otra capa. El mapa es esquemático y no ofrece navegación real.
+
+### 7.1 Lifecycle de reservas
+
+Una reserva conserva `reservation_id`, `action_id`, `resource_id`, unidades, `status`, `held_at`, `expires_at_scenario`, timestamps de transición, razón de liberación y versión.
+
+```text
+held ───────────────→ committed ──→ released | consumed
+  ├─→ released           └────────→ quarantined
+  ├─→ expired
+  └─→ quarantined ──human──→ committed | released | consumed
+```
+
+- `held`: el plan ha apartado el recurso, pero la misión todavía no ha comenzado. Incluye expiración en tiempo de escenario.
+- `committed`: el actor aceptó o inició la misión. No expira automáticamente.
+- `released`: el recurso vuelve a estar disponible, con una razón explícita.
+- `consumed`: las unidades consumibles se descuentan definitivamente tras un Outcome confirmado.
+- `expired`: la acción no obtuvo aprobación o no comenzó dentro del plazo configurado.
+- `quarantined`: no se puede determinar si el recurso fue desplegado; no está disponible hasta reconciliación humana.
+
+La suma de reservas activas (`held`, `committed` y `quarantined`) nunca puede superar la capacidad del recurso. La restricción se valida dentro de la misma transacción que crea o cambia la acción.
+
+Reglas de transición:
+
+- `pending_approval` y `approved` antes del despacho mantienen `held`.
+- `accepted` o `executing` convierten la reserva en `committed`.
+- rechazo, cancelación, supersession o preemption antes del efecto producen `released`.
+- vencer `expires_at_scenario` antes de comenzar produce una reserva `expired`, una Action `timed_out` y activa replanteamiento.
+- un fallo conocido sin despliegue produce `released`.
+- `completed` produce `released` para un recurso reutilizable o `consumed` para unidades consumibles, según el Outcome y el Action Catalog.
+- `unknown` desde `held` o `committed` produce `quarantined`; ni el agente ni un timeout pueden liberarla automáticamente.
+- `timed_out` libera solo cuando existe confirmación de que el actor no aceptó ni empezó; en caso contrario debe clasificarse como `unknown`.
+
+Cada entrada del Action Catalog que usa recursos declara `reservation_ttl_scenario` y su disposición al completar: liberar un recurso reutilizable o descontar unidades consumibles. Una P2/P3 no iniciada puede liberar o transferir su reserva por preemption; una P0/P1 o reserva `committed` requiere aprobación.
 
 ## 8. Transactional State Gateway
 
@@ -384,6 +420,7 @@ ready → running ⇄ paused → completed
 
 - `Pause scenario` congela estímulos y timeouts simulados.
 - Las respuestas externas que lleguen durante la pausa se registran, pero no avanzan el reloj.
+- Las expiraciones de reservas también se congelan porque usan tiempo de escenario.
 - `Stop external actions` bloquea nuevos efectos externos sin pausar la evolución simulada.
 - `Abort` cierra el run y habilita el postmortem.
 
@@ -411,6 +448,7 @@ Una HumanDirective contiene motivo, alcance, autor de demo, creación y expiraci
 - incidentes P0–P3 y confianza;
 - plan activo, versión, diff, supuestos y evidencia;
 - recursos disponibles, reservados y en ejecución;
+- reservas `held`, `committed`, `expired`, `quarantined` y `consumed`, con acción y vencimiento;
 - acciones, aprobaciones, timeouts y elementos `unknown`;
 - timeline operacional, técnico y conversacional;
 - estado `live`, `stale`, `degraded` u `offline` de cada integración;
@@ -489,7 +527,7 @@ Las únicas primitivas ejecutables por el motor son:
 
 `action-catalog.json` traduce verbos del escenario a estas primitivas mediante parámetros cerrados. No admite scripts arbitrarios.
 
-El preflight valida JSON Schema, referencias internas, IDs, grafos, capacidades, recursos, policies, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
+El preflight valida JSON Schema, referencias internas, IDs, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, policies, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
 
 El motor ejecuta exactamente un pack por run. Un pack puede contener varios hazards y cascadas mediante los grafos de impacto y dependencia, pero no puede importar ni combinar otro pack en runtime.
 
@@ -542,6 +580,8 @@ Estos packs no son variaciones nominales de DANA: ejercitan propagación, depend
 | Integración ausente | Usa fallback declarado antes de crear intento |
 | Fallo conocido sin efecto, bajo riesgo | Reintento limitado |
 | Efecto externo incierto | `unknown`, sin reintento ciego |
+| Reserva `held` expirada | `expired`, libera capacidad y activa Command |
+| Reserva `quarantined` | Bloqueada hasta que una persona confirme uso o liberación |
 | IA no disponible | No crea nuevas acciones de impacto; deriva a revisión |
 | Commander interrumpido | Lease expira, conserva `dirty` y se reanuda desde Supabase |
 
@@ -583,6 +623,8 @@ El segundo run debe cargar una snapshot nueva y no puede contener IDs, recursos,
 Todos los E2E comprueban:
 
 - ausencia de doble asignación o disponibilidad negativa;
+- ninguna reserva `held` permanece después de su expiración y ninguna `quarantined` se libera automáticamente;
+- un recurso reutilizable se libera y una unidad consumible se descuenta exactamente una vez tras su Outcome;
 - rechazo de planes y acciones obsoletos;
 - ninguna acción de alto impacto sin aprobación;
 - ningún reintento ciego tras un efecto incierto;
@@ -635,6 +677,8 @@ Ninguna lección modifica automáticamente prompts, policies, playbooks ni regla
 17. `unknown` nunca se convierte automáticamente en éxito o fallo.
 18. Una arista solo puede consultarse dentro de su capa de grafo.
 19. Ningún prompt, comando o acción puede mezclar identidades o contenido de dos packs.
+20. Toda unidad no disponible está respaldada por una reserva activa y toda reserva activa pertenece a una Action.
+21. Una reserva `quarantined` solo puede pasar a `committed`, `released` o `consumed` mediante reconciliación humana registrada.
 
 ## 20. Evolución del repositorio actual
 
@@ -675,4 +719,5 @@ El diseño se considera implementado cuando:
 5. HappyRobot ejecuta las pruebas nativas definidas;
 6. el dashboard permite observar, aprobar, intervenir y revisar el postmortem;
 7. la prueba secuencial DANA → incendio demuestra aislamiento entre packs;
-8. ninguna dependencia opcional es necesaria para que funcione el camino base.
+8. los E2E prueban expiración, liberación, consumo y cuarentena de reservas sin sobreasignación;
+9. ninguna dependencia opcional es necesaria para que funcione el camino base.
