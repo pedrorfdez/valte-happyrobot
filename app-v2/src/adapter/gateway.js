@@ -1,7 +1,8 @@
 /**
  * Valte v2 Gateway adapter
  * Fetches run summaries and snapshots with expected_state_version/idempotency support.
- * Spec: docs/superpowers/specs/2026-09-20-valte-v2-dashboard-integration-design.md §6, §12
+ * Includes command envelope building, decision helpers, and error handling.
+ * Spec: docs/superpowers/specs/2026-09-20-valte-v2-dashboard-integration-design.md §6, §12, §15
  */
 
 function getGatewayBase() {
@@ -44,10 +45,12 @@ export async function fetchRuns(opts = {}) {
   const body = await parseJsonResponse(res);
   if (!res.ok) {
     const msg = body?.error ? `${body.error}${body?.message ? " · " + body.message : ""}` : `HTTP ${res.status}`;
-    throw new Error(`GET /api/runs failed: ${msg}`);
+    const e = new Error(`GET /api/runs failed: ${msg}`);
+    e.status = res.status;
+    e.code = body?.error || `HTTP_${res.status}`;
+    throw e;
   }
   const runs = Array.isArray(body?.runs) ? body.runs : [];
-  // Safety: never leak signals/lessons in summary (should not exist anyway)
   return runs;
 }
 
@@ -66,10 +69,11 @@ export async function fetchSnapshot(runId, opts = {}) {
     const e = new Error(`GET /api/snapshot failed: ${err}${body?.message ? " · " + body.message : ""}`);
     e.status = res.status;
     e.code = err;
+    e.body = body;
+    // 404 run_not_found handled by caller to return to list
     throw e;
   }
   if (!body || typeof body !== "object") throw new Error("Snapshot invalid: not an object");
-  // Ensure run_id matches request (basic check)
   if (body.run && body.run.run_id && body.run.run_id !== runId) {
     // allow but warn; still return
   }
@@ -87,15 +91,35 @@ export async function postCommand(command, opts = {}) {
     body: JSON.stringify(command),
   });
   const body = await parseJsonResponse(res);
+
+  // 409 version_conflict → otro operador decidió primero
   if (res.status === 409 || body?.error === "version_conflict") {
-    const e = new Error("version_conflict");
+    const e = new Error(body?.error === "version_conflict" ? "version_conflict" : `POST /api/commands failed: version_conflict`);
+    // Ensure message contains version_conflict for test detection
+    if (!e.message.includes("version_conflict")) e.message = "version_conflict: " + e.message;
     e.status = 409;
+    e.code = "version_conflict";
     e.body = body;
     throw e;
   }
+
+  // 404 run_not_found → return to list
+  if (res.status === 404 || body?.error === "run_not_found") {
+    const e = new Error(`POST /api/commands failed: run_not_found${body?.message ? " · " + body.message : ""}`);
+    e.status = 404;
+    e.code = "run_not_found";
+    e.body = body;
+    throw e;
+  }
+
   if (!res.ok || body?.ok === false) {
-    const msg = body?.error ? body.error : `HTTP ${res.status}`;
-    throw new Error(`POST /api/commands failed: ${msg}`);
+    const errCode = body?.error || `HTTP_${res.status}`;
+    const msg = body?.message ? `${errCode} · ${body.message}` : errCode;
+    const e = new Error(`POST /api/commands failed: ${msg}`);
+    e.status = res.status || 400;
+    e.code = errCode;
+    e.body = body;
+    throw e;
   }
   return body;
 }
@@ -118,4 +142,92 @@ export function buildCommandEnvelope(snapshot, commandType, payload = {}) {
   };
 }
 
-export default { fetchRuns, fetchSnapshot, postCommand, buildCommandEnvelope, gatewayUrl, getGatewayBase };
+// --- Decision and run-control helpers ---
+
+export async function approveAction(snapshot, actionId, deciding_entity_id, note = "") {
+  if (!actionId || typeof actionId !== "string") throw new Error("action_id required");
+  if (!deciding_entity_id || typeof deciding_entity_id !== "string") throw new Error("deciding_entity_id required");
+  const payload = { action_id: actionId, deciding_entity_id, note: note ?? "" };
+  const envelope = buildCommandEnvelope(snapshot, "approve_action", payload);
+  return postCommand(envelope);
+}
+
+export async function rejectAction(snapshot, actionId, deciding_entity_id, note = "") {
+  if (!actionId || typeof actionId !== "string") throw new Error("action_id required");
+  if (!deciding_entity_id || typeof deciding_entity_id !== "string") throw new Error("deciding_entity_id required");
+  const payload = { action_id: actionId, deciding_entity_id, note: note ?? "" };
+  const envelope = buildCommandEnvelope(snapshot, "reject_action", payload);
+  return postCommand(envelope);
+}
+
+export async function pauseRun(snapshot) {
+  const envelope = buildCommandEnvelope(snapshot, "pause_run", {});
+  return postCommand(envelope);
+}
+
+export async function resumeRun(snapshot) {
+  const envelope = buildCommandEnvelope(snapshot, "resume_run", {});
+  return postCommand(envelope);
+}
+
+export async function abortRun(snapshot) {
+  const envelope = buildCommandEnvelope(snapshot, "abort_run", {});
+  return postCommand(envelope);
+}
+
+// --- Error helpers ---
+
+export function getVersionConflictMessage() {
+  return "otro operador decidió primero";
+}
+
+export function isVersionConflictError(err) {
+  return !!err && (err.status === 409 || err.code === "version_conflict" || String(err.message).includes("version_conflict"));
+}
+
+export function isRunNotFoundError(err) {
+  return !!err && (err.status === 404 || err.code === "run_not_found" || String(err.message).includes("run_not_found"));
+}
+
+export function isValidationError(err) {
+  return !!err && (err.status === 400 || err.code === "invalid_command" || err.code === "invalid_contract_identity" || err.code === "invalid_approver");
+}
+
+export function formatCommandError(err) {
+  if (!err) return "Error desconocido";
+  if (isVersionConflictError(err)) return "otro operador decidió primero";
+  if (isRunNotFoundError(err)) return "escenario no encontrado";
+  // 400 stable message: preserve Gateway message without local mutation
+  if (err.body?.message) return `${err.code || "error"} · ${err.body.message}`;
+  if (err.message) return err.message;
+  return String(err);
+}
+
+// Only Coordination view renders pause/resume/abort (spec §10)
+export function canRenderRunControls(viewer) {
+  return !!viewer && viewer.role === "coordination";
+}
+
+// Legacy alias for tests
+export const getRunControlsVisible = canRenderRunControls;
+
+export default {
+  fetchRuns,
+  fetchSnapshot,
+  postCommand,
+  buildCommandEnvelope,
+  approveAction,
+  rejectAction,
+  pauseRun,
+  resumeRun,
+  abortRun,
+  gatewayUrl,
+  getGatewayBase,
+  getVersionConflictMessage,
+  isVersionConflictError,
+  isRunNotFoundError,
+  isValidationError,
+  formatCommandError,
+  canRenderRunControls,
+  getRunControlsVisible,
+};
