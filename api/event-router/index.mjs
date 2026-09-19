@@ -1,4 +1,4 @@
-import { callRpc, jsonResponse } from "../_shared/supabase.mjs";
+import { callRpc, jsonResponse, requireGatewayAuth } from "../_shared/supabase.mjs";
 
 const required = (name) => {
   const value = process.env[name];
@@ -48,6 +48,15 @@ async function happyRobot(path, options = {}) {
 }
 
 export default async function eventRouter(context, req) {
+  try {
+    requireGatewayAuth(req, context);
+  } catch (error) {
+    if (error.status === 401) {
+      context.res = jsonResponse(401, { error: "unauthorized", message: error.message });
+      return;
+    }
+    throw error;
+  }
   let body;
   try {
     body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body ?? {});
@@ -141,6 +150,10 @@ export default async function eventRouter(context, req) {
       results
     });
   } catch (error) {
+    if (error.status === 401) {
+      context.res = jsonResponse(401, { error: "unauthorized", message: error.message });
+      return;
+    }
     context.log.error(error, error.details ?? error.message);
     const message = error.exposeMessage === false ? "internal error" : "event router failure";
     context.res = jsonResponse(500, { error: "event_router_failure", message });

@@ -12,6 +12,19 @@ export const jsonResponse = (status, body) => ({
   body: JSON.stringify(body)
 });
 
+export function requireGatewayAuth(req, context) {
+  const token = process.env.GATEWAY_TOKEN;
+  if (!token) return;
+  const provided = req.headers?.["x-gateway-token"] ?? req.headers?.["X-Gateway-Token"];
+  if (provided !== token) {
+    context.log.warn?.("gateway auth failed");
+    const err = new Error("gateway auth required");
+    err.status = 401;
+    err.exposeMessage = true;
+    throw err;
+  }
+}
+
 export async function supabaseRequest(path, { method = "GET", body } = {}) {
   const baseUrl = required("SUPABASE_URL").replace(/\/$/, "");
   const serviceKey = required("SUPABASE_SERVICE_ROLE_KEY");

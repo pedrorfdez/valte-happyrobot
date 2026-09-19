@@ -764,6 +764,8 @@ async function startRealtime() {
   if (!state.config.realtimeEnabled) return;
 
   try {
+    // Producción: vendorizar supabase-js en /vendor para SRI local (pin 2.45.4, no floating @2)
+    // dynamic import no soporta integrity nativo; alternativa es <script type="importmap"> con hash
     const { createClient } = await import(
       "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm"
     );

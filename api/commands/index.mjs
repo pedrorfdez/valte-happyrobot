@@ -1,4 +1,8 @@
-import { callRpc, jsonResponse } from "../_shared/supabase.mjs";
+import { callRpc, jsonResponse, requireGatewayAuth } from "../_shared/supabase.mjs";
+
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 60;
+const rateBuckets = new Map();
 
 const actors = new Set(["scenario-controller", "happyrobot", "operator"]);
 const commandTypes = new Set([
@@ -13,8 +17,24 @@ const requiredFields = [
 
 const parseBody = (body) => typeof body === "string" ? JSON.parse(body) : body;
 
+function checkRateLimit(req) {
+  const ip = req.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() || req.headers?.["x-real-ip"] || "unknown";
+  const now = Date.now();
+  const entry = rateBuckets.get(ip);
+  if (!entry || now - entry.start > RATE_WINDOW_MS) {
+    rateBuckets.set(ip, { count: 1, start: now });
+    return null;
+  }
+  entry.count += 1;
+  if (entry.count > RATE_MAX) return `rate limit exceeded for ${ip}`;
+  return null;
+}
+
 function invalid(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return "body must be an object";
+  const allowed = new Set(requiredFields);
+  const extra = Object.keys(body).filter((k) => !allowed.has(k));
+  if (extra.length) return `unexpected fields: ${extra.join(", ")}`;
   const missing = requiredFields.filter((field) => !(field in body));
   if (missing.length) return `missing fields: ${missing.join(", ")}`;
   if (typeof body.command_id !== "string" || !/^[A-Za-z0-9._:-]{8,128}$/.test(body.command_id)) return "command_id must match ^[A-Za-z0-9._:-]{8,128}$";
@@ -67,6 +87,12 @@ const errorStatus = (code) => {
 
 export default async function commands(context, req) {
   try {
+    requireGatewayAuth(req, context);
+    const rateError = checkRateLimit(req);
+    if (rateError) {
+      context.res = jsonResponse(429, { ok: false, error: "rate_limited", message: rateError });
+      return;
+    }
     let command;
     try {
       command = parseBody(req.body);
@@ -90,6 +116,10 @@ export default async function commands(context, req) {
     context.res = jsonResponse(result.error ? errorStatus(result.error) : 200, result);
   } catch (error) {
     context.log.error(error, error.details ?? error.message);
+    if (error.status === 401) {
+      context.res = jsonResponse(401, { ok: false, error: "unauthorized", message: error.message });
+      return;
+    }
     const message = error.exposeMessage === false
       ? "internal error"
       : "gateway failure";
