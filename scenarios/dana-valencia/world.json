@@ -10,6 +10,14 @@
       "start": "2024-10-29T15:00:00+01:00",
       "end": "2024-10-29T20:30:00+01:00",
       "compression": "1 demo minute = 30 scenario minutes (full run in 11 minutes)"
+    },
+    "display": {
+      "title": "Crisis Command — Poyo basin (DANA)",
+      "benchmark": {
+        "time": "20:11",
+        "before": "earlier than the real 2024 alert (20:11)",
+        "after": "in 2024 the alert went out at 20:11, after the wave"
+      }
     }
   },
   "zones": [

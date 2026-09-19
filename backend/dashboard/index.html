@@ -111,7 +111,7 @@ button:hover { filter:brightness(1.25); }
   <span class="chip level0" id="level">LEVEL –</span>
   <div class="hero">
     <div class="n mono" id="alerttime">no alert yet</div>
-    <div class="cap" id="alertcap">mass alert · in 2024 it went out at 20:11, after the wave</div>
+    <div class="cap" id="alertcap">mass alert to the population</div>
   </div>
 </header>
 <div id="err"></div>
@@ -126,7 +126,7 @@ button:hover { filter:brightness(1.25); }
       <h2>Basin — ground truth</h2>
       <svg id="map" viewBox="0 0 400 280" width="100%" role="img" aria-label="Basin map"></svg>
       <div class="legend">
-        <span><i class="dot" style="background:var(--sev-1)"></i>flood sev 1–3</span>
+        <span><i class="dot" style="background:var(--sev-1)"></i><span id="sevword">hazard</span> sev 1–3</span>
         <span><i class="dot" style="background:var(--sev-2)"></i>4–6</span>
         <span><i class="dot" style="background:var(--sev-3)"></i>7–8</span>
         <span><i class="dot" style="background:var(--sev-4)"></i>9–10</span>
@@ -136,7 +136,7 @@ button:hover { filter:brightness(1.25); }
     <div class="card">
       <h2>Zones</h2>
       <table id="ztable"><thead><tr>
-        <th>zone</th><th>flood severity</th><th>alerted</th><th class="num">crews deployed</th>
+        <th>zone</th><th id="zsev">hazard severity</th><th>alerted</th><th class="num">crews deployed</th>
       </tr></thead><tbody></tbody></table>
     </div>
     <div class="card">
@@ -181,11 +181,12 @@ button:hover { filter:brightness(1.25); }
 <script>
 const KEY = "__API_KEY__";
 const H = { "Authorization": "Bearer " + KEY };
-const CH = { "112-calls":  {c:"var(--ch-call)",   label:"112 call"},
-             "social-media":{c:"var(--ch-social)", label:"social"},
-             "local-news": {c:"var(--ch-news)",   label:"news"},
-             "chj-gauges": {c:"var(--ch-sensor)", label:"sensor"},
-             "aemet":      {c:"var(--ch-sensor)", label:"sensor"} };
+// channel colors by KIND (fixed categorical order); sources map to kinds
+// via each information_source entity's ingest binding in the pack
+const KIND_COLOR = { call:"var(--ch-call)", social:"var(--ch-social)",
+                     news:"var(--ch-news)", sensor:"var(--ch-sensor)" };
+const KIND_LABEL = { call:"calls", social:"social", news:"news", sensor:"sensors" };
+let srcKind = {};   // source entity id -> channel kind, rebuilt each render
 const VERB = {
   send_es_alert:            (a)=>`Mass alert (ES-Alert) sent to ${zl(a)}`,
   activate_emergency_level: (a)=>`Emergency level ${a.params?.level ?? ""} declared`,
@@ -204,7 +205,12 @@ const VERB = {
   update_entity:            (a)=>`Registry updated: ${a.params?.entity_id ?? ""}`,
   schedule_check:           (a)=>`Self-reminder set (${a.params?.delay_min ?? "?"} min)`,
 };
-const zl = a => (a.target_zones||[]).map(z=>z[0].toUpperCase()+z.slice(1)).join(", ") || "the basin";
+const zl = a => (a.target_zones||[]).map(z=>z[0].toUpperCase()+z.slice(1)).join(", ") || "the area";
+const verbTitle = a => (VERB[a.verb] || (x => {
+  const nice = (x.verb||"").replace(/_/g, " ");
+  return nice.charAt(0).toUpperCase() + nice.slice(1) + " — " + zl(x);
+}))(a);
+let hazardNoun = "hazard";
 const esc = s => (s ?? "").toString().replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const sevColor = s => s>=9 ? "var(--sev-4)" : s>=7 ? "var(--sev-3)" : s>=4 ? "var(--sev-2)" : "var(--sev-1)";
 const hm = t => {
@@ -215,9 +221,17 @@ const hm = t => {
 };
 let entName = {};   // id -> display name, refreshed each render
 
+let bbox = null;   // derived from the pack's zone centroids
+function computeBbox(zones){
+  const lats = zones.map(z=>z.centroid.lat), lngs = zones.map(z=>z.centroid.lng);
+  const padLat = (Math.max(...lats)-Math.min(...lats)) * 0.18 + 0.005;
+  const padLng = (Math.max(...lngs)-Math.min(...lngs)) * 0.18 + 0.005;
+  bbox = { la0: Math.min(...lats)-padLat, la1: Math.max(...lats)+padLat,
+           lo0: Math.min(...lngs)-padLng, lo1: Math.max(...lngs)+padLng };
+}
 function project(lat, lng){
-  const x = (lng - (-0.76)) / ((-0.35) - (-0.76)) * 360 + 20;
-  const y = (39.50 - lat) / (39.50 - 39.38) * 230 + 20;
+  const x = (lng - bbox.lo0) / (bbox.lo1 - bbox.lo0) * 360 + 20;
+  const y = (bbox.la1 - lat) / (bbox.la1 - bbox.la0) * 230 + 20;
   return [x, y];
 }
 
@@ -225,7 +239,9 @@ function renderMap(d){
   const svg = document.getElementById("map");
   const hz = {}; d.hazards.forEach(h => { if(!hz[h.zone] || h.severity > hz[h.zone].severity) hz[h.zone]=h; });
   const pop = {}; d.entities.filter(e=>e.kind==="population").forEach(e => pop[e.zone]=e.population);
-  const zs = d.zones.filter(z => !["remote"].includes(z.id));
+  const zs = d.zones.filter(z => z.centroid &&
+    ((z.population||0) > 0 || d.hazards.some(h=>h.zone===z.id)));
+  computeBbox(zs.length ? zs : d.zones.filter(z=>z.centroid));
   const byId = Object.fromEntries(zs.map(z=>[z.id,z]));
   let out = "";
   for (const z of zs)
@@ -235,7 +251,7 @@ function renderMap(d){
       const [x2,y2]=project(z.centroid.lat, z.centroid.lng);
       const hot = hz[up] && hz[up].severity>=6 && !(hz[z.id] && hz[z.id].severity>=6);
       out += `<path class="flow ${hot?"hot":""}" d="M${x1},${y1} L${x2},${y2}"/>`;
-      if (hot) out += `<text x="${(x1+x2)/2}" y="${(y1+y2)/2-6}" text-anchor="middle">wave ~${z.propagation_delay_min} min</text>`;
+      if (hot) out += `<text x="${(x1+x2)/2}" y="${(y1+y2)/2-6}" text-anchor="middle">~${z.propagation_delay_min} min</text>`;
     }
   for (const z of zs) {
     const [x,y] = project(z.centroid.lat, z.centroid.lng);
@@ -282,6 +298,14 @@ function render(d){
   lastData = d;
   document.getElementById("err").textContent = "";
   entName = Object.fromEntries(d.entities.map(e=>[e.id, e.name]));
+  srcKind = Object.fromEntries(d.entities.filter(e=>e.ingest).map(e=>[e.id, e.ingest.channel]));
+  hazardNoun = (d.scenario?.hazard_types||[])[0] || "hazard";
+  if (d.scenario?.display?.title) {
+    document.querySelector("h1").textContent = "VALTE · " + d.scenario.display.title;
+    document.title = "Valte — " + d.scenario.display.title;
+  }
+  document.getElementById("sevword").textContent = hazardNoun;
+  document.getElementById("zsev").textContent = hazardNoun + " severity";
   document.getElementById("runline").textContent =
     `run ${d.run.id.slice(0,8)} · ${d.run.notes || d.run.scenario} · ${d.counts.signals_total} signals received (${d.counts.noise} noise filtered out)`;
   document.getElementById("clock").textContent = hm(d.scenario_t);
@@ -294,12 +318,15 @@ function render(d){
   const alerts = d.actions.filter(a=>a.verb==="send_es_alert" && ["executed","in_progress","approved"].includes(a.status));
   const first = alerts.length ? alerts.reduce((m,a)=>a.t<m.t?a:m) : null;
   document.getElementById("alerttime").textContent = first ? "alert sent " + hm(first.t) : "no alert yet";
-  if (first) {
+  const bench = d.scenario?.display?.benchmark;
+  if (first && bench?.time) {
     const hhmm = hm(first.t);
-    const mins = (20*60+11) - (parseInt(hhmm)*60 + parseInt(hhmm.slice(3)));
+    const bmins = parseInt(bench.time)*60 + parseInt(bench.time.slice(3));
+    const mins = bmins - (parseInt(hhmm)*60 + parseInt(hhmm.slice(3)));
     document.getElementById("alertcap").textContent =
-      mins > 0 ? `${Math.floor(mins/60)}h${String(mins%60).padStart(2,"0")} earlier than the real 2024 alert (20:11)`
-               : "in 2024 the alert went out at 20:11, after the wave";
+      mins > 0 ? `${Math.floor(mins/60)}h${String(mins%60).padStart(2,"0")} ${bench.before}` : bench.after;
+  } else if (!bench) {
+    document.getElementById("alertcap").textContent = "mass alert to the population";
   }
 
   const hz = {}; d.hazards.forEach(h => { if(!hz[h.zone] || h.severity>hz[h.zone].severity) hz[h.zone]=h; });
@@ -343,7 +370,7 @@ function render(d){
   ap.hidden = d.pending_approval.length === 0;
   document.getElementById("approvals").innerHTML = d.pending_approval.map(a=>`
     <div class="approve-card">
-      <div class="acttitle">${esc((VERB[a.verb]||(()=>a.verb))(a))}</div>
+      <div class="acttitle">${esc(verbTitle(a))}</div>
       <div class="small muted">to be executed by ${esc(entName[a.actor]||a.actor)}</div>
       <div class="small" style="margin:4px 0 8px">${esc(a.reasoning)}</div>
       <button class="ok" onclick="gate('${a.id}','approve')">Approve</button>
@@ -361,7 +388,7 @@ function render(d){
       : `<span class="badge b-prog">${a.status}</span>`;
     const stub = a.real_interaction?.stubbed ? ` <span class="badge b-stub" title="contact simulated: real telephony not wired yet">sim contact</span>` : "";
     const src = reflex ? `<span class="badge b-reflex" title="executed automatically by a reflex rule, no AI deliberation">reflex</span>` : "";
-    const title = (VERB[a.verb] || (()=>`${a.actor} ${a.verb}`))(a);
+    const title = verbTitle(a);
     const oarea = a.out_of_area ? ` <span class="badge b-prog" title="responder operating outside its home area (mutual aid)">mutual aid</span>` : "";
     return `<details class="act" data-aid="${esc(a.id)}" ${openIds.has(a.id)?"open":""}><summary>
       <span class="mono muted">${hm(a.t)}</span> ${stat}${src}
@@ -379,7 +406,7 @@ function render(d){
   document.getElementById("rejcount").textContent = `${d.counts.rejected_total} total`;
   document.getElementById("rejected").innerHTML = d.rejected.length ? d.rejected.slice(0,5).map(r=>{
     const at = r.attempted || {};
-    const title = (VERB[at.verb] || (()=>`${at.actor||"?"} ${at.verb||"?"}`))(at);
+    const title = verbTitle(at);
     return `<div class="row"><span class="badge b-rej">blocked</span>
      <span style="flex:1">${esc(title)}
      <span class="muted">— ${esc(String(r.reason)).slice(0,140)}</span></span></div>`;
@@ -391,19 +418,19 @@ function render(d){
      <span class="small muted" style="flex:1">${esc((s.notes||"").slice(0,110))}</span></div>`).join("");
 
   // signal feed with channel filters
-  const groups = [["all","all"],["112-calls","112 calls"],["social-media","social"],
-                  ["local-news","news"],["sensor","sensors"]];
+  const kindsPresent = [...new Set(Object.values(srcKind))];
+  const groups = [["all","all"], ...kindsPresent.map(k=>[k, KIND_LABEL[k]||k])];
   document.getElementById("sigfilters").innerHTML = groups.map(([k,lab])=>{
     const swatch = k==="all" ? "" :
-      `<i class="dot" style="display:inline-block;width:8px;height:8px;background:${(CH[k]||{c:"var(--ch-sensor)"}).c}"></i> `;
+      `<i class="dot" style="display:inline-block;width:8px;height:8px;background:${KIND_COLOR[k]||"var(--text-muted)"}"></i> `;
     return `<button class="fchip ${sigFilter===k?"on":""}" onclick="setFilter('${k}')">${swatch}${lab}</button>`;
   }).join("");
-  const sigs = d.signals.filter(s => sigFilter==="all"
-    || (sigFilter==="sensor" ? ["chj-gauges","aemet"].includes(s.source) : s.source===sigFilter));
+  const sigs = d.signals.filter(s => sigFilter==="all" || srcKind[s.source]===sigFilter);
   document.getElementById("sigcount").textContent =
     `${d.counts.signals_total - d.counts.noise} relevant`;
   document.getElementById("signals").innerHTML = sigs.map(s=>{
-    const ch = CH[s.source] || {c:"var(--text-muted)", label:s.source};
+    const kind = srcKind[s.source];
+    const ch = {c: KIND_COLOR[kind]||"var(--text-muted)", label: entName[s.source]||s.source};
     const offer = (s.claims||[]).length===0;
     return `<div class="row"><span class="dot" style="background:${ch.c}" title="${esc(ch.label)}"></span>
       <span class="mono muted small">${hm(s.t)}</span>

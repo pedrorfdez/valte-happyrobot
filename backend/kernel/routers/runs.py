@@ -21,8 +21,8 @@ def create_run(body: dict):
     world = json.loads((pack_dir / "world.json").read_text())
     entities = json.loads((pack_dir / "entities.json").read_text())["entities"]
 
-    run = q("insert into runs (scenario_id, seed, notes) values (%s,%s,%s) returning id",
-            (scenario_id, body.get("seed"), body.get("notes", "")), one=True)
+    run = q("insert into runs (scenario_id, seed, notes, scenario_doc) values (%s,%s,%s,%s) returning id",
+            (scenario_id, body.get("seed"), body.get("notes", ""), js(world["scenario"])), one=True)
     run_id = str(run["id"])
     for z in world["zones"]:
         q("insert into zones (run_id,id,doc) values (%s,%s,%s)", (run_id, z["id"], js(z)))

@@ -33,7 +33,7 @@ def dashboard_state(key: str = "", run_id: str = ""):
     if not rid:
         raise HTTPException(409, "no runs yet")
 
-    run = q("select id, scenario_id, notes, started_at from runs where id=%s", (rid,), one=True)
+    run = q("select id, scenario_id, notes, started_at, scenario_doc from runs where id=%s", (rid,), one=True)
     zones = [r["doc"] for r in q("select doc from zones where run_id=%s", (rid,))]
     hazards = [dict(r) for r in q(
         "select id, zone, severity, trend from hazards where run_id=%s", (rid,))]
@@ -72,6 +72,7 @@ def dashboard_state(key: str = "", run_id: str = ""):
     latest = current_run_id()
     return {
         "latest_run_id": latest,
+        "scenario": run["scenario_doc"] or {},
         "run": {"id": str(run["id"]), "scenario": run["scenario_id"],
                 "notes": run["notes"], "started_at": run["started_at"].isoformat()},
         "scenario_t": counts["scenario_t"].isoformat() if counts["scenario_t"] else None,
