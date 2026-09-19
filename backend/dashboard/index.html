@@ -181,7 +181,12 @@ const CH = { "112-calls":"var(--ch-call)", "social-media":"var(--ch-social)",
              "local-news":"var(--ch-news)", "chj-gauges":"var(--ch-sensor)", "aemet":"var(--ch-sensor)" };
 const esc = s => (s ?? "").toString().replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const sevColor = s => s>=9 ? "var(--sev-4)" : s>=7 ? "var(--sev-3)" : s>=4 ? "var(--sev-2)" : "var(--sev-1)";
-const hm = t => t ? t.slice(11,16) : "–";
+const hm = t => {
+  if (!t) return "–";
+  const d = new Date(t);
+  return isNaN(d) ? t.slice(11,16)
+    : d.toLocaleTimeString("es-ES", {hour:"2-digit", minute:"2-digit", timeZone:"Europe/Madrid"});
+};
 const pk = n => n.toLocaleString("en-US");
 
 function project(lat, lng){           // basin bbox -> svg coords
@@ -230,7 +235,7 @@ function render(d){
   const lc = document.getElementById("level");
   lc.textContent = "LEVEL " + (lvl ?? "–");
   lc.className = "chip level" + (lvl ?? 0);
-  document.getElementById("benchmark").hidden = !(d.scenario_t && d.scenario_t.slice(11,16) >= "20:11");
+  document.getElementById("benchmark").hidden = !(d.scenario_t && hm(d.scenario_t) >= "20:11");
 
   const pops = d.entities.filter(e=>e.kind==="population");
   let now=0, base=0;
