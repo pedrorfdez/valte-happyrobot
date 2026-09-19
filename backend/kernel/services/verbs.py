@@ -10,6 +10,11 @@ DISCOVERED_ALLOWED_CAPABILITIES = {"supplies", "wellness_check"}
 UPDATABLE_FIELDS = {"status", "trust", "zone", "notes", "units"}
 
 
+ENTITY_FIELDS = {"id", "name", "kind", "weight", "trust", "jurisdiction", "channel",
+                 "ingest", "capabilities", "units", "population", "activation",
+                 "escalation_to", "zone", "status", "provenance", "notes"}
+
+
 def register_entity(run_id: str, params: dict) -> dict:
     ent = params.get("entity")
     if not isinstance(ent, dict):
@@ -17,6 +22,17 @@ def register_entity(run_id: str, params: dict) -> dict:
     ent = {**ent, "provenance": "discovered", "trust": "low"}
     ent["capabilities"] = [c for c in ent.get("capabilities", [])
                            if c in DISCOVERED_ALLOWED_CAPABILITIES]
+    # normalize LLM-composed entities instead of rejecting them
+    ent.setdefault("kind", "responder")
+    ent.setdefault("weight", 2)
+    ent.setdefault("status", "available")
+    contact = ent.pop("contact", None) or ent.pop("phone", None)
+    if contact and not ent.get("channel"):
+        ent["channel"] = {"kind": "sms", "address": str(contact)}
+    extras = {k: ent.pop(k) for k in list(ent) if k not in ENTITY_FIELDS}
+    if extras:
+        ent["notes"] = (ent.get("notes", "") + " " +
+                        " ".join(f"{k}: {v}" for k, v in extras.items())).strip()
     validate(ent, "entity")
     if q("select 1 from entities where run_id=%s and id=%s", (run_id, ent["id"]), one=True):
         raise HTTPException(409, f"entity {ent['id']} already exists; use update_entity")

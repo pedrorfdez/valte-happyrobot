@@ -51,7 +51,16 @@ def state(format: str = "json"):
                    order by t desc limit 10""", (rid,))
     recent_actions = q("""select doc from actions where run_id=%s
                           order by created_at desc limit 15""", (rid,))
+    # resource offers stay on the agent's desk until an action cites them
+    offers = q("""select doc from signals s where run_id=%s
+                  and jsonb_array_length(doc->'claims') = 0
+                  and (doc->'perception'->>'is_noise') = 'false'
+                  and not exists (select 1 from actions a
+                                  where a.run_id = s.run_id
+                                    and a.doc->'evidence' ? s.id)
+                  order by t desc limit 5""", (rid,))
     out = {
+        "resource_offers": [r["doc"] for r in offers],
         "recent_actions": [r["doc"] for r in recent_actions],
         "zones": [r["doc"] for r in q("select doc from zones where run_id=%s", (rid,))],
         "entities": entities,
