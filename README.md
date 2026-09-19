@@ -150,9 +150,11 @@ Load `.env`, derive the project reference, apply the compatibility migration, up
 
 ```bash
 set -a; source ./.env; set +a
-VALTE_PROJECT_REF="${SUPABASE_URL#https://}"
+: "${SUPABASE_URL:?SUPABASE_URL is required}"
+VALTE_SUPABASE_ORIGIN="${SUPABASE_URL%/}"
+VALTE_PROJECT_REF="${VALTE_SUPABASE_ORIGIN#https://}"
 VALTE_PROJECT_REF="${VALTE_PROJECT_REF%.supabase.co}"
-export GATEWAY_URL="${SUPABASE_URL%/}/functions/v1/gateway"
+export GATEWAY_URL="${VALTE_SUPABASE_ORIGIN}/functions/v1/gateway"
 
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction \
   --file supabase/migrations/202609190002_non_retryable_live_dispatch.sql
@@ -239,7 +241,7 @@ python3 -m http.server 4173 --directory app
 Print and open the local dashboard URL:
 
 ```bash
-node -e 'const g=process.env.GATEWAY_URL; console.log(`http://localhost:4173/?run_id=run-dana-demo&gateway_url=${encodeURIComponent(g)}`)'
+node -e 'const {DANA_RUN_ID:r,GATEWAY_URL:g}=process.env; if (!r || !g) throw new Error("DANA_RUN_ID and GATEWAY_URL are required"); const u=new URL("http://localhost:4173/"); u.searchParams.set("run_id",r); u.searchParams.set("gateway_url",g); console.log(u.href)'
 ```
 
 Python's static server exposes the dashboard at the root URL. To enable Realtime notifications, append URL-encoded `supabase_url` and `supabase_anon_key` query parameters. Without them, polling remains active and the UI reports `degraded` rather than failing.

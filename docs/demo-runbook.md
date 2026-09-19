@@ -9,7 +9,10 @@
 Necesitas únicamente el origen público del Gateway y dos runs nuevos, provisionados con packs distintos:
 
 ```bash
-export GATEWAY_URL="${SUPABASE_URL%/}/functions/v1/gateway"
+set -a; source ./.env; set +a
+: "${SUPABASE_URL:?SUPABASE_URL is required}"
+VALTE_SUPABASE_ORIGIN="${SUPABASE_URL%/}"
+export GATEWAY_URL="${VALTE_SUPABASE_ORIGIN}/functions/v1/gateway"
 export DANA_RUN_ID="<run-dana-limpio>"
 export WILDFIRE_RUN_ID="<run-incendio-limpio>"
 ```
