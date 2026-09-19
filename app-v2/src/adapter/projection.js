@@ -76,7 +76,7 @@ export function filterIncidents(incidents, jurisdictionZoneIds, isCoordination) 
 
 export function filterActions(actions, visibleIncidentIds, viewerEntity, isCoordination) {
   const list = cloneArray(actions);
-  if (isCoordination) return list.map(sanitizeAction) ? list : list; // keep original but caller sanitizes later
+  if (isCoordination) return list.map(sanitizeAction);
   // visibleIncidentIds may be Set or Array
   const idSet = visibleIncidentIds instanceof Set
     ? visibleIncidentIds
