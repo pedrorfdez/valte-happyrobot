@@ -1,0 +1,7 @@
+{
+  "entity_id": "wildfire-brigade-1",
+  "zone_id": "corredor-sur",
+  "availability": "available",
+  "constraints": ["wind shift east increases exposure of urbanizacion-este after 12:40Z"],
+  "response_policy": "If wind exposure high, acknowledge with mitigation steps, accept only if resource fit."
+}

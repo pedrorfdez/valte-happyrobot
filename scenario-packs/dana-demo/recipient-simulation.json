@@ -1,0 +1,7 @@
+{
+  "entity_id": "field-lead",
+  "zone_id": "paiporta-ground-floor",
+  "availability": "limited",
+  "constraints": ["water_rescue capacity 1 already committed to catarroja-health-centre until 10:30Z"],
+  "response_policy": "If mission requests ambulances while constrained, respond rejected with explanation and offer acknowledgement; do not accept unavailable capacity."
+}
