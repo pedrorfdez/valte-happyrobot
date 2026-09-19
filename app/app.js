@@ -52,7 +52,10 @@ function normalizeUrl(value, name) {
 
 function gatewayApiUrl(path) {
   const cleanPath = String(path).replace(/^\/+/, "");
-  return new URL(`${state.config.gatewayUrl}/${cleanPath}`);
+  const url = new URL(state.config.gatewayUrl);
+  url.pathname = `${url.pathname.replace(/\/+$/, "")}/${cleanPath}`;
+  url.hash = "";
+  return url;
 }
 
 function readConfig() {
