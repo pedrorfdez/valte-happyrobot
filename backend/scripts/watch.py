@@ -61,15 +61,37 @@ def render():
                f" | new run: POST /runs{END}")
     out.append(f"{DIM}{(sit.get('notes') or 'no situation yet')[:110]}{END}")
     out.append("")
-    out.append(f"{BOLD}ZONES{END}                hazard(truth)   population at risk")
+
+    # no-agent baseline share of people in danger at end of run (seed 42)
+    BASELINE_PCT = {"chiva": 56.4, "torrent": 42.1, "paiporta": 34.1,
+                    "catarroja": 23.7, "alfafar": 23.7}
+    zone_docs = {z["id"]: z for z in state.get("zones", [])}
+    total_now = total_base = 0
+    out.append(f"{BOLD}ZONES{END}          hazard(truth)    people in danger (if nobody acted)")
     for zid in ["chiva", "torrent", "paiporta", "catarroja", "alfafar"]:
         pop = (ents.get(f"civilians-{zid}") or {}).get("population") or {}
+        total = pop.get("total", 0)
         hz = hazards.get(zid)
-        hz_s = f"{sev_color(hz[0])}sev {hz[0]} {hz[1]:<7}{END}" if hz else f"{DIM}calm       {END}"
+        if hz:
+            hz_s = f"{sev_color(hz[0])}sev {hz[0]} {hz[1]:<7}{END}"
+        else:
+            # forecast: severe hazard upstream means a countdown, not calm
+            zdoc = zone_docs.get(zid) or {}
+            ups = [u for u in (zdoc.get("downstream_of") or []) if (hazards.get(u) or (0,))[0] >= 6]
+            if ups:
+                hz_s = f"{YEL}wave ~{zdoc.get('propagation_delay_min', '?')} min{END} "
+            else:
+                hz_s = f"{DIM}calm         {END}"
         warned = f"{GRN}WARNED{END}" if pop.get("warned") else f"{RED}unwarned{END}"
-        risk = pop.get("at_risk_pct", 0)
-        out.append(f"  {zid:<12} {hz_s}  {risk_bar(risk)} {risk:5.1f}%  {warned}"
-                   f"  evac {pop.get('evacuated_pct', 0):.0f}%")
+        people = round(total * pop.get("at_risk_pct", 0) / 100)
+        base = round(total * BASELINE_PCT[zid] / 100)
+        total_now += people; total_base += base
+        color = RED if people > base * 0.5 else YEL if people > base * 0.15 else GRN
+        out.append(f"  {zid:<12} {hz_s}  {color}{people:>6,}{END} {DIM}(vs ~{base:,}){END}"
+                   f"  {warned}  evac {pop.get('evacuated_pct', 0):.0f}%")
+    saved = total_base - total_now
+    out.append(f"  {BOLD}{'TOTAL':<12}{END}                {GRN}{total_now:>6,}{END} "
+               f"{DIM}(vs ~{total_base:,} if nobody acted -> ~{saved:,} people protected){END}")
     out.append("")
     out.append(f"{BOLD}RESPONDERS{END}")
     for eid in ["bomberos-torrent", "bomberos-valencia", "ume", "cruz-roja"]:

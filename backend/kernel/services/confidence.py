@@ -21,22 +21,30 @@ CORROBORATION_WINDOW_MIN = 15
 STALE_MIN = 30
 
 
-def compute(run_id: str, signal: dict) -> tuple[str, dict]:
+def compute(run_id: str, signal: dict) -> tuple[str | None, dict]:
+    claims = signal.get("claims") or []
+    if not claims:
+        # noise carries no information; ranking it would be theater
+        return None, {"noise": True}
+
     tier = TIERS.index(signal.get("source_trust", "low"))
     inputs = {"base": signal.get("source_trust", "low")}
 
     zone = signal["location"].get("zone")
-    claims = signal.get("claims") or []
     corroborators = []
-    if zone and claims:
+    if zone:
         t = datetime.fromisoformat(signal["t"])
         window = t - timedelta(minutes=CORROBORATION_WINDOW_MIN)
+        hazard_types = [c["hazard_type"] for c in claims]
+        # corroboration = a DIFFERENT channel claiming the SAME hazard in
+        # the same zone recently; generic chatter in the zone is not it
         rows = q("""
             select distinct source from signals
             where run_id = %s and zone = %s and source <> %s
               and t between %s and %s
-              and jsonb_array_length(doc->'claims') > 0
-        """, (run_id, zone, signal["source"], window, t))
+              and exists (select 1 from jsonb_array_elements(doc->'claims') c
+                          where c->>'hazard_type' = any(%s))
+        """, (run_id, zone, signal["source"], window, t, hazard_types))
         corroborators = [r["source"] for r in rows]
         if len(corroborators) >= 1:
             tier += 1

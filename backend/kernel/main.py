@@ -17,6 +17,7 @@ from .services import executor, outbox, reflexes
 def _sweep_once():
     reflexes.sweep_silence()
     executor.execute_approved()
+    executor.complete_operations()
     _fire_due_timers()
     outbox.sweep()
 

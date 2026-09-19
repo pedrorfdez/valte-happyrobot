@@ -42,6 +42,13 @@ class KernelLink:
             print(f"kernel link {method} {path} failed: {e}", file=sys.stderr)
             return None
 
+    def create_run(self, scenario_id: str, seed: int, notes: str) -> str | None:
+        """One sim run = one kernel run. Creating it here removes the
+        forgot-to-POST-/runs footgun that mixes sessions."""
+        out = self._req("POST", "/runs",
+                        {"scenario_id": scenario_id, "seed": seed, "notes": notes})
+        return out.get("run_id") if out else None
+
     def executed_actions(self) -> list[dict]:
         """Actions with world effects: executed, plus in_progress (unit
         operations like rescue act while they run)."""

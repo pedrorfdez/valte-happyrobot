@@ -24,6 +24,7 @@ class Engine:
                                    pack["scenario"]["time"]["end"], speed)
         rng = random.Random(seed)
         self.rng = rng
+        self.seed = seed
         self.buckets = pack["messages"]
         self.player = TimelinePlayer(pack["timeline"])
         self.noise = NoiseGenerator(pack["noise"], self.buckets, list(pack["zones"]), rng)
@@ -94,6 +95,11 @@ class Engine:
             print(f"\033[1m== MARKER {entry['t'][11:16]}: {entry.get('note', '')}\033[0m")
 
     def run(self):
+        if self.effects.link.enabled:
+            rid = self.effects.link.create_run(
+                self.world.scenario["id"], getattr(self, "seed", 0),
+                f"sim run at {self.clock.speed:g}x")
+            print(f"kernel run: {rid}")
         self.clock.start_running()
         last_t = self.clock.start
         try:
