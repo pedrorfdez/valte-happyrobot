@@ -109,6 +109,10 @@ button:hover { filter:brightness(1.25); }
   </div>
 </header>
 <div id="err"></div>
+<div id="newrun" hidden class="card" style="border-color:var(--warning);margin-bottom:12px">
+  a newer run exists — this view is pinned to the run it opened with.
+  <button style="margin-left:10px">Switch to newest run</button>
+</div>
 
 <div class="grid">
   <div class="col">
@@ -284,6 +288,7 @@ function render(d){
     </div>`).join("");
 
   document.getElementById("actcount").textContent = `${d.counts.actions_total} total`;
+  const openIds = new Set([...document.querySelectorAll("details.act[open]")].map(x=>x.dataset.aid));
   document.getElementById("actions").innerHTML = d.actions.slice(0,18).map(a=>{
     const reflex = (a.reasoning||"").startsWith("Tripwire");
     const stat = a.status==="executed" ? `<span class="badge b-exec">done</span>`
@@ -293,7 +298,7 @@ function render(d){
       : `<span class="badge b-prog">${a.status}</span>`;
     const stub = a.real_interaction?.stubbed ? ` <span class="badge b-stub">sim contact</span>` : "";
     const src = reflex ? `<span class="badge b-reflex">reflex</span>` : "";
-    return `<details class="act"><summary>
+    return `<details class="act" data-aid="${esc(a.id)}" ${openIds.has(a.id)?"open":""}><summary>
       <span class="mono muted">${hm(a.t)}</span> ${stat}${src}
       <span style="flex:1"><b>${esc(a.actor)}</b> ${esc(a.verb)} <span class="muted">${esc((a.target_zones||[]).join(", "))}</span></span>${stub}
       </summary><div class="body">
@@ -335,12 +340,20 @@ async function gate(id, verb){
   tick();
 }
 
-const qsRun = new URLSearchParams(location.search).get("run_id") || "";
+let pinnedRun = new URLSearchParams(location.search).get("run_id") || "";
+function switchRun(id){ pinnedRun = id; document.getElementById("newrun").hidden = true; tick(); }
 async function tick(){
   try {
-    const r = await fetch(`/dashboard-state?key=${KEY}${qsRun?`&run_id=${qsRun}`:""}`);
+    const r = await fetch(`/dashboard-state?key=${KEY}${pinnedRun?`&run_id=${pinnedRun}`:""}`);
     if (!r.ok) throw new Error(r.status);
-    render(await r.json());
+    const d = await r.json();
+    if (!pinnedRun) pinnedRun = d.run.id;          // pin to the first run we see
+    const banner = document.getElementById("newrun");
+    if (d.latest_run_id && d.latest_run_id !== d.run.id) {
+      banner.hidden = false;
+      banner.querySelector("button").onclick = () => switchRun(d.latest_run_id);
+    } else banner.hidden = true;
+    render(d);
   } catch(e) {
     document.getElementById("err").textContent = "kernel unreachable: " + e.message;
   }

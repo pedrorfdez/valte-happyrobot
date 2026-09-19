@@ -68,7 +68,9 @@ def dashboard_state(key: str = "", run_id: str = ""):
         (select max(t) from signals where run_id=%s) as scenario_t""",
         (rid, rid, rid, rid, rid), one=True)
 
+    latest = current_run_id()
     return {
+        "latest_run_id": latest,
         "run": {"id": str(run["id"]), "scenario": run["scenario_id"],
                 "notes": run["notes"], "started_at": run["started_at"].isoformat()},
         "scenario_t": counts["scenario_t"].isoformat() if counts["scenario_t"] else None,
