@@ -1,10 +1,12 @@
 # Crisis Demo Parallel Orchestration Implementation Plan
 
+> **Desvío cierre 2026-09-19:** Gateway activo es Supabase Edge Function (`supabase/functions/gateway` → `https://<ref>.supabase.co/functions/v1/gateway`). Azure Static Web Apps / Functions ya no es ruta activa; `make up` solo sirve el dashboard local.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Deliver one complete DANA demo and immediately replay the same system with a wildfire pack, using six non-overlapping workstreams and the minimum custom code.
 
-**Architecture:** The coordinator freezes the Gateway boundary, dispatches three Wave 1 workers, integrates the state/workflow core, then dispatches three Wave 2 workers for the operator experience and E2E proof. Supabase is the authority, HappyRobot reasons and communicates, Azure Static Web Apps serves the UI and short HTTP functions, and Scenario Packs contain all crisis-specific data.
+**Architecture:** The coordinator freezes the Gateway boundary, dispatches three Wave 1 workers, integrates the state/workflow core, then dispatches three Wave 2 workers for the operator experience and E2E proof. Supabase is the authority, HappyRobot reasons and communicates, the Supabase Edge Gateway serves the HTTP API and the local `app/` dashboard is served via `make up`, and Scenario Packs contain all crisis-specific data.
 
 **Tech Stack:** Node.js 24 ESM, JSON Schema 2020-12, Supabase Postgres/Realtime, Azure Static Web Apps managed Functions, HappyRobot REST/platform configuration, plain HTML/CSS/JavaScript
 

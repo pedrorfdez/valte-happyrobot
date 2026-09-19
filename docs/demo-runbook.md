@@ -21,7 +21,15 @@ Las credenciales de HappyRobot, la clave privilegiada de datos y los datos de co
 
 ## 2. Preflight, paso a paso
 
-Ejecuta estos seis comandos antes de abrir la demo:
+Reseed limpio obligatorio — evita contaminación DANA→wildfire (requisito `cross_pack_contamination`):
+
+```bash
+./scripts/reseed-runs.sh
+# o manualmente:
+# psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --file supabase/seed.sql
+```
+
+Luego ejecuta estos seis comandos antes de abrir la demo:
 
 ```bash
 npm ci

@@ -239,7 +239,7 @@ From the repository root:
 make up
 ```
 
-The command loads `.env`, verifies the selected run through the Supabase Edge Gateway, preserves the `/functions/v1/gateway` base path, starts the dashboard on port `4173`, and opens the correctly configured URL. It stays attached to the terminal; press `Ctrl-C` to stop it.
+The command loads `.env`, verifies the selected run through the Supabase Edge Gateway (`supabase/functions/gateway`), preserves the `/functions/v1/gateway` base path, starts the dashboard on port `4173`, and opens the correctly configured URL. It stays attached to the terminal; press `Ctrl-C` to stop it. `make up` only serves the local dashboard — it does not run Scenario Controller or Event Router.
 
 To show the wildfire run or select another port:
 
