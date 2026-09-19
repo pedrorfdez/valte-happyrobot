@@ -1,0 +1,15 @@
+{
+  "dispatch_id": "11111111-1111-1111-1111-111111111111",
+  "attempt_id": "11111111-1111-1111-1111-111111111111:agent_simulation:1",
+  "run_id": "run-dana-demo",
+  "action_id": "act-run-dana-demo-1-1",
+  "mission": "SIMULACIÓN — Coordinación controlada en paiporta-ground-floor: confirme disponibilidad y acepte/rechace la misión.",
+  "recipient": { "entity_id": "field-lead" },
+  "profile": {
+    "entity_id": "field-lead",
+    "zone_id": "paiporta-ground-floor",
+    "availability": "limited",
+    "constraints": ["water_rescue capacity 1 already committed to catarroja-health-centre until 10:30Z"],
+    "response_policy": "If mission requests ambulances while constrained, respond rejected with explanation and offer acknowledgement; do not accept unavailable capacity."
+  }
+}

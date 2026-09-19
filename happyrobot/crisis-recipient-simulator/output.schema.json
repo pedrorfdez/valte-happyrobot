@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/happyrobot/crisis-recipient-simulator/output.schema.json",
+  "type": "object",
+  "required": ["dispatch_id", "attempt_id", "run_id", "action_id", "status", "decision", "summary", "transcript"],
+  "properties": {
+    "dispatch_id": { "type": "string", "format": "uuid" },
+    "attempt_id": { "type": "string", "pattern": "^[0-9a-fA-F-]{36}:agent_simulation:1$" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "action_id": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["success", "partial", "failed", "no_response", "unknown"] },
+    "decision": { "enum": ["accepted", "rejected", "acknowledged", "no_response"] },
+    "summary": { "type": "string", "minLength": 5, "maxLength": 300 },
+    "transcript": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "required": ["speaker", "text"],
+        "properties": {
+          "speaker": { "enum": ["coordinator", "recipient"] },
+          "text": { "type": "string", "minLength": 1, "maxLength": 300 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,34 @@
+{
+  "version": {
+    "workflow_name": "crisis-recipient-simulator",
+    "name": "crisis-recipient-simulator-1.0.0",
+    "engine": "v3",
+    "environment": "development",
+    "export_status": "declarative_only"
+  },
+  "nodes": [
+    {
+      "name": "Simulator Input",
+      "type": "incoming_hook_trigger",
+      "config": {
+        "input_schema": "input.schema.json"
+      }
+    },
+    {
+      "name": "Simulate Conversation",
+      "type": "ai_agent",
+      "config": {
+        "prompt": "prompt.md",
+        "output_format": "json",
+        "output_schema": "output.schema.json"
+      }
+    },
+    {
+      "name": "Return Simulator Output",
+      "type": "return_action",
+      "config": {
+        "output": "{{simulate_conversation.output}}"
+      }
+    }
+  ]
+}

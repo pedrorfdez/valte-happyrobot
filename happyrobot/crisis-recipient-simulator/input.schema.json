@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/happyrobot/crisis-recipient-simulator/input.schema.json",
+  "type": "object",
+  "required": ["dispatch_id", "attempt_id", "run_id", "action_id", "mission", "recipient", "profile"],
+  "properties": {
+    "dispatch_id": { "type": "string", "format": "uuid" },
+    "attempt_id": { "type": "string", "pattern": "^[0-9a-fA-F-]{36}:agent_simulation:1$" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "action_id": { "type": "string", "minLength": 1 },
+    "mission": { "type": "string", "minLength": 5, "maxLength": 500 },
+    "recipient": {
+      "type": "object",
+      "required": ["entity_id"],
+      "properties": { "entity_id": { "type": "string", "minLength": 1 } },
+      "additionalProperties": false
+    },
+    "profile": {
+      "type": "object",
+      "required": ["response_policy"],
+      "properties": {
+        "entity_id": { "type": "string" },
+        "zone_id": { "type": "string" },
+        "availability": { "type": "string" },
+        "constraints": { "type": "array", "items": { "type": "string" } },
+        "response_policy": { "type": "string", "minLength": 10 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

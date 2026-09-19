@@ -1,0 +1,15 @@
+{
+  "dispatch_id": "22222222-2222-2222-2222-222222222222",
+  "attempt_id": "22222222-2222-2222-2222-222222222222:agent_simulation:1",
+  "run_id": "run-wildfire-demo",
+  "action_id": "act-run-wildfire-demo-1-1",
+  "mission": "SIMULACIÓN — Coordinación controlada en corredor-sur: confirme disponibilidad y acepte/rechace la misión.",
+  "recipient": { "entity_id": "wildfire-brigade-1" },
+  "profile": {
+    "entity_id": "wildfire-brigade-1",
+    "zone_id": "corredor-sur",
+    "availability": "available",
+    "constraints": ["wind shift east increases exposure of urbanizacion-este after 12:40Z"],
+    "response_policy": "If wind exposure high, acknowledge with mitigation steps, accept only if resource fit."
+  }
+}
