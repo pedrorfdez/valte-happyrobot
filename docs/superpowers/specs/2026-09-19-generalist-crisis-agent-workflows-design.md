@@ -159,7 +159,7 @@ Proceso:
 7. Durante una llamada publica una observación provisional.
 8. Al finalizar revisa el transcript completo y publica una revisión final.
 
-La idempotencia de las revisiones usa `report_id:revision`. Una revisión final puede corregir o retirar una observación provisional sin borrar su historial.
+La idempotencia de las revisiones usa `report_id:revision`. Cada revisión es inmutable y puede quedar `active`, `superseded` o `retracted`. Una revisión final puede corregir o retirar una observación provisional sin borrar su historial ni cambiar retrospectivamente lo que el sistema conocía.
 
 Si solo existe un reporte crítico no verificado, Intake puede provocar verificación urgente, preparación reversible y solicitud de aprobación; nunca autoriza por sí mismo un despliegue.
 
@@ -186,7 +186,7 @@ El plan no es una lista lineal. Debe incluir:
 - supuestos y condiciones de revisión;
 - para todo incidente activo, una acción actual, una verificación o una razón explícita con `revisit_at`.
 
-La prioridad combina amenaza vital, tiempo hasta el daño, personas afectadas, vulnerabilidad, confianza, tendencia, precisión de ubicación, tiempo de llegada, encaje del recurso y reversibilidad. HappyRobot explica el orden, pero no produce una puntuación numérica con falsa precisión. `entity.weight` es un prior de autoridad, no una prioridad de incidente.
+La prioridad combina amenaza vital, tiempo hasta el daño, personas afectadas, vulnerabilidad, confianza, tendencia, precisión de ubicación, tiempo de llegada, encaje del recurso y reversibilidad. HappyRobot explica el orden, pero no produce una puntuación numérica con falsa precisión. `entity.weight` es un prior de autoridad, no una prioridad de incidente. Cada Incident, Plan y Action conserva referencias a las revisiones exactas de evidencia utilizadas.
 
 Las propuestas pasan por validación determinista de:
 
@@ -248,7 +248,7 @@ Cada run de la demo contiene exactamente un agregado de crisis. `crisis_id` iden
 
 ### 6.1 Signal
 
-Una Signal es evidencia observable, no ground truth. Contiene contenido original, claims, fuente, modalidad, ubicación, precisión, confianza y revisión. Distingue el prior `source_trust_snapshot` de la confianza calculada `signal_confidence`.
+Una Signal es evidencia observable, no ground truth. Contiene contenido original, claims, fuente, modalidad, ubicación, precisión, confianza y revisión. Distingue el prior `source_trust_snapshot` de la confianza calculada `signal_confidence`. Sus revisiones son append-only; `superseded` significa reemplazada por información más reciente y `retracted` significa que sus claims ya no deben sustentar decisiones activas.
 
 ### 6.2 Incident
 
@@ -278,7 +278,7 @@ Las acciones unidireccionales, como un aviso cuya entrega se confirma, pueden co
 
 Una acción P2/P3 sin iniciar puede preemptarse automáticamente. Preemptar o redirigir una P0/P1, o cualquier acción ya iniciada, requiere aprobación humana.
 
-Las evidencias son referencias tipadas a Signal, Incident, Outcome o HumanDirective; no se limitan a IDs de señales.
+Las evidencias son referencias tipadas a Signal, Incident, Outcome o HumanDirective; no se limitan a IDs de señales. Una referencia a Signal incluye siempre `signal_id` y `revision`, nunca solo el identificador estable.
 
 ### 6.5 Outcome
 
@@ -292,7 +292,7 @@ El modelo lógico incluye:
 - `zones`, `impact_edges`, `routes` y `dependency_edges`;
 - `entities` y `resources`, con `resources` como único ledger de capacidad y modo `reusable` o `consumable`;
 - `resource_reservations`, vinculadas a acción, unidades, estado y expiración;
-- `signals`, `incidents` e `incident_signals`;
+- `signals`, `signal_revisions`, `incidents`, `incident_signals` y `evidence_dependencies`;
 - `plans`, `actions`, `approvals`, `action_attempts` y `outcomes`;
 - `human_directives` con razón y expiración;
 - `commands`, `events` y `outbox`;
@@ -340,6 +340,30 @@ Reglas de transición:
 - `timed_out` libera solo cuando existe confirmación de que el actor no aceptó ni empezó; en caso contrario debe clasificarse como `unknown`.
 
 Cada entrada del Action Catalog que usa recursos declara `reservation_ttl_scenario` y su disposición al completar: liberar un recurso reutilizable o descontar unidades consumibles. Una P2/P3 no iniciada puede liberar o transferir su reserva por preemption; una P0/P1 o reserva `committed` requiere aprobación.
+
+### 7.2 Retractación de evidencia
+
+`evidence_dependencies` mantiene el índice desde una revisión concreta de Signal hasta los Incident, Plan, Action y Approval que la utilizaron. Cada Action mantiene además `evidence_status`: `valid`, `needs_reassessment` o `invalidated`. El comando `retract_signal_revision` ejecuta en una única transacción:
+
+1. cambia la revisión `active` a `retracted` y registra la revisión final que la sustituye, si existe;
+2. marca los Incident dependientes como `needs_reassessment`;
+3. bloquea nuevas autorizaciones de las Action dependientes con `evidence_status=needs_reassessment`;
+4. reevalúa las reglas de evidencia de `policies.json` usando únicamente revisiones todavía activas;
+5. cancela las Action sin `dispatch_authorized_at` cuya evidencia restante resulte insuficiente, establece `evidence_status=invalidated` y libera sus reservas;
+6. marca como `superseded` las Approval pendientes de esas acciones invalidadas;
+7. marca las Action autorizadas o iniciadas con evidencia insuficiente como `evidence_status=invalidated` sin fingir que el efecto desapareció;
+8. añade un evento `evidence.retracted` y el trabajo de replanteamiento al outbox.
+
+Si las evidencias activas restantes todavía cumplen la policy, Command puede revalidar la Action dentro de una nueva revisión del plan y devolver `evidence_status` a `valid`; la retractación no la cancela automáticamente.
+
+Para una Action ya autorizada:
+
+- si todavía no produjo un efecto externo, Coordination la cancela y libera la reserva;
+- si el efecto es reversible y el canal admite cancelación, crea un intento de cancelación trazable;
+- si fue aceptada o está `executing`, detenerla o redirigirla requiere la política de aprobación aplicable a una acción iniciada;
+- si está `completed`, no se modifica: el postmortem mostrará que se decidió con evidencia posteriormente retirada.
+
+Una retractación nunca borra Signals, planes, acciones, outcomes ni mensajes ya emitidos.
 
 ## 8. Transactional State Gateway
 
@@ -402,6 +426,7 @@ Allowlist mínima:
 | --- | --- |
 | `source_input.received` | `crisis-intake` |
 | `signal.created` / `signal.revised` | `crisis-command` |
+| `evidence.retracted` | `crisis-command`, prioridad inmediata |
 | `route.blocked` / `resource.unavailable` | `crisis-command` |
 | `action.approved` | `crisis-response-coordination` |
 | `mission.rejected` / `timed_out` / `failed` / `unknown` | `crisis-command` |
@@ -409,6 +434,8 @@ Allowlist mínima:
 `plan.proposed`, `action.proposed` y `message.sent` no disparan al Commander. Esta exclusión evita bucles.
 
 El Commander usa debounce de dos segundos de reloj real. El debounce no retrasa Intake ni una acción ya aprobada. `active_dispatch_id`, `lease_until`, `dirty` y `debounce_until` garantizan un único Commander activo. Un lease expirado conserva `dirty=true` para permitir recuperación.
+
+`evidence.retracted` omite el debounce normal si no hay Commander activo. Si ya existe uno, marca `dirty=true` y fuerza una única revisión adicional al terminar; nunca crea dos Commanders paralelos.
 
 El outbox se drena al recibir un webhook, aceptar un comando, avanzar el reloj o reanudar un run; no requiere un proceso residente.
 
@@ -456,6 +483,7 @@ Una HumanDirective contiene motivo, alcance, autor de demo, creación y expiraci
 - mapa esquemático de zonas, rutas y estado observable;
 - incidentes P0–P3 y confianza;
 - plan activo, versión, diff, supuestos y evidencia;
+- revisiones de evidencia retractadas y decisiones dependientes pendientes de reevaluación;
 - recursos disponibles, reservados y en ejecución;
 - reservas `held`, `committed`, `expired`, `quarantined` y `consumed`, con acción y vencimiento;
 - acciones, aprobaciones, timeouts y elementos `unknown`;
@@ -536,7 +564,9 @@ Las únicas primitivas ejecutables por el motor son:
 
 `action-catalog.json` traduce verbos del escenario a estas primitivas mediante parámetros cerrados. No admite scripts arbitrarios.
 
-El preflight valida JSON Schema, referencias internas, IDs, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, policies, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
+`policies.json` declara por categoría de acción si admite evidencia provisional, qué clases de fuentes independientes constituyen corroboración suficiente, qué riesgo exige aprobación humana y cómo se actúa al retractarse una evidencia. Estas reglas son deterministas y no sustituyen el razonamiento cualitativo de prioridad.
+
+El preflight valida JSON Schema, referencias internas, IDs, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, completitud de las policies de evidencia y retractación, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
 
 El motor ejecuta exactamente un pack por run. Un pack puede contener varios hazards y cascadas mediante los grafos de impacto y dependencia, pero no puede importar ni combinar otro pack en runtime.
 
@@ -586,6 +616,7 @@ Estos packs no son variaciones nominales de DANA: ejercitan propagación, depend
 | Supabase no disponible | Pausa estímulos y nuevos efectos externos |
 | Realtime no disponible | Dashboard pasa a polling y marca datos stale |
 | Plan obsoleto | Rechaza despacho y activa Command |
+| Evidencia retractada | Bloquea dependientes, revalida la evidencia restante y cancela solo lo insuficiente |
 | Integración ausente | Usa fallback declarado antes de crear intento |
 | Fallo conocido sin efecto, bajo riesgo | Reintento limitado |
 | Efecto externo incierto | `unknown`, sin reintento ciego |
@@ -639,6 +670,7 @@ Todos los E2E comprueban:
 - ninguna acción de alto impacto sin aprobación;
 - ningún reintento ciego tras un efecto incierto;
 - ruido insuficiente como única base para una acción irreversible;
+- una revisión retractada no sustenta nuevas autorizaciones; las acciones sin evidencia activa suficiente se cancelan antes del despacho;
 - rutas cerradas no utilizadas después de su actualización;
 - todo incidente activo atendido, verificado o aplazado con razón y `revisit_at`;
 - correlación entre evento, plan, acción, intento y outcome;
@@ -694,6 +726,8 @@ El postmortem se calcula contra `terminal_state_version`. Los eventos de `late_e
 21. Una reserva `quarantined` solo puede pasar a `committed`, `released` o `consumed` mediante reconciliación humana registrada.
 22. Un run terminal nunca cambia su `terminal_state_version` y ningún evento tardío crea trabajo operativo.
 23. Todo efecto externo está respaldado por una autorización persistida mientras el run estaba activo.
+24. Ninguna decisión nueva puede usar una revisión `superseded` o `retracted` como evidencia activa.
+25. Retractar evidencia no elimina ni reescribe decisiones o comunicaciones históricas.
 
 ## 20. Evolución del repositorio actual
 
@@ -736,4 +770,5 @@ El diseño se considera implementado cuando:
 7. la prueba secuencial DANA → incendio demuestra aislamiento entre packs;
 8. los E2E prueban expiración, liberación, consumo y cuarentena de reservas sin sobreasignación;
 9. un callback posterior al cierre queda en el anexo sin alterar estado ni evaluación;
-10. ninguna dependencia opcional es necesaria para que funcione el camino base.
+10. un E2E provisional → retractación reevalúa dependientes, invalida los insuficientes, libera la reserva segura y conserva la historia;
+11. ninguna dependencia opcional es necesaria para que funcione el camino base.
