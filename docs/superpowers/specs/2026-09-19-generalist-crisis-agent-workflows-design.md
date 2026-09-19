@@ -197,6 +197,7 @@ Las propuestas pasan por validación determinista de:
 - ruta operativa;
 - integración y destinatario permitidos;
 - política de riesgo y aprobación;
+- HumanDirective activas y su precedencia;
 - `state_version` y versión del plan.
 
 El asignador elige solo entre candidatos válidos usando prioridad, disponibilidad, demora de activación, ajuste de capacidad y un desempate estable por identificador. La acción y su reserva `held` se confirman atómicamente mediante el State Gateway; el modelo no puede saltarse el ledger de reservas.
@@ -449,6 +450,7 @@ Allowlist mínima:
 | `evidence.retracted` | `crisis-command`, prioridad inmediata |
 | `source_cluster.merged` / `source_cluster.split` | `crisis-command` |
 | `route.blocked` / `resource.unavailable` | `crisis-command` |
+| `human_directive.activated` / `expired` / `superseded` | `crisis-command` |
 | `action.approved` | `crisis-response-coordination` |
 | `mission.rejected` / `timed_out` / `failed` / `unknown` | `crisis-command` |
 
@@ -495,7 +497,37 @@ El dashboard usa un lease de operador de 60 segundos. Solo el operador con lease
 
 Los enlaces `/approve/:token` son una vía separada: token aleatorio, opaco, de un solo uso, vinculado a acción, decisión, versión y expiración. GET solo presenta información mínima; POST decide. La primera decisión válida gana y no necesita el lease de `/ops`.
 
-Una HumanDirective contiene motivo, alcance, autor de demo, creación y expiración. Nunca sobrescribe silenciosamente una política ni la verdad histórica.
+### 11.1 HumanDirective y precedencia
+
+Una HumanDirective condiciona la siguiente decisión del Commander; no modifica directamente rutas, recursos, truth ni acciones. Contiene:
+
+- tipo `constraint`, `priority`, `cancel`, `verify` o `replan`;
+- scope `run`, `incident`, `action`, `resource` o `zone`, con su identificador;
+- parámetros cerrados por tipo;
+- `effective_state_version`;
+- razón y autor de demo;
+- `created_at` y `expires_at_scenario`;
+- `supersedes_directive_id` cuando sustituye otra.
+
+Estados: `active`, `rejected`, `expired` y `superseded`.
+
+La precedencia es:
+
+```text
+1. Estado terminal e invariantes transaccionales
+2. Seguridad, capacidad, jurisdicción y estado operativo observable
+3. HumanDirective activa
+4. Policies y objetivos no duros del Scenario Pack
+5. Propuesta del Commander
+```
+
+Una directiva puede cambiar prioridades, imponer una restricción, solicitar verificación, pedir replanteamiento o iniciar una cancelación conforme a su policy. No puede duplicar recursos, utilizar rutas cerradas, inventar capacidades, alterar un run terminal ni saltarse la aprobación requerida para detener o redirigir una acción protegida.
+
+El Gateway valida la directiva antes de activarla. Si contradice un invariante devuelve `directive_conflicts_with_invariant`. Si resulta incompatible con otra directiva activa devuelve `directive_conflict` y los IDs implicados. La directiva aceptada más reciente del mismo tipo y scope sustituye atómicamente a la anterior.
+
+Crear, expirar o sustituir una directiva produce un evento de la allowlist y activa Command. La expiración usa tiempo de escenario y se congela durante `paused`. Commander debe enumerar en el Plan las directivas activas y explicar cómo las aplicó o qué condición de precedencia superior impide cumplirlas. El Gateway y el dashboard explican las directivas rechazadas antes de activarse.
+
+Una corrección factual, como declarar una ruta abierta, no es una HumanDirective: debe entrar como evidencia o comando `update_edge` validado. Los enlaces de aprobación son también un mecanismo separado.
 
 ## 12. Dashboard
 
@@ -512,6 +544,8 @@ Una HumanDirective contiene motivo, alcance, autor de demo, creación y expiraci
 - timeline operacional, técnico y conversacional;
 - estado `live`, `stale`, `degraded` u `offline` de cada integración;
 - controles de aprobación, rechazo, directiva, pausa, stop externo y abort.
+
+El dashboard muestra cada directiva como `active`, `rejected`, `expired` o `superseded`, su scope, razón, vencimiento, conflictos y las revisiones del Plan que la aplicaron.
 
 La carga inicial obtiene un snapshot completo; después aplica Realtime. Si se pierde Realtime, usa polling incremental por cursor cada cinco segundos. El orden visual usa secuencia, versión y timestamps persistidos, no el orden de llegada al navegador.
 
@@ -586,9 +620,9 @@ Las únicas primitivas ejecutables por el motor son:
 
 `action-catalog.json` traduce verbos del escenario a estas primitivas mediante parámetros cerrados. No admite scripts arbitrarios.
 
-`policies.json` declara por categoría de acción si admite evidencia provisional, cuántos clusters `confirmed_independent` y qué clases de origen constituyen corroboración suficiente, qué riesgo exige aprobación humana y cómo se actúa al retractarse o reagruparse una evidencia. Estas reglas son deterministas y no sustituyen el razonamiento cualitativo de prioridad.
+`policies.json` declara por categoría de acción si admite evidencia provisional, cuántos clusters `confirmed_independent` y qué clases de origen constituyen corroboración suficiente, qué riesgo exige aprobación humana y cómo se actúa al retractarse o reagruparse una evidencia. Cada regla se clasifica como `hard_constraint` u `objective`: las restricciones duras participan en el nivel 2 de precedencia y los objetivos en el nivel 4. Estas reglas son deterministas y no sustituyen el razonamiento cualitativo de prioridad.
 
-El preflight valida JSON Schema, referencias internas, IDs, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, completitud de las policies de evidencia, corroboración y retractación, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
+El preflight valida JSON Schema, referencias internas, IDs, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, clasificación y completitud de las policies de evidencia, corroboración y retractación, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
 
 El motor ejecuta exactamente un pack por run. Un pack puede contener varios hazards y cascadas mediante los grafos de impacto y dependencia, pero no puede importar ni combinar otro pack en runtime.
 
@@ -639,6 +673,7 @@ Estos packs no son variaciones nominales de DANA: ejercitan propagación, depend
 | Realtime no disponible | Dashboard pasa a polling y marca datos stale |
 | Plan obsoleto | Rechaza despacho y activa Command |
 | Evidencia retractada | Bloquea dependientes, revalida la evidencia restante y cancela solo lo insuficiente |
+| Directiva incompatible | Se rechaza con invariantes o directivas en conflicto; no cambia el dominio |
 | Integración ausente | Usa fallback declarado antes de crear intento |
 | Fallo conocido sin efecto, bajo riesgo | Reintento limitado |
 | Efecto externo incierto | `unknown`, sin reintento ciego |
@@ -690,6 +725,7 @@ Todos los E2E comprueban:
 - un recurso reutilizable se libera y una unidad consumible se descuenta exactamente una vez tras su Outcome;
 - rechazo de planes y acciones obsoletos;
 - ninguna acción de alto impacto sin aprobación;
+- una directiva válida afecta al siguiente Plan y una directiva incompatible se rechaza sin mutación parcial;
 - ningún reintento ciego tras un efecto incierto;
 - ruido insuficiente como única base para una acción irreversible;
 - múltiples copias del mismo origen cuentan como un cluster, no como corroboraciones independientes;
@@ -752,6 +788,8 @@ El postmortem se calcula contra `terminal_state_version`. Los eventos de `late_e
 24. Ninguna decisión nueva puede usar una revisión `superseded` o `retracted` como evidencia activa.
 25. Retractar evidencia no elimina ni reescribe decisiones o comunicaciones históricas.
 26. La corroboración para acciones de alto impacto se calcula por clusters `confirmed_independent`, nunca por cantidad bruta de Signals.
+27. Una HumanDirective nunca puede violar un invariante transaccional ni modificar directamente el estado factual.
+28. Toda directiva activa aparece de forma explícita en el Plan, junto con su aplicación o la condición de mayor precedencia que impide cumplirla.
 
 ## 20. Evolución del repositorio actual
 
@@ -796,4 +834,5 @@ El diseño se considera implementado cuando:
 9. un callback posterior al cierre queda en el anexo sin alterar estado ni evaluación;
 10. un E2E provisional → retractación reevalúa dependientes, invalida los insuficientes, libera la reserva segura y conserva la historia;
 11. el E2E de rumor replicado demuestra que 21 Signals no idénticas de un mismo origen cuentan como un solo cluster;
-12. ninguna dependencia opcional es necesaria para que funcione el camino base.
+12. un E2E de intervención aplica una directiva válida, rechaza otra que usa una ruta cerrada y replantea al expirar;
+13. ninguna dependencia opcional es necesaria para que funcione el camino base.
