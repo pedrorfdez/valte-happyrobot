@@ -2,7 +2,7 @@
 
 import uuid
 import random
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
 from config import LAT_MIN, LAT_MAX, LON_MIN, LON_MAX
 
@@ -33,15 +33,35 @@ def generate_receiver(tipo_transcripcion: str) -> str:
         return f"operador_112_val_#{op_id}"
 
 
-def generate_coordinates() -> str:
-    """Genera latitud y longitud aleatorias dentro del bounding box de la zona afectada.
+ZONAS_CERO = {
+    "Utiel": (39.566, -1.200),
+    "Chiva": (39.474, -0.718),
+    "Paiporta": (39.428, -0.417),
+    "Massanassa": (39.412, -0.399),
+    "Catarroja": (39.402, -0.404),
+    "Letur": (38.365, -2.100),
+    "Algemesí": (39.189, -0.437),
+}
+
+
+def generate_location() -> Tuple[str, float, float]:
+    """Selecciona una zona cero al azar y aplica un pequeño ruido aleatorio.
     
-    Devuelve estrictamente las coordenadas numéricas sin nombres de localidades.
-    Formato: 'lat,lon' con 6 decimales.
+    Devuelve (pueblo, latitud, longitud) con coordenadas dispersas en el municipio sin solape.
     """
-    lat = round(random.uniform(LAT_MIN, LAT_MAX), 6)
-    lon = round(random.uniform(LON_MIN, LON_MAX), 6)
-    return f"{lat},{lon}"
+    pueblo = random.choice(list(ZONAS_CERO.keys()))
+    base_lat, base_lon = ZONAS_CERO[pueblo]
+    noise_lat = random.uniform(-0.004, 0.004)
+    noise_lon = random.uniform(-0.004, 0.004)
+    lat = round(base_lat + noise_lat, 6)
+    lon = round(base_lon + noise_lon, 6)
+    return pueblo, lat, lon
+
+
+def generate_coordinates() -> Tuple[float, float]:
+    """Genera coordenadas basadas en las zonas cero con dispersión aleatoria."""
+    _, lat, lon = generate_location()
+    return lat, lon
 
 
 def enrich_call_metadata(call_dict: Dict[str, Any]) -> Dict[str, Any]:
@@ -49,5 +69,8 @@ def enrich_call_metadata(call_dict: Dict[str, Any]) -> Dict[str, Any]:
     call_dict["id_llamada"] = str(uuid.uuid4())
     call_dict["origen"] = generate_origin_phone()
     call_dict["receptor"] = generate_receiver(call_dict["tipo_transcripcion"])
-    call_dict["coordenadas"] = generate_coordinates()
+    pueblo, lat, lon = generate_location()
+    call_dict["town"] = pueblo
+    call_dict["latitud"] = lat
+    call_dict["longitud"] = lon
     return call_dict

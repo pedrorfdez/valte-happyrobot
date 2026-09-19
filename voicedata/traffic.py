@@ -1,17 +1,15 @@
-"""Generador de tráfico, distribución y marcas temporales (inicio, fin, duración)."""
+"""Generador de tráfico, distribución y marcas temporales basadas en T entero."""
 
+import json
 import random
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Tuple
+import re
+from typing import List, Dict, Any
 
 from config import (
     RATIO_CRITICA,
     RATIO_URGENTE,
     RATIO_RUIDO,
     RATIO_DIALOGO_OPERADOR,
-    SIMULATION_DATE,
-    TIME_SLICES,
-    DURATION_RANGES,
 )
 
 
@@ -28,22 +26,6 @@ def calculate_category_distribution(total_calls: int) -> List[str]:
     )
     random.shuffle(categories)
     return categories
-
-
-def sample_start_time(date_str: str = SIMULATION_DATE) -> datetime:
-    """Muestrea una hora de inicio según la curva de intensidad (picos y valles)."""
-    # Elegir franja horaria según el peso de intensidad
-    slices = TIME_SLICES
-    weights = [s[2] for s in slices]
-    chosen_slice = random.choices(slices, weights=weights, k=1)[0]
-    
-    start_hour, end_hour, _ = chosen_slice
-    start_sec = start_hour * 3600
-    end_sec = end_hour * 3600 - 1
-    random_second = random.randint(start_sec, end_sec)
-
-    base_date = datetime.strptime(date_str, "%Y-%m-%d")
-    return base_date + timedelta(seconds=random_second)
 
 
 def determine_transcription_type(categoria: str) -> str:
@@ -65,49 +47,96 @@ def determine_transcription_type(categoria: str) -> str:
         )[0]
 
 
-def calculate_duration(categoria: str, tipo_transcripcion: str) -> int:
-    """Calcula la duración en segundos según la criticidad y el tipo de llamada."""
+def sample_start_tick(max_t: int = 1800) -> int:
+    """Muestrea un tiempo de inicio T (entero) simulando picos de saturación."""
+    # Fases de llegada de llamadas:
+    # 1. Inicio del temporal (20% volumen)
+    # 2. Pico de desbordamiento y colapso (65% volumen)
+    # 3. Llamadas persistentes tardías (15% volumen)
+    phases = [
+        (1, int(max_t * 0.25), 0.20),
+        (int(max_t * 0.25) + 1, int(max_t * 0.75), 0.65),
+        (int(max_t * 0.75) + 1, max_t, 0.15),
+    ]
+    weights = [p[2] for p in phases]
+    chosen_phase = random.choices(phases, weights=weights, k=1)[0]
+    return random.randint(chosen_phase[0], chosen_phase[1])
+
+
+def calculate_duration_from_text(
+    transcription: str,
+    tipo_transcripcion: str,
+    categoria: str
+) -> int:
+    """Calcula la duración en segundos coherente con la longitud real del texto generado.
+    
+    Aplica una tasa de habla realista (~7-10 caracteres/segundo en situaciones de estrés),
+    sumando pausas entre turnos de diálogo y variabilidad estocástica.
+    Para llamadas de bolsillo o cortes en categoría ruido, ignora la longitud del texto descriptivo
+    y asigna una duración breve coherente (3 a 12 segundos, sincronizada con el texto si lo explicita).
+    """
     if categoria == "ruido":
-        # Subtipo: corte inmediato vs queja
-        if random.random() < 0.45:
-            r = DURATION_RANGES["ruido_corte"]
-        else:
-            r = DURATION_RANGES["ruido_admin"]
-    elif tipo_transcripcion == "monologo_centralita":
-        r = DURATION_RANGES["monologo_saturado"]
-    elif categoria == "urgente":
-        r = DURATION_RANGES["dialogo_urgente"]
-    else:  # critica
-        r = DURATION_RANGES["dialogo_critico"]
+        txt_lower = transcription.lower()
+        is_pocket_or_cut = (
+            "bolsillo" in txt_lower
+            or "marcación involuntaria" in txt_lower
+            or "corte de llamada" in txt_lower
+            or "pitido de fin de llamada" in txt_lower
+            or "caída técnica de antena" in txt_lower
+            or "pérdida técnica de señal" in txt_lower
+            or "sonido ambiental" in txt_lower
+            or "ruido de roce" in txt_lower
+        )
+        if is_pocket_or_cut:
+            # Si el texto describe segundos específicos (ej. "corte de llamada tras 8 segundos"), sincronizar exactamente
+            match = re.search(r'(?:tras|a los|durante)\s+(\d+)\s+segundos', transcription, re.IGNORECASE)
+            if match:
+                return int(match.group(1))
+            return random.randint(3, 12)
 
-    return random.randint(r[0], r[1])
+    text_to_measure = transcription
+    turn_pauses = 0
+
+    if tipo_transcripcion == "dialogo_operador":
+        try:
+            turns = json.loads(transcription)
+            if isinstance(turns, list):
+                text_to_measure = " ".join(
+                    [t.get("texto", "") for t in turns if isinstance(t, dict)]
+                )
+                turn_pauses = len(turns) * random.randint(1, 3)
+        except Exception:
+            text_to_measure = transcription
+            turn_pauses = 4
+
+    # len(texto) * factor + pausas de locución + pausa inicial/final
+    base_duration = int(len(text_to_measure) * 0.13) + turn_pauses + random.randint(2, 6)
+
+    if categoria == "ruido" and len(text_to_measure) < 45:
+        # Cortes abruptos o estática breve
+        return max(2, min(base_duration, random.randint(3, 10)))
+
+    return max(5, base_duration)
 
 
-def generate_call_timeline(total_calls: int) -> List[Dict[str, Any]]:
-    """Genera la lista base de llamadas con sus marcas temporales ordenadas cronológicamente."""
+def generate_call_timeline(
+    total_calls: int,
+    max_t: int = 1800,
+    start_offset: int = 1
+) -> List[Dict[str, Any]]:
+    """Genera la lista base de llamadas con marcas temporales T en enteros ordenadas cronológicamente."""
     categories = calculate_category_distribution(total_calls)
     calls = []
 
     for cat in categories:
-        hora_inicio = sample_start_time()
         tipo_trans = determine_transcription_type(cat)
-        duracion = calculate_duration(cat, tipo_trans)
-        hora_fin = hora_inicio + timedelta(seconds=duracion)
-
+        t_inicio = sample_start_tick(max_t=max_t) + (start_offset - 1)
         calls.append({
             "categoria": cat,
             "tipo_transcripcion": tipo_trans,
-            "hora_inicio_dt": hora_inicio,
-            "hora_fin_dt": hora_fin,
-            "duracion_segundos": duracion,
+            "inicio": int(t_inicio),
         })
 
-    # Ordenar cronológicamente por hora de inicio
-    calls.sort(key=lambda x: x["hora_inicio_dt"])
-
-    # Formatear strings ISO 8601
-    for c in calls:
-        c["hora_inicio"] = c["hora_inicio_dt"].isoformat()
-        c["hora_fin"] = c["hora_fin_dt"].isoformat()
-
+    # Ordenar cronológicamente por T de inicio
+    calls.sort(key=lambda x: x["inicio"])
     return calls

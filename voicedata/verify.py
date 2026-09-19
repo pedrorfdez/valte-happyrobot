@@ -1,9 +1,8 @@
-"""Script de validación y diagnóstico para verificar el dataset CSV generado."""
+"""Script de validación y diagnóstico para verificar los datasets CSV generados."""
 
 import csv
 import sys
 import json
-from datetime import datetime
 from collections import Counter
 from typing import List, Dict, Any
 
@@ -12,6 +11,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 from config import LAT_MIN, LAT_MAX, LON_MIN, LON_MAX
+from metadata import ZONAS_CERO
 
 
 def verify_dataset(csv_path: str = "llamadas_112_dana.csv"):
@@ -36,8 +36,8 @@ def verify_dataset(csv_path: str = "llamadas_112_dana.csv"):
 
     # 1. Validación de campos obligatorios
     required_fields = [
-        "id_llamada", "hora_inicio", "hora_fin", "duracion_segundos",
-        "origen", "receptor", "coordenadas", "categoria",
+        "id_llamada", "inicio", "fin", "duracion_segundos",
+        "origen", "receptor", "latitud", "longitud", "categoria",
         "tipo_transcripcion", "transcripcion"
     ]
     missing_fields = set(required_fields) - set(rows[0].keys())
@@ -63,64 +63,94 @@ def verify_dataset(csv_path: str = "llamadas_112_dana.csv"):
     for t_type, cnt in trans_counts.items():
         print(f"  • {t_type}: {cnt} ({(cnt/total)*100:.1f}%)")
 
-    # 4. Validación de Integridad de Datos (Coordenadas, Duraciones, JSONs)
+    # 4. Validación de Integridad de Datos (Coordenadas numéricas, T inicio/fin/duración, JSONs, Semántica)
     coord_errors = 0
+    semantic_errors = 0
     duration_errors = 0
     json_parse_errors = 0
-    time_distribution = Counter()
+    artifact_errors = 0
+    transcription_set = set()
+    duplicates = 0
 
     for idx, r in enumerate(rows):
-        # Duración
+        # Duración y consistencia temporal
         try:
-            t_ini = datetime.fromisoformat(r["hora_inicio"])
-            t_fin = datetime.fromisoformat(r["hora_fin"])
-            diff = int((t_fin - t_ini).total_seconds())
+            t_ini = int(r["inicio"])
+            t_fin = int(r["fin"])
             dur = int(r["duracion_segundos"])
-            if diff != dur:
+            if t_fin - t_ini != dur or dur <= 0:
                 duration_errors += 1
-            time_distribution[t_ini.hour] += 1
         except Exception:
             duration_errors += 1
 
-        # Coordenadas
+        # Coordenadas numéricas en zonas cero
         try:
-            lat_str, lon_str = r["coordenadas"].split(",")
-            lat, lon = float(lat_str), float(lon_str)
-            if not (LAT_MIN <= lat <= LAT_MAX and LON_MIN <= lon <= LON_MAX):
+            lat_val = float(r["latitud"])
+            lon_val = float(r["longitud"])
+            if not (LAT_MIN <= lat_val <= LAT_MAX and LON_MIN <= lon_val <= LON_MAX):
                 coord_errors += 1
+            else:
+                closest_town, (base_lat, base_lon) = min(
+                    ZONAS_CERO.items(),
+                    key=lambda x: (lat_val - x[1][0])**2 + (lon_val - x[1][1])**2
+                )
+                dist = ((lat_val - base_lat)**2 + (lon_val - base_lon)**2)**0.5
+                if dist > 0.008:
+                    coord_errors += 1
+                elif closest_town.lower() not in r["transcripcion"].lower():
+                    semantic_errors += 1
         except Exception:
             coord_errors += 1
+
+        # Transcripción duplicada
+        txt = r["transcripcion"]
+        if txt in transcription_set:
+            duplicates += 1
+        transcription_set.add(txt)
 
         # Transcripción JSON si es diálogo
         if r["tipo_transcripcion"] == "dialogo_operador":
             try:
-                parsed = json.loads(r["transcripcion"])
+                parsed = json.loads(txt)
                 if not isinstance(parsed, list):
                     json_parse_errors += 1
+                else:
+                    for turn in parsed:
+                        t_text = turn.get("texto", "").strip()
+                        if t_text in ["...", "..", ".", "[Silencio]", "[silencio]", ""] or set(t_text).issubset({".", " ", "…"}):
+                            artifact_errors += 1
             except Exception:
                 json_parse_errors += 1
+        else:
+            if txt.strip() in ["...", "..", ".", "[Silencio]", "[silencio]", ""] or set(txt.strip()).issubset({".", " ", "…"}):
+                artifact_errors += 1
 
     print("\n--- Integridad y Formatos ---")
-    print(f"  {'✅' if coord_errors == 0 else '❌'} Coordenadas dentro de zona cero: {total - coord_errors}/{total} válidas")
-    print(f"  {'✅' if duration_errors == 0 else '❌'} Cálculo hora_fin - hora_inicio = duracion: {total - duration_errors}/{total} coherentes")
-    print(f"  {'✅' if json_parse_errors == 0 else '❌'} Diálogos en JSON parseable: {trans_counts['dialogo_operador'] - json_parse_errors}/{trans_counts['dialogo_operador']} válidos")
+    print(f"  {'✅' if coord_errors == 0 else '❌'} Coordenadas válidas en zonas cero: {total - coord_errors}/{total}")
+    print(f"  {'✅' if semantic_errors == 0 else '❌'} Coherencia semántica (municipio presente en texto): {total - semantic_errors}/{total}")
+    print(f"  {'✅' if duration_errors == 0 else '❌'} Consistencia temporal fin - inicio = duracion: {total - duration_errors}/{total}")
+    print(f"  {'✅' if json_parse_errors == 0 else '❌'} Diálogos parseables en JSON: {trans_counts['dialogo_operador'] - json_parse_errors}/{trans_counts['dialogo_operador']}")
+    print(f"  {'✅' if artifact_errors == 0 else '❌'} Ausencia de artefactos mudos ('...', '[Silencio]'): {total - artifact_errors}/{total}")
+    print(f"  {'✅' if duplicates == 0 else '❌'} Transcripciones únicas (sin duplicados): {total - duplicates}/{total}")
 
-    # 5. Visualización del Caos y Picos Horarios
-    print("\n--- Curva de Tráfico Temporal (Picos, Llanos y Valles) ---")
-    for h in sorted(time_distribution.keys()):
-        count = time_distribution[h]
-        bar = "█" * int(count * 30 / max(time_distribution.values()))
-        print(f"  {h:02d}:00h | {bar} ({count} llamadas)")
+    # 5. Rango de T y Duraciones
+    inicios = [int(r["inicio"]) for r in rows if r["inicio"].isdigit()]
+    duraciones = [int(r["duracion_segundos"]) for r in rows if r["duracion_segundos"].isdigit()]
+    if inicios and duraciones:
+        print("\n--- Rango Temporal T ---")
+        print(f"  • Rango T inicio: [{min(inicios)} -> {max(inicios)}]")
+        print(f"  • Duración llamadas: Mín {min(duraciones)}s | Media {sum(duraciones)/len(duraciones):.1f}s | Máx {max(duraciones)}s")
 
-    # 6. Muestreo aleatorio de llamadas
-    print("\n--- Muestra de Ejemplo (1 Registro) ---")
+    # 6. Muestreo de registros de ejemplo
+    print("\n--- Muestra de Ejemplo (Primer Registro) ---")
     sample = rows[0]
     for k, v in sample.items():
-        val_preview = v[:100] + "..." if len(v) > 100 else v
+        val_preview = v[:120] + "..." if len(str(v)) > 120 else str(v)
         print(f"  {k}: {val_preview}")
 
     print("\n=======================================================")
-    if coord_errors == 0 and duration_errors == 0 and json_parse_errors == 0:
+    if (coord_errors == 0 and semantic_errors == 0 and duration_errors == 0 
+        and json_parse_errors == 0 and artifact_errors == 0 and duplicates == 0):
         print("🎉 ¡TODAS LAS VALIDACIONES PASARON EXITOSAMENTE!")
     else:
         print("⚠️ Se detectaron algunas discrepancias a revisar.")

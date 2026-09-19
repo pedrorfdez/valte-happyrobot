@@ -13,15 +13,16 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 from dotenv import load_dotenv
-from tqdm.asyncio import tqdm_asyncio
-
-from traffic import generate_call_timeline
-from metadata import enrich_call_metadata
-from llm_client import LLMClient
-from config import DEFAULT_MODEL, DEFAULT_CONCURRENCY
 
 # Cargar variables de entorno desde .env
 load_dotenv()
+
+from tqdm.asyncio import tqdm_asyncio
+
+from traffic import generate_call_timeline, calculate_duration_from_text
+from metadata import enrich_call_metadata
+from llm_client import LLMClient
+from config import DEFAULT_MODEL, DEFAULT_CONCURRENCY, DEFAULT_IMMINENT_CALLS
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,12 +33,13 @@ logger = logging.getLogger("voicemock")
 
 CSV_FIELDNAMES = [
     "id_llamada",
-    "hora_inicio",
-    "hora_fin",
+    "inicio",
+    "fin",
     "duracion_segundos",
     "origen",
     "receptor",
-    "coordenadas",
+    "latitud",
+    "longitud",
     "categoria",
     "tipo_transcripcion",
     "transcripcion",
@@ -48,89 +50,149 @@ async def process_call(
     call: Dict[str, Any],
     llm_client: LLMClient
 ) -> Dict[str, Any]:
-    """Genera la transcripción para una llamada y prepara el registro para exportación."""
+    """Genera la transcripción para una llamada y calcula duración y fin coherentes."""
+    town = call.get("town", "Valencia")
     transcripcion = await llm_client.generate_transcription(
         categoria=call["categoria"],
-        tipo_transcripcion=call["tipo_transcripcion"]
+        tipo_transcripcion=call["tipo_transcripcion"],
+        town=town
     )
+
+    duracion = calculate_duration_from_text(
+        transcription=transcripcion,
+        tipo_transcripcion=call["tipo_transcripcion"],
+        categoria=call["categoria"]
+    )
+    inicio = int(call["inicio"])
+    fin = inicio + int(duracion)
     
     return {
-        "id_llamada": call["id_llamada"],
-        "hora_inicio": call["hora_inicio"],
-        "hora_fin": call["hora_fin"],
-        "duracion_segundos": call["duracion_segundos"],
-        "origen": call["origen"],
-        "receptor": call["receptor"],
-        "coordenadas": call["coordenadas"],
-        "categoria": call["categoria"],
-        "tipo_transcripcion": call["tipo_transcripcion"],
-        "transcripcion": transcripcion,
+        "id_llamada": str(call["id_llamada"]),
+        "inicio": inicio,
+        "fin": fin,
+        "duracion_segundos": int(duracion),
+        "origen": str(call["origen"]),
+        "receptor": str(call["receptor"]),
+        "latitud": float(call["latitud"]),
+        "longitud": float(call["longitud"]),
+        "categoria": str(call["categoria"]),
+        "tipo_transcripcion": str(call["tipo_transcripcion"]),
+        "transcripcion": str(transcripcion),
     }
+
+
+async def generate_dataset(
+    num_calls: int,
+    output_csv: str,
+    client: LLMClient,
+    dataset_name: str = "Histórico"
+):
+    """Genera un lote específico de llamadas y lo guarda en CSV asegurando orden temporal."""
+    logger.info(f"== Generando lote [{dataset_name}]: {num_calls} llamadas en '{output_csv}' ==")
+
+    # 1. Planificar timeline y distribución con T enteros
+    raw_calls = generate_call_timeline(num_calls)
+    
+    # 2. Asignar metadatos (IDs, teléfonos, latitud/longitud numéricos)
+    prepared_calls = [enrich_call_metadata(c) for c in raw_calls]
+
+    # 3. Directorio de destino
+    output_dir = os.path.dirname(output_csv)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
+    # 4. Generación concurrente
+    tasks = [process_call(call, client) for call in prepared_calls]
+    completed_calls = []
+
+    for task_coro in tqdm_asyncio.as_completed(tasks, total=len(tasks), desc=f"Llamadas [{dataset_name}]"):
+        result = await task_coro
+        completed_calls.append(result)
+
+    # 5. Ordenar cronológicamente por T de inicio
+    completed_calls.sort(key=lambda x: (x["inicio"], x["fin"]))
+
+    # 6. Escribir CSV asegurando que todos los textos estén entrecomillados y números limpios
+    with open(output_csv, mode="w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDNAMES, quoting=csv.QUOTE_NONNUMERIC)
+        writer.writeheader()
+        for call_data in completed_calls:
+            writer.writerow(call_data)
+
+    logger.info(f"== Guardado exitoso: {len(completed_calls)} registros en '{output_csv}' ==")
 
 
 async def run_generation(
     num_calls: int,
     output_csv: str,
+    num_imminent: int,
+    output_imminent: str,
     mock: bool,
     concurrency: int,
     model: str
 ):
-    """Orquesta la preparación, generación y escritura streaming del dataset en CSV."""
-    logger.info(f"== Iniciando generación de {num_calls} llamadas sintéticas ==")
-    logger.info(f"Destino CSV: {output_csv}")
+    """Orquesta la preparación y generación tanto del banco histórico como de llamadas inminentes."""
+    logger.info(f"== Iniciando pipeline voicemock ==")
     logger.info(f"Modo: {'MOCK (local)' if mock else f'LLM ({model})'}")
 
-    # 1. Planificar timeline y distribución
-    raw_calls = generate_call_timeline(num_calls)
-    
-    # 2. Asignar metadatos (IDs, teléfonos, coordenadas)
-    prepared_calls = [enrich_call_metadata(c) for c in raw_calls]
-
-    # 3. Inicializar cliente LLM
     client = LLMClient(
         model=model,
         concurrency=concurrency,
         force_mock=mock
     )
 
-    # 4. Crear archivo CSV y escribir cabecera
-    output_dir = os.path.dirname(output_csv)
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
+    # Banco 1: Llamadas simuladas base / históricas
+    await generate_dataset(
+        num_calls=num_calls,
+        output_csv=output_csv,
+        client=client,
+        dataset_name="Histórico"
+    )
 
-    with open(output_csv, mode="w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_FIELDNAMES, quoting=csv.QUOTE_MINIMAL)
-        writer.writeheader()
+    # Banco 2: Llamadas inminentes (eventos que saltan durante la ejecución del producto)
+    if num_imminent > 0 and output_imminent:
+        await generate_dataset(
+            num_calls=num_imminent,
+            output_csv=output_imminent,
+            client=client,
+            dataset_name="Inminentes"
+        )
 
-        # 5. Ejecutar generación concurrente con barra de progreso
-        tasks = [process_call(call, client) for call in prepared_calls]
-        
-        logger.info(f"Generando transcripciones con concurrencia máxima: {concurrency}...")
-        completed = 0
-        for task_coro in tqdm_asyncio.as_completed(tasks, total=len(tasks), desc="Llamadas"):
-            result = await task_coro
-            writer.writerow(result)
-            f.flush()  # Streaming directo a disco para evitar pérdida de datos
-            completed += 1
-
-    logger.info(f"== Generación finalizada exitosamente: {completed} llamadas en '{output_csv}' ==")
+    logger.info("== Todos los datasets han sido generados exitosamente ==")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generador de dataset sintético de llamadas al 112 (DANA Valencia) para voicemock."
+        description="Generador de datasets sintéticos de llamadas al 112 (DANA Valencia) para voicemock."
     )
     parser.add_argument(
         "--num-calls", "-n",
         type=int,
         default=100,
-        help="Número total de llamadas a generar (por defecto: 100)"
+        help="Número de llamadas para el dataset base/histórico (por defecto: 100)"
     )
     parser.add_argument(
         "--output", "-o",
         type=str,
         default="llamadas_112_dana.csv",
-        help="Ruta del archivo CSV resultante (por defecto: llamadas_112_dana.csv)"
+        help="Ruta del archivo CSV para el dataset base (por defecto: llamadas_112_dana.csv)"
+    )
+    parser.add_argument(
+        "--num-imminent", "-ni",
+        type=int,
+        default=DEFAULT_IMMINENT_CALLS,
+        help=f"Número de llamadas inminentes para el segundo dataset (por defecto: {DEFAULT_IMMINENT_CALLS})"
+    )
+    parser.add_argument(
+        "--output-imminent", "-oi",
+        type=str,
+        default="llamadas_inminentes.csv",
+        help="Ruta del archivo CSV para llamadas inminentes (por defecto: llamadas_inminentes.csv)"
+    )
+    parser.add_argument(
+        "--no-imminent",
+        action="store_true",
+        help="Omitir la generación del dataset de llamadas inminentes"
     )
     parser.add_argument(
         "--mock",
@@ -147,7 +209,7 @@ def main():
         "--model", "-m",
         type=str,
         default=DEFAULT_MODEL,
-        help=f"Modelo de OpenAI a utilizar (por defecto: {DEFAULT_MODEL})"
+        help=f"Modelo a utilizar (por defecto: {DEFAULT_MODEL})"
     )
 
     args = parser.parse_args()
@@ -160,10 +222,14 @@ def main():
         )
         args.mock = True
 
+    imminent_count = 0 if args.no_imminent else args.num_imminent
+
     try:
         asyncio.run(run_generation(
             num_calls=args.num_calls,
             output_csv=args.output,
+            num_imminent=imminent_count,
+            output_imminent=args.output_imminent,
             mock=args.mock,
             concurrency=args.concurrency,
             model=args.model
