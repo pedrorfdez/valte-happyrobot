@@ -67,6 +67,26 @@ Node facts learned by testing:
 - Run traces: `GET /workflows/{id}/runs`, `GET /runs/{run_id}/nodes`,
   then `GET /runs/{run_id}/outputs/{output_id}` for full node output
   (extraction JSON, token counts, errors).
+- Webhook POST action (event `01926f2b-2973-7ebf-ada1-e984251e27ec`),
+  learned by testing:
+  - `url` and every `params[].value` are Plate arrays. Static text:
+    `[{"type":"p","children":[{"text":"..."}]}]`. Variable:
+    `[{"type":"paragraph","children":[{"text":""},{"type":"variable",
+    "children":[{"text":""}],"group_id":"<persistent_node_id>",
+    "variable_id":"<var>"},{"text":""}]}]`.
+  - Variable `group_id` must be the node's `persistent_id` (stable
+    across forks), never the fork-local node id, or values resolve
+    empty.
+  - Extract node outputs are exposed as `response.<field>` variable
+    ids, not bare field names.
+  - `params` are sent as URL QUERY parameters, not as a JSON body. The
+    `body` object stores fine but the runtime ignores it. The kernel's
+    `POST /perceptions` therefore reads query parameters when the JSON
+    body is empty.
+  - `contentType` must be a full MIME type (`application/json`).
+  - Do not pre-wrap `{{node.var}}` template strings in Plate for the
+    `body` field; the API transforms strings itself there. For
+    `params`, send Plate arrays directly.
 
 ## Decision
 

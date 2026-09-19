@@ -18,6 +18,11 @@ async def ingest(request: Request):
     rid = current_run_id()
     if not rid:
         raise HTTPException(409, "no active run; POST /runs first")
+    return ingest_signal(rid, signal)
+
+
+def ingest_signal(rid: str, signal: dict) -> dict:
+    """Shared ingest pipeline for POST /signals and POST /perceptions."""
     validate(signal, "signal")
     if q("select 1 from signals where run_id=%s and id=%s", (rid, signal["id"]), one=True):
         return {"id": signal["id"], "status": "duplicate_ignored"}
