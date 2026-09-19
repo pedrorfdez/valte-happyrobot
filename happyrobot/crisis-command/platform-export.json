@@ -19,7 +19,7 @@
         "method": "GET",
         "url": "{{GATEWAY_URL}}/api/snapshot?run_id={{run_id}}",
         "output_alias": "snapshot",
-        "root_keys": ["run", "signals", "incidents", "plan", "actions", "outcomes", "resources", "events", "outbox"]
+        "root_keys": ["run", "signals", "incidents", "plan", "actions", "outcomes", "resources", "events", "outbox", "lessons", "plan_lessons"]
       }
     },
     {
@@ -97,7 +97,8 @@
           "payload": {
             "incidents": "{{commander.output.incidents}}",
             "plan": "{{commander.output.plan}}",
-            "actions": "{{commander.output.actions}}"
+            "actions": "{{commander.output.actions}}",
+            "applied_lesson_ids": "{{commander.output.applied_lesson_ids}}"
           },
           "causation_id": "{{context.trigger_event.event_id}}"
         },
@@ -113,7 +114,7 @@
         "method": "GET",
         "url": "{{GATEWAY_URL}}/api/snapshot?run_id={{run_id}}",
         "output_alias": "retry_snapshot",
-        "root_keys": ["run", "signals", "incidents", "plan", "actions", "outcomes", "resources", "events", "outbox"]
+        "root_keys": ["run", "signals", "incidents", "plan", "actions", "outcomes", "resources", "events", "outbox", "lessons", "plan_lessons"]
       }
     },
     {
@@ -204,7 +205,8 @@
           "payload": {
             "incidents": "{{retry_commander.output.incidents}}",
             "plan": "{{retry_commander.output.plan}}",
-            "actions": "{{retry_commander.output.actions}}"
+            "actions": "{{retry_commander.output.actions}}",
+            "applied_lesson_ids": "{{retry_commander.output.applied_lesson_ids}}"
           },
           "causation_id": "{{retry_context.trigger_event.event_id}}"
         },

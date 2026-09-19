@@ -53,6 +53,7 @@ Situation Analyst output into one coherent global Plan proposal. Output JSON onl
   people, confidence, trend, location precision, arrival time, capability fit and reversibility.
 - Do not manufacture numeric precision or scenario-specific rules.
 - Never use hidden truth.
+- Historical Lessons (if any): when `context.lessons` contains active Lessons for this `pack_id`, reuse an applicable instruction to adjust `objectives`/`priority`/`risk` while respecting current evidence, resource availability, and required human approval. Do not override evidence or invent IDs. If you use a Lesson, return its `lesson_id` in `applied_lesson_ids`; otherwise return `[]` or omit the field.
 
 # Output
 

@@ -8,7 +8,12 @@
     "expected_state_version": { "type": "integer", "minimum": 0 },
     "incidents": { "type": "array", "items": { "$ref": "https://valte.dev/schemas/v2/incident.schema.json" } },
     "plan": { "$ref": "https://valte.dev/schemas/v2/plan.schema.json" },
-    "actions": { "type": "array", "items": { "$ref": "https://valte.dev/schemas/v2/action.schema.json" } }
+    "actions": { "type": "array", "items": { "$ref": "https://valte.dev/schemas/v2/action.schema.json" } },
+    "applied_lesson_ids": {
+      "type": "array",
+      "items": { "type": "string", "format": "uuid" },
+      "maxItems": 10
+    }
   },
   "additionalProperties": false
 }

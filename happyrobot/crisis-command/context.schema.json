@@ -6,6 +6,21 @@
   "properties": {
     "dispatch_id": { "type": "string", "minLength": 1 },
     "trigger_event": { "type": "object" },
+    "lessons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["lesson_id", "pack_id", "source_run_id", "instruction"],
+        "properties": {
+          "lesson_id": { "type": "string", "format": "uuid" },
+          "pack_id": { "type": "string" },
+          "source_run_id": { "type": "string" },
+          "instruction": { "type": "string" },
+          "evidence_action_id": { "type": "string" },
+          "evidence_outcome_id": { "type": "string" }
+        }
+      }
+    },
     "run": {
       "type": "object",
       "required": ["run_id", "pack_id", "pack_version", "pack_digest", "status", "scenario_now", "state_version"],
