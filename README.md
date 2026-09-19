@@ -48,7 +48,7 @@ The original prototypes remain in `schemas/v1/`. New work uses `schemas/v2/`.
 
 ## 3. Full local demo
 
-> The connected local demo has passed end to end with Supabase and the three published HappyRobot `development` workflows. It needs Azure Functions Core Tools, but does not need an Azure deployment. External communication remains in `dry-run`.
+> The connected local demo has passed end to end with Supabase and the three published HappyRobot `development` workflows. It uses the deployed Supabase Edge Gateway and a local static dashboard; Azure Functions Core Tools and an Azure deployment are not required. External communication remains in `dry-run`.
 
 ### Step 1 — Check prerequisites
 
