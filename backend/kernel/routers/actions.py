@@ -170,9 +170,11 @@ def submit_action(rid: str, action: dict, idempotency_key: str | None) -> dict:
         if outside:
             raise HTTPException(422, f"{actor_id} has no jurisdiction over {outside}; jurisdiction: {juris}")
 
-    # duplicate guard: same actor+verb+zones already in flight or done
+    # duplicate guard: same actor+verb+zones in flight, or completed too
+    # recently for conditions to have changed. Operations are repeatable:
+    # a finished rescue does not block a new one later.
     zones_key = json.dumps(sorted(action.get("target_zones") or []))
-    dup = q("""select id, status from actions
+    dup = q("""select id, status, t from actions
                where run_id=%s and actor=%s and verb=%s
                  and status in ('pending_approval','approved','in_progress','executed')
                  and coalesce((select json_agg(z order by z)::text
@@ -180,9 +182,17 @@ def submit_action(rid: str, action: dict, idempotency_key: str | None) -> dict:
                order by created_at desc limit 1""",
             (rid, actor_id, verb, zones_key), one=True)
     if dup:
-        raise HTTPException(409,
-            f"duplicate: {dup['id']} already {dup['status']} for {actor_id} {verb} on the same zones. "
-            f"Do not repeat it; only act again if conditions changed materially (then reference {dup['id']} in evidence with different params).")
+        blocked = dup["status"] != "executed"
+        if not blocked:
+            window_min = 30 if verb in UNIT_VERBS else 90
+            newest = q("select max(t) as m from signals where run_id=%s", (rid,), one=True)
+            if newest and newest["m"]:
+                age_min = (newest["m"] - dup["t"]).total_seconds() / 60
+                blocked = age_min < window_min
+        if blocked:
+            raise HTTPException(409,
+                f"duplicate: {dup['id']} is already {dup['status']} for {actor_id} {verb} on the same zones. "
+                f"Do not repeat it; act again only when it completes or conditions change materially.")
 
     needs_approval = (adoc.get("activation") or {}).get("cost") == "high"
     status = "pending_approval" if needs_approval else "approved"

@@ -101,6 +101,13 @@ def render():
         where = ", ".join(f"{a['units']}u->{a['zone']}" for a in asg) or "-"
         out.append(f"  {eid:<20} {u.get('available','?')}/{u.get('total','?')} units"
                    f"  [{e.get('status','?')}]  {DIM}{where}{END}")
+    UNIT_VERBS = {"rescue", "pump_water", "shelter", "supplies", "wellness_check", "heavy_equipment"}
+    ops = [a for a in acts if a["verb"] in UNIT_VERBS]
+    if ops:
+        out.append(f"  {DIM}operations: " + " | ".join(
+            f"{a['verb']} {','.join(a.get('target_zones') or ['-'])} "
+            f"({a['actor'].split('-')[-1]}, {'active' if a['status'] == 'in_progress' else a['status']})"
+            for a in ops[:4]) + END)
     out.append("")
     out.append(f"{BOLD}TRIPWIRES{END} " + (", ".join(
         f"{CYA}{t['id']}{END}" for t in tws) or f"{DIM}none{END}"))
