@@ -136,7 +136,7 @@ button:hover { filter:brightness(1.25); }
     <div class="card">
       <h2>Zones</h2>
       <table id="ztable"><thead><tr>
-        <th>zone</th><th>flooding now</th><th>wave arrives</th><th>alerted</th><th class="num">evacuated</th>
+        <th>zone</th><th>flood severity</th><th>alerted</th><th class="num">crews deployed</th>
       </tr></thead><tbody></tbody></table>
     </div>
     <div class="card">
@@ -245,7 +245,7 @@ function renderMap(d){
     const ring = p && p.warned ? `stroke="var(--good)" stroke-width="2.5"` : `stroke="var(--border)" stroke-width="1"`;
     const sub = h ? `sev ${h.severity}` : "";
     out += `<g><circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" ${ring}>
-      <title>${z.name}: ${h?("flooding, severity "+h.severity+" ("+h.trend+")"):"no flooding"} · ${p&&p.warned?"population alerted":"NOT alerted"} · evacuated ${p?p.evacuated_pct.toFixed(0):0}%</title></circle>
+      <title>${z.name}: ${h?("flood severity "+h.severity+" of 10"):"no flooding"} · ${p&&p.warned?"population alerted":"NOT alerted"}</title></circle>
       <text class="zname" x="${x}" y="${y-r-6}" text-anchor="middle">${z.name}</text>
       ${sub?`<text x="${x}" y="${y+r+12}" text-anchor="middle">${sub}</text>`:""}</g>`;
   }
@@ -305,17 +305,17 @@ function render(d){
   const hz = {}; d.hazards.forEach(h => { if(!hz[h.zone] || h.severity>hz[h.zone].severity) hz[h.zone]=h; });
   const zoneDocs = Object.fromEntries(d.zones.map(z=>[z.id,z]));
   const pops = d.entities.filter(e=>e.kind==="population");
+  const deployed = {};   // zone -> [{units, entity}] from the live assignments ledger
+  d.assignments.forEach(a => { if (a.zone) (deployed[a.zone] ??= []).push(a); });
   document.querySelector("#ztable tbody").innerHTML = pops.map(e=>{
     const p=e.population, z=e.zone, h=hz[z], zd=zoneDocs[z]||{};
-    const upsHot = (zd.downstream_of||[]).some(u => (hz[u]||{severity:0}).severity>=6);
-    const eta = h && h.severity>=6 ? `<span style="color:var(--critical)">here now</span>`
-      : upsHot ? `<span style="color:var(--warning)">~${zd.propagation_delay_min} min</span>`
-      : `<span class="muted">–</span>`;
+    const dep = deployed[z] || [];
+    const crews = dep.reduce((s,a)=>s+a.units, 0);
+    const who = dep.map(a=>esc(entName[a.entity_id]||a.entity_id)).join(", ");
     return `<tr><td>${esc(zd.name||z)}</td>
-      <td>${h?`<span class="dot" style="display:inline-block;background:${sevColor(h.severity)}"></span> sev ${h.severity}, ${h.trend}`:`<span class="muted">no</span>`}</td>
-      <td>${eta}</td>
+      <td>${h?`<span class="dot" style="display:inline-block;background:${sevColor(h.severity)}"></span> ${h.severity} / 10`:`<span class="muted">–</span>`}</td>
       <td>${p.warned?`<span style="color:var(--good)">✓ yes</span>`:`<span style="color:var(--critical)">✗ not yet</span>`}</td>
-      <td class="num">${p.evacuated_pct.toFixed(0)}%</td></tr>`;
+      <td class="num" ${who?`title="${who}"`:""}>${crews||`<span class="muted">–</span>`}</td></tr>`;
   }).join("");
 
   renderMap(d);
