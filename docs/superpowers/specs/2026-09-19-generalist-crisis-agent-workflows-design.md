@@ -221,9 +221,11 @@ Proceso:
 2. Solicita al Gateway `authorize_external_effect`. Solo si el run sigue activo, el Gateway persiste el intento con `dispatch_id`, `dispatch_authorized_at` y `authorized_state_version` antes del efecto externo.
 3. Selecciona el primer canal disponible de la cadena autorizada.
 4. Envía la misión marcada como `SIMULACIÓN` a un destinatario en whitelist.
-5. Registra entrega, aceptación, rechazo, ejecución, timeout o incertidumbre.
-6. Convierte nueva información obtenida en otra Signal, sin reescribir el pasado.
-7. Solicita replanteamiento cuando cambia una capacidad, respuesta, deadline o resultado.
+5. Para comunicaciones, utiliza el snapshot de audiencia de la Action y registra entrega por destinatario o acuse del scope de broadcast.
+6. Registra entrega, aceptación, rechazo, ejecución, timeout o incertidumbre.
+7. Si la Action satisface una obligación de corrección, actualiza su cobertura sin alterar el mensaje original.
+8. Convierte nueva información obtenida en otra Signal, sin reescribir el pasado.
+9. Solicita replanteamiento cuando cambia una capacidad, respuesta, deadline o resultado.
 
 La aceptación o el inicio de la misión convierte su reserva `held` en `committed`. Un rechazo o fallo confirmado antes del despliegue la libera. Un resultado `unknown` la convierte en `quarantined` hasta reconciliación humana.
 
@@ -348,7 +350,32 @@ La primera decisión válida se confirma atómicamente y gana. Una respuesta sol
 
 Cada transición cierra también su Action y reserva de forma explícita: `approved` lleva la Action a `approved` y conserva `held`; `rejected` lleva la Action a `rejected` y la reserva a `released`; `superseded` o `canceled` llevan una Action no iniciada a `canceled` y la reserva a `released`. Al alcanzar `due_scenario_at`, Scenario Controller envía `expire_approval`; en una sola transacción, el Gateway marca la solicitud `expired`, la Action `timed_out`, su reserva `held` como `expired` y crea trabajo de replanteamiento. Nunca interpreta ausencia de respuesta como aprobación. El fallback declarado por la policy solo orienta el próximo Plan: Commander debe proponer una nueva Action, que recorre de nuevo validación y aprobación si corresponde.
 
-### 6.6 Outcome
+### 6.6 CommunicationThread y obligación de corrección
+
+Toda Action `broadcast_message` o `contact_entity` crea un mensaje inmutable dentro de un `CommunicationThread`. El thread agrupa comunicaciones sobre el mismo asunto y audiencia operativa. Cada mensaje conserva `message_id`, `communication_thread_id`, tipo `initial`, `update`, `correction` o `all_clear`, Action y revisión, `supersedes_message_id` cuando corresponda, contenido y digest, claims y evidencias, snapshot de audiencia, scope geográfico, canales autorizados y tiempo de escenario.
+
+El snapshot de audiencia forma parte de la revisión de Action. Para contactos contiene IDs de destinatario y canales permitidos; para broadcasts contiene canal, zonas y scope. Los recibos de entrega son append-only y su proyección por destinatario y canal puede quedar `pending`, `delivered`, `failed` o `unknown`; un broadcast sin receptores enumerables registra el acuse del proveedor para su scope.
+
+Una `CommunicationObligation` garantiza que una comunicación materialmente incorrecta u obsoleta no quede sin seguimiento. Conserva trigger, mensajes afectados, audiencia mínima, policy, `due_scenario_at`, Actions correctoras e intentos vinculados, cobertura y estado:
+
+```text
+open → in_progress → fulfilled
+open | in_progress → blocked → in_progress
+open | blocked ──human──→ waived
+```
+
+El Gateway crea la obligación de forma determinista cuando una retractación, contradicción de ubicación, reagrupación de procedencia o cambio material de Incident satisface `correction_required_on` del pack. No redacta ni envía nada. Commander debe proponer una Action nueva que referencie la obligación; esa Action pasa por evidencia, ubicación, destinatario y aprobación normales.
+
+La cobertura mínima usa el snapshot original:
+
+- para contactos, incluye entregas originales `delivered`, `pending` y `unknown`, pero excluye únicamente `failed` confirmado antes de congelar la audiencia mínima;
+- para broadcasts, exige el mismo canal y scope geográfico, un superset seguro o un fallback declarado como equivalente;
+- ampliar el público fuera de esa cobertura requiere una Action separada y justificada;
+- el mensaje corrector referencia explícitamente al anterior y usa lenguaje de `correction` o `all_clear`, sin borrar ni fingir recall.
+
+La audiencia original es inmutable. La lista mínima requerida empieza con sus entregas `delivered`, `pending` y `unknown`: `pending` se considera posiblemente recibido para que el orden de callbacks no abra una carrera. Un recibo tardío `delivered`, `pending` o `unknown` puede añadir destinatarios, pero nunca retirarlos. Si la obligación ya estaba `fulfilled` o `waived`, el recibo tardío crea una obligación suplementaria enlazada en vez de reabrir historia cerrada. La policy solo considera cobertura satisfecha mediante entrega confirmada individual o acuse válido del canal para todo el scope de broadcast. Los fallbacks forman una cadena finita y cada intento queda identificado por efecto, destinatario y canal; el Gateway rechaza repetir el mismo intento salvo retry humano explícito. Un resultado `failed` o `unknown` de un intento corrector activa el siguiente fallback no usado y, al agotarlos, deja la obligación `blocked` para resolución humana sin crear más outbox de Command. Solo una persona puede marcar `waived`, con razón; no equivale a haber corregido y permanece visible en el postmortem.
+
+### 6.7 Outcome
 
 Un Outcome es append-only y representa el resultado de un intento: éxito, resultado parcial, fallo conocido, ausencia de respuesta o resultado incierto. Una observación nueva genera otra Signal en vez de modificar retrospectivamente el Outcome.
 
@@ -362,6 +389,7 @@ El modelo lógico incluye:
 - `resource_reservations`, vinculadas a acción, unidades, estado y expiración;
 - `signals`, `signal_revisions`, `signal_location_hypotheses`, `source_clusters`, `signal_provenance_links`, `incidents`, `incident_signals`, `incident_lineage`, `incident_reconciliation_candidates` y `evidence_dependencies`;
 - `plans`, `actions`, `approval_requests`, `action_attempts` y `outcomes`;
+- `communication_threads`, `communication_messages`, `communication_deliveries` y `communication_obligations`;
 - `human_directives` con razón y expiración;
 - `commands`, `events` y `outbox`, con carril de prioridad, clave de lote, disponibilidad y lease;
 - `late_external_events`, append-only y separados del estado operativo cerrado;
@@ -421,7 +449,8 @@ Cada entrada del Action Catalog que usa recursos declara `reservation_ttl_scenar
 5. cancela las Action sin `dispatch_authorized_at` cuya evidencia restante resulte insuficiente, establece `evidence_status=invalidated` y libera sus reservas;
 6. marca como `superseded` toda ApprovalRequest pendiente cuya base incluía la revisión retractada, aunque la evidencia restante todavía permita proponer una Action nueva;
 7. marca las Action autorizadas o iniciadas con evidencia insuficiente como `evidence_status=invalidated` sin fingir que el efecto desapareció;
-8. añade un evento `evidence.retracted` y el trabajo de replanteamiento al outbox.
+8. crea las CommunicationObligation exigidas por la policy para mensajes ya entregados o de entrega incierta;
+9. añade un evento `evidence.retracted` y el trabajo de replanteamiento al outbox.
 
 Si las evidencias activas restantes todavía cumplen la policy, Command puede revalidar la intención mediante una nueva revisión de Action dentro de un Plan nuevo y devolver `evidence_status` a `valid`; si continúa requiriendo aprobación, crea una ApprovalRequest nueva. La retractación no cancela automáticamente una Action cuya evidencia sigue siendo suficiente.
 
@@ -430,7 +459,7 @@ Para una Action ya autorizada:
 - si todavía no produjo un efecto externo, Coordination la cancela y libera la reserva;
 - si el efecto es reversible y el canal admite cancelación, crea un intento de cancelación trazable;
 - si fue aceptada o está `executing`, detenerla o redirigirla requiere la política de aprobación aplicable a una acción iniciada;
-- si está `completed`, no se modifica: el postmortem mostrará que se decidió con evidencia posteriormente retirada.
+- si está `completed`, no se modifica; si fue una comunicación, su mensaje permanece y la obligación correctora sigue el lifecycle definido arriba.
 
 Una retractación nunca borra Signals, planes, acciones, outcomes ni mensajes ya emitidos.
 
@@ -496,6 +525,9 @@ Propiedad semántica de las escrituras:
 | Incidentes, planes y acciones | `crisis-command` | Gateway |
 | Intentos y outcomes | `crisis-response-coordination` | Gateway |
 | Aprobaciones e intervención | Operador o token válido | Gateway |
+| Creación de obligación correctora | Policy determinista ante cambio material | Gateway |
+| Mensaje y audiencia correctora | `crisis-command` | Gateway |
+| Intentos, recibos y cobertura correctora | `crisis-response-coordination` | Gateway |
 | Eventos, outbox y versiones | Transacción aceptada | Gateway |
 
 No existen escrituras directas desde HappyRobot ni desde el navegador.
@@ -514,6 +546,7 @@ Allowlist mínima:
 | `signal.created` / `signal.revised` | `crisis-command` |
 | `evidence.retracted` | `crisis-command`, prioridad inmediata |
 | `location_hypothesis.verified` / `contradicted` | `crisis-command`; contradicción con dependientes, prioridad inmediata |
+| `communication.obligation_created` / `communication.fallback_available` | `crisis-command`, prioridad inmediata |
 | `source_cluster.merged` / `source_cluster.split` | `crisis-command` |
 | `incident.reconciliation_approved` / `rejected` | `crisis-command` |
 | `route.blocked` / `resource.unavailable` | `crisis-command` |
@@ -526,7 +559,7 @@ Allowlist mínima:
 
 El Commander usa debounce de dos segundos de reloj real. El debounce no retrasa Intake ni una acción ya aprobada. `active_dispatch_id`, `lease_until`, `dirty` y `debounce_until` garantizan un único Commander activo. Un lease expirado conserva `dirty=true` para permitir recuperación.
 
-`evidence.retracted` y una `location_hypothesis.contradicted` usada por una decisión activa omiten el debounce normal si no hay Commander activo. Si ya existe uno, marcan `dirty=true` y fuerzan una única revisión adicional al terminar; nunca crean dos Commanders paralelos.
+`evidence.retracted`, `communication.obligation_created`, `communication.fallback_available` y una `location_hypothesis.contradicted` usada por una decisión activa omiten el debounce normal si no hay Commander activo. Si ya existe uno, marcan `dirty=true` y fuerzan una única revisión adicional al terminar; nunca crean dos Commanders paralelos. Una obligación `blocked` sin fallback restante solo actualiza dashboard y requiere intervención humana; no vuelve a despertar al Commander.
 
 ### 9.1 Backpressure y tormentas de señales
 
@@ -536,7 +569,7 @@ Cada entrada del outbox conserva `lane`, `batch_key`, `available_at`, secuencia,
 
 | Carril | Trabajo |
 | --- | --- |
-| `control` | stop, abort, pause, aprobaciones, directivas, retractaciones de evidencia y contradicciones de ubicación activas |
+| `control` | stop, abort, pause, aprobaciones, directivas, retractaciones, contradicciones de ubicación y correcciones obligatorias |
 | `outcome` | callbacks, fallos, estados `unknown` y cambios de rutas o recursos |
 | `intake_live` | conversaciones activas y fuentes configuradas como críticas |
 | `signal_batch` | webhooks, sensores y señales estructuradas normales |
@@ -563,11 +596,11 @@ ready → running ⇄ paused → completed
 
 - `Pause scenario` congela estímulos y timeouts simulados.
 - Las respuestas externas que lleguen durante la pausa se registran, pero no avanzan el reloj.
-- Las expiraciones de reservas y ApprovalRequest se congelan porque usan tiempo de escenario.
+- Las expiraciones de reservas, ApprovalRequest y deadlines de CommunicationObligation se congelan porque usan tiempo de escenario.
 - `Stop external actions` bloquea nuevos efectos externos sin pausar la evolución simulada.
 - `Abort` cierra el run y habilita el postmortem.
 
-Los eventos programados usan `due_scenario_at` y solo se disparan en `running`. El run termina al alcanzar una condición del pack, su duración máxima o un aborto humano. El motivo distingue éxito, timeout y fallo técnico sin multiplicar estados de lifecycle.
+Los eventos programados usan `due_scenario_at` y solo se disparan en `running`. El run termina al alcanzar una condición del pack, su duración máxima o un aborto humano. Una transición a `completed` se rechaza con `open_communication_obligations` mientras exista una obligación obligatoria `open`, `in_progress` o `blocked`; una persona debe resolverla o marcarla `waived` con razón. Si se alcanza la duración máxima en esa situación, el run cierra como `aborted` con motivo `timeout` y conserva las obligaciones pendientes: nunca las elimina ni presenta el ejercicio como completado. `aborted` siempre puede cerrar y conserva las obligaciones abiertas en el snapshot y postmortem. El motivo distingue éxito, timeout y fallo técnico sin multiplicar estados de lifecycle.
 
 La transición terminal es atómica y guarda como `terminal_state_version` la versión resultante, además de `closed_scenario_at` y `closed_at`. Esa versión fija el snapshot evaluable del run. En la misma transacción, las ApprovalRequest pendientes pasan a `canceled`, sus Actions no iniciadas a `canceled` y sus reservas `held` a `released`. Las entradas de outbox todavía no despachadas quedan suprimidas y no pueden obtener nuevas autorizaciones de efecto externo. Los intentos autorizados antes del fence permanecen visibles como in-flight y pueden originar un evento tardío.
 
@@ -633,6 +666,7 @@ Una corrección factual, como declarar una ruta abierta, no es una HumanDirectiv
 - recursos disponibles, reservados y en ejecución;
 - reservas `held`, `committed`, `expired`, `quarantined` y `consumed`, con acción y vencimiento;
 - acciones, aprobaciones, timeouts y elementos `unknown`;
+- threads de comunicación, audiencia original, cobertura de entrega y obligaciones de corrección abiertas, bloqueadas, cumplidas o dispensadas;
 - timeline operacional, técnico y conversacional;
 - profundidad por carril, antigüedad del trabajo pendiente, retraso de procesamiento y capacidad disponible;
 - estado `live`, `stale`, `degraded` u `offline` de cada integración;
@@ -669,7 +703,7 @@ Cada workflow tiene un prompt base estable. Un Context Builder añade únicament
 
 - Intake: extracción, seguridad, terminología, localización y esquema Signal.
 - Command: objetivos, policies, action catalog, recursos, grafos y snapshot observable.
-- Coordination: misión, entidad, canales, deadlines y contrato de respuesta.
+- Coordination: misión, entidad, canales, deadlines, CommunicationThread, obligación correctora y contrato de respuesta.
 
 El Context Builder es stateless entre runs: reconstruye el contexto desde la snapshot del run para cada dispatch y no reutiliza memoria conversacional, variables mutables globales, fragmentos de Knowledge Base ni resultados de otro pack. Todo prompt lleva `run_id`, `pack_id`, `pack_version` y `pack_digest`.
 
@@ -715,9 +749,9 @@ Las únicas primitivas ejecutables por el motor son:
 
 `action-catalog.json` traduce verbos del escenario a estas primitivas mediante parámetros cerrados. No admite scripts arbitrarios.
 
-`policies.json` declara por categoría de acción si admite evidencia provisional, cuántos clusters `confirmed_independent` y qué clases de origen constituyen corroboración suficiente, qué riesgo exige aprobación humana y cómo se actúa al retractarse o reagruparse una evidencia. Para las categorías sujetas a aprobación declara decisiones permitidas, `approval_timeout_scenario` y una estrategia de expiración que referencia alternativas reversibles del Action Catalog o exige `replan_only`; esa estrategia nunca ejecuta una Action por sí misma. También declara `minimum_location_status`, `minimum_location_precision`, si admite una excepción aprobada y qué avisos pueden abarcar todos los candidatos mientras expresan incertidumbre. Finalmente define las claves exactas admisibles para correlacionar Incidents, usando campos genéricos como referencia externa, clase de hazard, zona, activo y ventana temporal; una clave no declarada nunca habilita un merge automático. Cada regla se clasifica como `hard_constraint` u `objective`: las restricciones duras participan en el nivel 2 de precedencia y los objetivos en el nivel 4. Estas reglas son deterministas y no sustituyen el razonamiento cualitativo de prioridad.
+`policies.json` declara por categoría de acción si admite evidencia provisional, cuántos clusters `confirmed_independent` y qué clases de origen constituyen corroboración suficiente, qué riesgo exige aprobación humana y cómo se actúa al retractarse o reagruparse una evidencia. Para comunicaciones declara `correction_required_on`, obligatoriedad, deadline de escenario, tipos `correction`/`all_clear`, referencias al Action Catalog, fallbacks equivalentes y criterio de cobertura; vencer el deadline produce `blocked`, nunca `waived`. Para las categorías sujetas a aprobación declara decisiones permitidas, `approval_timeout_scenario` y una estrategia de expiración que referencia alternativas reversibles del Action Catalog o exige `replan_only`; esa estrategia nunca ejecuta una Action por sí misma. También declara `minimum_location_status`, `minimum_location_precision`, si admite una excepción aprobada y qué avisos pueden abarcar todos los candidatos mientras expresan incertidumbre. Finalmente define las claves exactas admisibles para correlacionar Incidents, usando campos genéricos como referencia externa, clase de hazard, zona, activo y ventana temporal; una clave no declarada nunca habilita un merge automático. Cada regla se clasifica como `hard_constraint` u `objective`: las restricciones duras participan en el nivel 2 de precedencia y los objetivos en el nivel 4. Estas reglas son deterministas y no sustituyen el razonamiento cualitativo de prioridad.
 
-El preflight valida JSON Schema, referencias internas, IDs, aliases y landmarks normalizados, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, deadlines y fallbacks de ApprovalRequest, clasificación y completitud de las policies de evidencia, localización, corroboración, retractación y correlación de Incidents, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Para acciones con reserva exige `approval_timeout_scenario < reservation_ttl_scenario`; todo fallback debe resolver al Action Catalog y no puede reducir los requisitos de aprobación de la alternativa. Nombres visibles duplicados son válidos únicamente si resuelven a IDs diferentes y aportan metadatos de desambiguación. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
+El preflight valida JSON Schema, referencias internas, IDs, aliases y landmarks normalizados, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, deadlines y fallbacks de ApprovalRequest, threads y policies de corrección, clasificación y completitud de las policies de evidencia, localización, corroboración, retractación y correlación de Incidents, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Para acciones con reserva exige `approval_timeout_scenario < reservation_ttl_scenario`; todo fallback debe resolver al Action Catalog y no puede reducir los requisitos de aprobación de la alternativa. Cada regla obligatoria de corrección debe tener Action, audiencia mínima, criterio de cobertura y fallback válidos. Nombres visibles duplicados son válidos únicamente si resuelven a IDs diferentes y aportan metadatos de desambiguación. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
 
 El motor ejecuta exactamente un pack por run. Un pack puede contener varios hazards y cascadas mediante los grafos de impacto y dependencia, pero no puede importar ni combinar otro pack en runtime.
 
@@ -775,6 +809,8 @@ Estos packs no son variaciones nominales de DANA: ejercitan propagación, depend
 | ApprovalRequest expirada | Nunca autoaprueba; cierra Action y reserva de forma atómica y activa Command |
 | Decisiones de aprobación simultáneas | La primera transición válida gana; las demás reciben el resultado vigente |
 | Aprobación tardía u obsoleta | Devuelve `approval_stale`, queda auditada y no muta el dominio |
+| Mensaje entregado sustentado por evidencia inválida | Conserva el original y crea una CommunicationObligation según policy |
+| Corrección parcial, fallida o incierta | Mantiene la obligación `blocked`, prueba fallbacks y requiere resolución o waiver humano |
 | Directiva incompatible | Se rechaza con invariantes o directivas en conflicto; no cambia el dominio |
 | Integración ausente | Usa fallback declarado antes de crear intento |
 | Fallo conocido sin efecto, bajo riesgo | Reintento limitado |
@@ -830,6 +866,8 @@ Todos los E2E comprueban:
 - ninguna acción de alto impacto sin aprobación;
 - ninguna ApprovalRequest no pendiente puede autorizar una Action y ninguna ausencia de respuesta equivale a aprobación;
 - toda ApprovalRequest pendiente usa tiempo de escenario y conserva una base de aprobación vigente;
+- ningún mensaje entregado se sobrescribe ni desaparece al corregirse;
+- toda corrección obligatoria conserva referencia al mensaje y audiencia originales;
 - una directiva válida afecta al siguiente Plan y una directiva incompatible se rechaza sin mutación parcial;
 - ningún reintento ciego tras un efecto incierto;
 - ruido insuficiente como única base para una acción irreversible;
@@ -892,7 +930,26 @@ La prueba incluye además dos decisiones concurrentes sobre una segunda solicitu
 - rechazo, expiración o supersession nunca autoricen efectos externos;
 - ningún fallback se ejecute directamente desde el timeout ni herede una aprobación anterior.
 
-### 18.6 E2E de saturación y prioridad
+### 18.6 E2E de rectificación de comunicaciones
+
+Una alerta provisional se envía a cuatro destinatarios controlados: uno queda `delivered`, otro `pending`, otro `unknown` y otro `failed`. La evidencia principal se retracta después de la entrega. El Gateway conserva el mensaje y crea una CommunicationObligation cuya audiencia mínima incluye `delivered`, `pending` y `unknown`, pero no el fallo confirmado.
+
+Commander propone una Action `correction` enlazada al mensaje original. Coordination utiliza el canal primario para el primer destinatario y un fallback permitido para el segundo. La prueba exige que:
+
+- la obligación se cree de forma determinista, pero ningún mensaje se redacte o envíe automáticamente;
+- contenido, evidencia, audiencia y recibos originales permanezcan inmutables y consultables;
+- la corrección incluya `supersedes_message_id`, lenguaje explícito y la cobertura mínima; ampliar contactos requiere otra Action, mientras un broadcast solo puede usar el superset seguro permitido por la policy;
+- una entrega `pending` o `unknown` original se trate como posiblemente recibida y requiera corrección;
+- un recibo original tardío `delivered`, `pending` o `unknown` amplíe la audiencia pendiente y, si la obligación ya estaba cerrada, cree otra suplementaria enlazada;
+- un destinatario con fallo original confirmado no se añada solo por la obligación;
+- fallos o incertidumbre de la corrección produzcan `blocked` y activen fallbacks, no un falso `fulfilled`;
+- agotar fallbacks no cree un bucle de Command ni repita el mismo efecto y canal;
+- `completed` sea rechazado mientras la obligación obligatoria siga abierta y se acepte tras cumplirla;
+- una rama `aborted` pueda cerrar conservando la obligación pendiente en el postmortem.
+
+Un segundo thread usa broadcast: la rectificación debe alcanzar el mismo canal y scope geográfico, o un fallback que el pack declare equivalente.
+
+### 18.7 E2E de saturación y prioridad
 
 Una prueba adicional inyecta 500 entradas estructuradas, incluidas entregas idempotentes repetidas y numerosos ecos del mismo origen. Mientras `signal_batch` mantiene trabajo pendiente, introduce una aprobación, un cierre de ruta y un Outcome crítico.
 
@@ -906,17 +963,17 @@ La prueba exige que:
 - `queue_depth`, antigüedad y retraso reflejen la saturación y el estado pase a `degraded`;
 - tras drenar la cola, el Plan incorpore los eventos urgentes y todas sus decisiones conserven evidencia trazable.
 
-### 18.7 Ensayo live
+### 18.8 Ensayo live
 
 Solo DANA exige ensayo live completo. Usa destinatarios controlados, whitelist, entorno development y mensajes `SIMULACIÓN`. Los otros cinco packs prueban generalidad mediante E2E de sistema sin exigir seis integraciones reales distintas.
 
-### 18.8 Postmortem y aprendizaje
+### 18.9 Postmortem y aprendizaje
 
 Al completar o abortar:
 
 1. se congela el estado operativo;
 2. se revela la verdad oculta al evaluador y a la vista de postmortem;
-3. se compara `truth → signals → operational belief → decisions → outcomes`;
+3. se compara `truth → signals → operational belief → decisions → communications/actions → outcomes`, incluida la cobertura, bloqueos y waivers de rectificación;
 4. se ejecutan reglas deterministas del pack;
 5. HappyRobot realiza una evaluación cualitativa de decisión, ejecución y supervisión;
 6. se generan lecciones candidatas con evidencia y alcance;
@@ -966,6 +1023,11 @@ El postmortem se calcula contra `terminal_state_version`. Los eventos de `late_e
 36. Toda aprobación válida corresponde a la misma revisión de Action y `approval_basis_hash` que revisó la persona.
 37. Expirar, rechazar, cancelar o sustituir una ApprovalRequest nunca autoriza un efecto ni ejecuta directamente un fallback.
 38. Los deadlines de aprobación usan exclusivamente tiempo de escenario y permanecen congelados durante `paused`.
+39. Un mensaje ya enviado es inmutable y toda corrección lo referencia sin ocultarlo ni sobrescribirlo.
+40. Una CommunicationObligation incluye como mínimo cada destinatario `delivered`, `pending` o `unknown`, o el scope de broadcast original.
+41. Solo la cobertura exigida por la policy puede cambiar una obligación a `fulfilled`; un fallo o `unknown` no finge éxito.
+42. Un run `completed` no contiene obligaciones obligatorias abiertas, mientras que `aborted` las conserva visibles.
+43. Solo una persona puede marcar una obligación `waived`, siempre con razón registrada.
 
 ## 20. Evolución del repositorio actual
 
@@ -977,7 +1039,7 @@ La implementación debe:
 - impedir la aceptación runtime de contratos sin versión;
 - mover propagación, verbos y policies específicos al Scenario Pack;
 - separar recursos de entidades y evitar contadores duplicados;
-- crear schemas para hipótesis de ubicación, Incident, lineage, candidatos de reconciliación, Plan, Outcome, Command, ApprovalRequest y eventos;
+- crear schemas para hipótesis de ubicación, Incident, lineage, candidatos de reconciliación, Plan, Outcome, Command, ApprovalRequest, comunicaciones y eventos;
 - actualizar README y ejemplos para reflejar los tres workflows y el Gateway;
 - mantener la decisión existente de usar REST/Webhooks de HappyRobot y no MCP.
 
@@ -995,6 +1057,7 @@ Los ejemplos anteriores de incendio o logística son material histórico, no con
 - Merge automático por similitud semántica: puede confundir emergencias próximas y duplicar o desviar la respuesta.
 - Sobrescribir una única ubicación estimada: pierde alternativas, procedencia e historial de correcciones.
 - Autoaprobar o ejecutar un fallback al vencer: convierte la ausencia humana en consentimiento y puede usar una decisión obsoleta.
+- Confiar en que replanificar corregirá una alerta: no garantiza alcanzar a quienes recibieron el mensaje incorrecto.
 - Reintento ciego de efectos externos: puede duplicar comunicaciones o acciones.
 - Twin, Redis, Sheets o MCP como dependencia central: no están disponibles ni son necesarios.
 
@@ -1017,5 +1080,6 @@ El diseño se considera implementado cuando:
 13. el E2E de correlación conserva fuentes independientes, evita Actions duplicadas y demuestra merge/split reversible y atómico;
 14. el E2E de ubicación ambigua conserva candidatos, separa confianza geográfica y de contenido y bloquea despachos prematuros;
 15. el E2E de aprobación congela deadlines al pausar, expira de forma atómica, rechaza decisiones obsoletas y replantea sin autoaprobar;
-16. el E2E de saturación conserva todas las entradas únicas, prioriza control y outcomes y respeta los límites de concurrencia;
-17. ninguna dependencia opcional es necesaria para que funcione el camino base.
+16. el E2E de rectificación conserva el mensaje original, corrige su audiencia mínima y bloquea completion hasta resolver la obligación;
+17. el E2E de saturación conserva todas las entradas únicas, prioriza control y outcomes y respeta los límites de concurrencia;
+18. ninguna dependencia opcional es necesaria para que funcione el camino base.
