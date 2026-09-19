@@ -7,8 +7,6 @@ create table if not exists public.tickets (
     subject text,
     content text not null,
     payload jsonb not null default '{}'::jsonb,
-    status text not null default 'open'
-        check (status in ('open', 'processing', 'done', 'failed')),
     workflow_run_id text,
     created_at timestamptz not null default now()
 );

@@ -58,6 +58,20 @@ A crisis management system with:
 - UI: dashboard for status, actions, and human intervention.
 - Integrations: the real external actions.
 
+## What runs today
+
+```bash
+cd backend && uv run uvicorn main:app --reload --port 8000   # API
+cd frontend && npm install && npm run dev                    # http://localhost:5173
+```
+
+One screen: the big **CREAR CRISIS** button. It opens a browser voice
+call against the HappyRobot `crisis-start` agent
+([workflows/crisis-start.md](workflows/crisis-start.md)), which
+interviews you about the crisis in Spanish and shows the transcript
+live. On hang-up the crisis is saved to Supabase together with the official
+management protocols the backend finds for it on the web (Exa).
+
 ## Working agreements
 
 - Hackathon mode: prefer working code over polish. Cut scope, not the
