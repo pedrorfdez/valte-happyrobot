@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 
 const demoRunIds = new Set(["run-dana-demo", "run-wildfire-demo"]);
+const expectedSeedSha256 = "3f823d8b3783760a598993518f236e1edf830b94c7ff0ef5377fc1caa0f27fe2";
 const args = process.argv.slice(2);
 if (args.some((argument) => argument !== "--apply")) {
   console.error("Usage: node scripts/reset-demo.mjs [--apply]");
@@ -15,6 +17,11 @@ function required(name) {
 }
 
 function validateSeed(sql) {
+  const actualSeedSha256 = createHash("sha256").update(sql).digest("hex");
+  if (actualSeedSha256 !== expectedSeedSha256) {
+    throw new Error("Refusing to reset: supabase/seed.sql differs from the reviewed demo seed");
+  }
+
   const runIds = new Set([...sql.matchAll(/'(run-[^']+)'/g)].map(([, id]) => id));
   if (runIds.size !== demoRunIds.size || [...runIds].some((id) => !demoRunIds.has(id))) {
     throw new Error("Refusing to reset: supabase/seed.sql contains unexpected run IDs");

@@ -24,7 +24,7 @@ It is scenario-neutral: the same contracts and HappyRobot workflows run a DANA/f
 | Supabase State Gateway | Connected DANA and wildfire E2E passed against Supabase; local demo needs no Azure deployment |
 | Scenario Controller and packs | Implemented; DANA and wildfire dry-runs available |
 | Three HappyRobot workflows | Published in HappyRobot `development`; connected E2E passed |
-| Azure Static Web Apps dashboard | Local dashboard implemented and verified; Azure deployment is optional |
+| Local dashboard | Implemented and verified against the Supabase Edge Gateway |
 | Controlled interaction and E2E runner | Connected E2E passed in `dry-run`; live external channels intentionally not exercised |
 
 ## 2. Quick contract check
@@ -332,7 +332,7 @@ To preview the reset scope, load `.env` and run:
 node scripts/reset-demo.mjs
 ```
 
-It validates that `supabase/seed.sql` only targets `run-dana-demo` and `run-wildfire-demo`. To apply that reset through the Supabase Management API:
+It verifies the reviewed seed's SHA-256 digest and validates that `supabase/seed.sql` only targets `run-dana-demo` and `run-wildfire-demo`. To apply that reset through the Supabase Management API:
 
 ```bash
 set -a; source ./.env; set +a
