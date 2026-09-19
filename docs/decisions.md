@@ -20,6 +20,19 @@ an information and coordination failure, which is exactly what the
 system solves; strong emotional and local relevance for a Spanish jury.
 Rejected: wildfire as first scenario (kept as stretch-goal pack #2).
 
+## 2026-09-19: Ingest workflows created and edited via the API
+
+Decided: the three channel ingest workflows (ingest-calls,
+ingest-social, ingest-news) are created and edited through the
+HappyRobot REST API, with perception as AI Extract nodes. Workflow ids,
+webhook URLs, and the fork-edit-publish recipe are in
+`docs/happyrobot-api.md`. Verified with a live simulator burst: 36/36
+payloads delivered, 21 extractions spot-checked with 0 claim
+mismatches, 18/18 noise signals flagged. Rejected: building the
+workflows by hand in the builder UI (works, but the API path is
+reproducible and scriptable). The scratch trigger in pedro-rascon-test
+is unpublished.
+
 ## 2026-09-18: HappyRobot access via REST API
 
 Decided: use the REST API at `https://platform.eu.happyrobot.ai/api/v2`
