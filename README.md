@@ -21,10 +21,10 @@ It is scenario-neutral: the same contracts and HappyRobot workflows run a DANA/f
 | Generic v2 contracts | Available now |
 | DANA and wildfire contract examples | Available now |
 | Contract validator | Available now |
-| Supabase State Gateway | Implemented and PostgreSQL-smoked; deployment requires Supabase/Azure configuration |
+| Supabase Edge Gateway | Stable public Gateway deployed through Supabase; connected DANA and wildfire E2E passed |
 | Scenario Controller and packs | Implemented; DANA and wildfire dry-runs available |
 | Three HappyRobot workflows | Declarative definitions and fixtures implemented; Platform publication requires credentials |
-| Azure Static Web Apps dashboard | Implemented; static and browser smoke passed |
+| Local dashboard | Implemented and verified; served locally for the demo |
 | Controlled interaction and E2E runner | Implemented; mock E2E passed, connected smoke requires external services |
 
 ## 2. Quick contract check
@@ -48,7 +48,7 @@ The original prototypes remain in `schemas/v1/`. New work uses `schemas/v2/`.
 
 ## 3. Full local demo
 
-> The repository implementation is complete. The connected path additionally needs your Supabase project, three published HappyRobot development workflows and Azure Functions Core Tools. Without those external values, the contract, Scenario Pack and mock/static checks remain runnable.
+> The connected demo has passed end to end with the public Supabase Edge Gateway, a local dashboard, and the three published HappyRobot `development` workflows. External communication remains in `dry-run`.
 
 ### Step 1 — Check prerequisites
 
@@ -57,17 +57,18 @@ Use macOS/Linux with `zsh` or `bash`.
 ```bash
 node --version
 npm --version
+deno --version
+npx --version
 psql --version
-func --version
 curl --version
 jq --version
+python3 --version
 ```
 
 You also need:
 
 - a Supabase project;
 - access to the HappyRobot EU workspace;
-- Azure Functions Core Tools for the local Gateway;
 - Python 3 for the zero-build static dashboard.
 
 Continue only when every command above succeeds.
@@ -86,7 +87,7 @@ SUPABASE_ANON_KEY=your_public_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_server_only_service_role_key
 DATABASE_URL=postgresql://your_connection_string
 
-GATEWAY_URL=http://localhost:7071
+GATEWAY_URL=https://your-project-ref.supabase.co/functions/v1/gateway
 
 HAPPYROBOT_KEY=your_api_key
 HAPPYROBOT_BASE_URL=https://platform.eu.happyrobot.ai/api/v2
@@ -143,23 +144,41 @@ Continue only when both runs exist at version `0`.
 
 Detailed plan: [Supabase and Gateway](docs/superpowers/plans/2026-09-19-supabase-gateway.md).
 
-### Step 4 — Start the local Gateway
+### Step 4 — Deploy the Supabase Edge Gateway
 
-Open terminal 1, load `.env`, and start Azure Functions from the API root:
+Load `.env`, derive the project reference, apply the compatibility migration, upload only the six HappyRobot secrets, and deploy:
 
 ```bash
-cd api
-func start --cors '*'
+set -a; source ./.env; set +a
+VALTE_PROJECT_REF="${SUPABASE_URL#https://}"
+VALTE_PROJECT_REF="${VALTE_PROJECT_REF%.supabase.co}"
+export GATEWAY_URL="${SUPABASE_URL%/}/functions/v1/gateway"
+
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction \
+  --file supabase/migrations/202609190002_non_retryable_live_dispatch.sql
+
+npx --yes supabase secrets set --project-ref "$VALTE_PROJECT_REF" \
+  HAPPYROBOT_KEY="$HAPPYROBOT_KEY" \
+  HAPPYROBOT_BASE_URL="$HAPPYROBOT_BASE_URL" \
+  HAPPYROBOT_ENV="$HAPPYROBOT_ENV" \
+  HAPPYROBOT_INTAKE_WORKFLOW_ID="$HAPPYROBOT_INTAKE_WORKFLOW_ID" \
+  HAPPYROBOT_COMMAND_WORKFLOW_ID="$HAPPYROBOT_COMMAND_WORKFLOW_ID" \
+  HAPPYROBOT_COORDINATION_WORKFLOW_ID="$HAPPYROBOT_COORDINATION_WORKFLOW_ID"
+
+npx --yes supabase functions deploy gateway \
+  --project-ref "$VALTE_PROJECT_REF" \
+  --no-verify-jwt \
+  --use-api
 ```
 
-Keep it running. In another terminal:
+Verify:
 
 ```bash
 curl -fsS "$GATEWAY_URL/api/snapshot?run_id=$DANA_RUN_ID" \
-  | jq -e '.run.run_id == "run-dana-demo" and .run.state_version == 0'
+  | jq -e '.run.run_id == env.DANA_RUN_ID'
 ```
 
-Continue when `jq` prints `true`.
+Continue when `jq` prints `true`. The Gateway remains stable and publicly reachable in Supabase while the dashboard runs locally.
 
 ### Step 5 — Configure HappyRobot
 
@@ -217,13 +236,13 @@ Open terminal 2:
 python3 -m http.server 4173 --directory app
 ```
 
-Open the root URL when using Python's static server:
+Print and open the local dashboard URL:
 
-```text
-http://localhost:4173/?run_id=run-dana-demo&gateway_url=http://localhost:7071
+```bash
+node -e 'const g=process.env.GATEWAY_URL; console.log(`http://localhost:4173/?run_id=run-dana-demo&gateway_url=${encodeURIComponent(g)}`)'
 ```
 
-Python's server does not apply `staticwebapp.config.json`; `/ops` is available after deployment to Azure Static Web Apps. To enable Realtime notifications, append URL-encoded `supabase_url` and `supabase_anon_key` query parameters. Without them, polling remains active and the UI reports `degraded` rather than failing.
+Python's static server exposes the dashboard at the root URL. To enable Realtime notifications, append URL-encoded `supabase_url` and `supabase_anon_key` query parameters. Without them, polling remains active and the UI reports `degraded` rather than failing.
 
 Continue when the page shows `SIMULACIÓN`, the DANA run, and Gateway status.
 
@@ -296,22 +315,13 @@ Before changing it to `web_voice` or `email`:
 
 Detailed plan: [controlled interaction](docs/superpowers/plans/2026-09-19-real-interaction.md).
 
-## 5. Optional Azure deployment
+## 5. Deployment boundary
 
-Local execution is the recommended path for development and rehearsal. For the hosted demo:
-
-- deploy `app/` as the Static Web App content;
-- deploy `api/` as its managed Functions API;
-- place `staticwebapp.config.json` in the deployed static artifact;
-- configure server variables in Azure rather than in frontend files;
-- keep the dashboard anon key public/read-only and the service-role key server-side;
-- smoke-check `https://<your-host>/api/snapshot?run_id=run-dana-demo` after deployment.
-
-CI/CD and infrastructure-as-code are intentionally outside this demo increment.
+Azure is not used by this demo. The Gateway is the deployed Supabase Edge Function, and the dashboard remains local for development and rehearsal. CI/CD and infrastructure-as-code are intentionally outside this demo increment.
 
 ## 6. Stop and reset
 
-Stop the local Gateway and dashboard with `Ctrl-C` in their terminals.
+Stop the local dashboard with `Ctrl-C` in its terminal. The Supabase Edge Gateway remains deployed.
 
 To reset only the two named demo runs:
 

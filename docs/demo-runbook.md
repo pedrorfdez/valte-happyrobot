@@ -9,7 +9,7 @@
 Necesitas únicamente el origen público del Gateway y dos runs nuevos, provisionados con packs distintos:
 
 ```bash
-export GATEWAY_URL="https://<gateway>"
+export GATEWAY_URL="${SUPABASE_URL%/}/functions/v1/gateway"
 export DANA_RUN_ID="<run-dana-limpio>"
 export WILDFIRE_RUN_ID="<run-incendio-limpio>"
 ```
@@ -18,13 +18,15 @@ Las credenciales de HappyRobot, la clave privilegiada de datos y los datos de co
 
 ## 2. Preflight, paso a paso
 
-Ejecuta estos cinco comandos antes de abrir la demo:
+Ejecuta estos seis comandos antes de abrir la demo:
 
 ```bash
 npm ci
 npm run contracts:check
 node --check scripts/scenario-controller.mjs
 node --check scripts/e2e-demo.mjs
+curl -fsS "$GATEWAY_URL/api/snapshot?run_id=$DANA_RUN_ID" \
+  | jq -e '.run.run_id == env.DANA_RUN_ID'
 node scripts/e2e-demo.mjs --gateway "$GATEWAY_URL" --dana-run "$DANA_RUN_ID" --wildfire-run "$WILDFIRE_RUN_ID" --preflight-only
 ```
 
@@ -32,8 +34,9 @@ Resultado esperado:
 
 1. `contracts:check` imprime los tres PASS contractuales.
 2. Ambos `node --check` terminan silenciosamente con código `0`.
-3. El runner confirma packs/runs distintos y muestra un PASS para cada run limpio en estado `ready`.
-4. El preflight no inicia timelines, no drena el Router y no envía comandos de mutación.
+3. El `GET` del Gateway imprime `true`, confirmando el run DANA seleccionado antes de abrir el dashboard.
+4. El runner confirma packs/runs distintos y muestra un PASS para cada run limpio en estado `ready`.
+5. El preflight no inicia timelines, no drena el Router y no envía comandos de mutación.
 
 ## 3. Comando recomendado: dry-run
 

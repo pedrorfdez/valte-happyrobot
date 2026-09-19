@@ -125,3 +125,15 @@ outcome.recorded       -> crisis-command
 ```
 
 The Router starts a HappyRobot run and never writes a domain object on its behalf. Workflow results return through `POST /api/commands`.
+
+## Supabase Edge deployment
+
+The demo deploys one public Edge Function at
+`$SUPABASE_URL/functions/v1/gateway`. Consumers keep the contract suffixes,
+for example `$GATEWAY_URL/api/snapshot`. Platform JWT verification and custom
+Gateway authentication are disabled for the demo. The privileged Supabase key
+remains inside the Edge runtime.
+
+A failed non-dry-run Coordination launch is finalized as `failed` and is not
+claimed again automatically. Dry-run and upstream workflow launch failures keep
+the existing bounded retry behavior.
