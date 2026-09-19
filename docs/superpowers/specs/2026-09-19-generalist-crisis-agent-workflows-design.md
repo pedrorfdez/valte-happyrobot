@@ -189,6 +189,8 @@ El plan no es una lista lineal. Debe incluir:
 
 La prioridad combina amenaza vital, tiempo hasta el daño, personas afectadas, vulnerabilidad, confianza, tendencia, precisión de ubicación, tiempo de llegada, encaje del recurso y reversibilidad. HappyRobot explica el orden, pero no produce una puntuación numérica con falsa precisión. `entity.weight` es un prior de autoridad, no una prioridad de incidente. Cada Incident, Plan y Action conserva referencias a las revisiones exactas de evidencia utilizadas.
 
+Antes de proponer el Plan, Situation Analyst reconcilia las Signals nuevas contra los Incidents existentes. Puede proponer `create`, `link`, `merge` o `split`, siempre con evidencia y explicación. Una coincidencia exacta definida por `policies.json` puede aplicar `link` o `merge` automáticamente; la similitud semántica por sí sola solo crea un candidato `needs_review`. Las operaciones aceptadas forman parte del mismo comando transaccional que sustituye el Plan, de modo que nunca existe un estado intermedio con incidentes reconciliados y un plan todavía antiguo.
+
 Las propuestas pasan por validación determinista de:
 
 - evidencia disponible;
@@ -256,7 +258,30 @@ Su procedencia incluye `reporter_id`, `origin_reference` cuando se conoce, `deri
 
 ### 6.2 Incident
 
-Un Incident es una hipótesis operativa derivada de una o más señales. Puede relacionarse con varios hazards o fallos de dependencia. Conserva prioridad, confianza, zonas afectadas, evidencia, estado y `revisit_at`.
+Un Incident es una hipótesis operativa derivada de una o más señales. Puede relacionarse con varios hazards o fallos de dependencia. Conserva prioridad, confianza, zonas afectadas, evidencia, estado y `revisit_at`. Un Incident `candidate`, `active`, `closed` o `dismissed` es canónico y se referencia a sí mismo; uno `merged` apunta a un único `canonical_incident_id`; uno `split` no usa ese campo y resuelve hacia sus dos o más hijos mediante `incident_lineage`.
+
+Su lifecycle es:
+
+```text
+candidate → active → closed | dismissed
+    └──────────────→ merged | split
+active ────────────→ merged | split
+```
+
+`source_cluster` e Incident responden preguntas diferentes. El cluster representa un posible origen común; el Incident representa un suceso operativo común. Vincular varias Signals independientes al mismo Incident conserva sus identidades, revisiones, clusters y valor de corroboración.
+
+La reconciliación aplica estas reglas:
+
+- `link` adjunta una Signal a un Incident canónico existente;
+- `merge` elige un Incident canónico y marca los demás como `merged`, conservando lineage y aliases;
+- `split` marca el padre como `split`, crea hijos canónicos y registra una partición explícita de evidencia;
+- una Signal puede respaldar varios hijos solo cuando la operación explica por qué su claim es compartido;
+- todas las operaciones permanecen dentro del mismo run y pack, y el Gateway rechaza ciclos de lineage;
+- ningún merge o split elimina Signals, decisiones, Actions, reservas ni relaciones históricas;
+- las Actions ya iniciadas conservan su referencia original y aparecen bajo el Incident canónico; no se cancelan ni redirigen automáticamente;
+- las Actions no iniciadas afectadas quedan `needs_reassessment`, y el siguiente Plan debe conservarlas, reasignarlas o cancelarlas aplicando sus reglas normales de reserva y aprobación.
+
+Solo una regla exacta y determinista del pack puede autoaplicar `link` o `merge`; sus campos no temporales deben resolver a IDs normalizados del catálogo o referencias externas estables, y su intervalo se calcula con tiempo de escenario, nunca con texto libre ni reloj del servidor. Una propuesta basada en proximidad, ventana temporal, claims compatibles o similitud semántica queda en `incident_reconciliation_candidates` hasta que una persona la apruebe o rechace. Mientras esté pendiente, los Incidents permanecen separados, pero el Plan muestra el grupo `possible_duplicate`. El Gateway considera idénticas dos Actions no terminales con el mismo `action_effect_fingerprint`, calculado a partir de primitiva, objetivo, recurso o capacidad y parámetros normalizados; también aplica las exclusiones mutuas declaradas por el pack.
 
 ### 6.3 Plan
 
@@ -264,7 +289,7 @@ Un Plan es una revisión coherente y global. Incluye `plan_version`, objetivos, 
 
 ### 6.4 Action
 
-Una Action es una intención operativa concreta vinculada a un plan. Incluye actor, capacidad, objetivo, parámetros validados, evidencia, razonamiento, prioridad, reserva, riesgo y política de aprobación.
+Una Action es una intención operativa concreta vinculada a un plan. Incluye actor, capacidad, objetivo, parámetros validados, `action_effect_fingerprint`, evidencia, razonamiento, prioridad, reserva, riesgo y política de aprobación.
 
 Su ciclo de vida es:
 
@@ -296,7 +321,7 @@ El modelo lógico incluye:
 - `zones`, `impact_edges`, `routes` y `dependency_edges`;
 - `entities` y `resources`, con `resources` como único ledger de capacidad y modo `reusable` o `consumable`;
 - `resource_reservations`, vinculadas a acción, unidades, estado y expiración;
-- `signals`, `signal_revisions`, `source_clusters`, `signal_provenance_links`, `incidents`, `incident_signals` y `evidence_dependencies`;
+- `signals`, `signal_revisions`, `source_clusters`, `signal_provenance_links`, `incidents`, `incident_signals`, `incident_lineage`, `incident_reconciliation_candidates` y `evidence_dependencies`;
 - `plans`, `actions`, `approvals`, `action_attempts` y `outcomes`;
 - `human_directives` con razón y expiración;
 - `commands`, `events` y `outbox`, con carril de prioridad, clave de lote, disponibilidad y lease;
@@ -449,12 +474,13 @@ Allowlist mínima:
 | `signal.created` / `signal.revised` | `crisis-command` |
 | `evidence.retracted` | `crisis-command`, prioridad inmediata |
 | `source_cluster.merged` / `source_cluster.split` | `crisis-command` |
+| `incident.reconciliation_approved` / `rejected` | `crisis-command` |
 | `route.blocked` / `resource.unavailable` | `crisis-command` |
 | `human_directive.activated` / `expired` / `superseded` | `crisis-command` |
 | `action.approved` | `crisis-response-coordination` |
 | `mission.rejected` / `timed_out` / `failed` / `unknown` | `crisis-command` |
 
-`plan.proposed`, `action.proposed` y `message.sent` no disparan al Commander. Esta exclusión evita bucles.
+`incident.created`, `incident.linked`, `incident.merged` e `incident.split` producidos dentro del mismo comando que confirma un Plan no vuelven a disparar al Commander. `plan.proposed`, `action.proposed` y `message.sent` tampoco lo hacen. Estas exclusiones evitan bucles; una decisión humana sobre un candidato sí activa una nueva revisión mediante los eventos de la allowlist.
 
 El Commander usa debounce de dos segundos de reloj real. El debounce no retrasa Intake ni una acción ya aprobada. `active_dispatch_id`, `lease_until`, `dirty` y `debounce_until` garantizan un único Commander activo. Un lease expirado conserva `dirty=true` para permitir recuperación.
 
@@ -558,6 +584,7 @@ Una corrección factual, como declarar una ruta abierta, no es una HumanDirectiv
 - plan activo, versión, diff, supuestos y evidencia;
 - revisiones de evidencia retractadas y decisiones dependientes pendientes de reevaluación;
 - número de Signals frente a número de clusters independientes, con explicación de agrupaciones;
+- Incidents canónicos, candidatos `possible_duplicate`, lineage y controles para aprobar o rechazar merge/split;
 - recursos disponibles, reservados y en ejecución;
 - reservas `held`, `committed`, `expired`, `quarantined` y `consumed`, con acción y vencimiento;
 - acciones, aprobaciones, timeouts y elementos `unknown`;
@@ -641,9 +668,9 @@ Las únicas primitivas ejecutables por el motor son:
 
 `action-catalog.json` traduce verbos del escenario a estas primitivas mediante parámetros cerrados. No admite scripts arbitrarios.
 
-`policies.json` declara por categoría de acción si admite evidencia provisional, cuántos clusters `confirmed_independent` y qué clases de origen constituyen corroboración suficiente, qué riesgo exige aprobación humana y cómo se actúa al retractarse o reagruparse una evidencia. Cada regla se clasifica como `hard_constraint` u `objective`: las restricciones duras participan en el nivel 2 de precedencia y los objetivos en el nivel 4. Estas reglas son deterministas y no sustituyen el razonamiento cualitativo de prioridad.
+`policies.json` declara por categoría de acción si admite evidencia provisional, cuántos clusters `confirmed_independent` y qué clases de origen constituyen corroboración suficiente, qué riesgo exige aprobación humana y cómo se actúa al retractarse o reagruparse una evidencia. También declara las claves exactas admisibles para correlacionar Incidents, usando campos genéricos como referencia externa, clase de hazard, zona, activo y ventana temporal; una clave no declarada nunca habilita un merge automático. Cada regla se clasifica como `hard_constraint` u `objective`: las restricciones duras participan en el nivel 2 de precedencia y los objetivos en el nivel 4. Estas reglas son deterministas y no sustituyen el razonamiento cualitativo de prioridad.
 
-El preflight valida JSON Schema, referencias internas, IDs, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, clasificación y completitud de las policies de evidencia, corroboración y retractación, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
+El preflight valida JSON Schema, referencias internas, IDs, grafos, capacidades, recursos, correspondencia entre `resource_mode` y disposición de cada acción, clasificación y completitud de las policies de evidencia, corroboración, retractación y correlación de Incidents, timeline, condiciones terminales, integraciones y compatibilidad con el engine. Si falta una integración requerida, el pack es incompatible. Si falta una opcional, se registra el fallback antes de empezar.
 
 El motor ejecuta exactamente un pack por run. Un pack puede contener varios hazards y cascadas mediante los grafos de impacto y dependencia, pero no puede importar ni combinar otro pack en runtime.
 
@@ -694,6 +721,8 @@ Estos packs no son variaciones nominales de DANA: ejercitan propagación, depend
 | Realtime no disponible | Dashboard pasa a polling y marca datos stale |
 | Plan obsoleto | Rechaza despacho y activa Command |
 | Evidencia retractada | Bloquea dependientes, revalida la evidencia restante y cancela solo lo insuficiente |
+| Correlación de Incident ambigua | Mantiene Incidents separados, crea `possible_duplicate` y solicita decisión humana |
+| Merge/split contra versión obsoleta | Rechaza toda la operación sin cambiar Incident, Plan, Actions ni reservas |
 | Directiva incompatible | Se rechaza con invariantes o directivas en conflicto; no cambia el dominio |
 | Integración ausente | Usa fallback declarado antes de crear intento |
 | Fallo conocido sin efecto, bajo riesgo | Reintento limitado |
@@ -751,6 +780,8 @@ Todos los E2E comprueban:
 - ningún reintento ciego tras un efecto incierto;
 - ruido insuficiente como única base para una acción irreversible;
 - múltiples copias del mismo origen cuentan como un cluster, no como corroboraciones independientes;
+- reconciliar Incidents no altera Signals, revisiones, clusters ni independencia de sus fuentes;
+- ningún Incident `merged` o `split` recibe nuevas Actions y toda referencia operativa resuelve a un Incident canónico;
 - una revisión retractada no sustenta nuevas autorizaciones; las acciones sin evidencia activa suficiente se cancelan antes del despacho;
 - rutas cerradas no utilizadas después de su actualización;
 - todo incidente activo atendido, verificado o aplazado con razón y `revisit_at`;
@@ -762,7 +793,17 @@ Todos los E2E comprueban:
 
 `hidden-truth.json` incluye un canary que las pruebas buscan en todos los contextos visibles antes del postmortem.
 
-### 18.3 E2E de saturación y prioridad
+### 18.3 E2E de correlación de Incidents
+
+La prueba combina tres casos:
+
+1. Tres llamadas independientes y un sensor describen el mismo paso subterráneo. Una clave exacta del pack produce un único Incident canónico con cuatro Signals y conserva cuatro procedencias independientes cuando la evidencia lo acredita.
+2. Dos sucesos parecidos en zonas adyacentes solo generan `possible_duplicate`. Sin aprobación humana permanecen separados y no crean Actions incompatibles o idénticas mientras la relación está pendiente.
+3. Un merge aprobado se revela incorrecto y se ejecuta un split. El lineage, las decisiones y las relaciones históricas permanecen consultables; la evidencia se reparte explícitamente y las Actions afectadas pasan por reevaluación sin duplicar ni liberar incorrectamente reservas.
+
+La prueba también verifica que una propuesta semántica no puede autoaprobarse, que un merge/split obsoleto falla atómicamente y que las operaciones incluidas en un Plan no provocan un bucle del Commander.
+
+### 18.4 E2E de saturación y prioridad
 
 Una prueba adicional inyecta 500 entradas estructuradas, incluidas entregas idempotentes repetidas y numerosos ecos del mismo origen. Mientras `signal_batch` mantiene trabajo pendiente, introduce una aprobación, un cierre de ruta y un Outcome crítico.
 
@@ -776,11 +817,11 @@ La prueba exige que:
 - `queue_depth`, antigüedad y retraso reflejen la saturación y el estado pase a `degraded`;
 - tras drenar la cola, el Plan incorpore los eventos urgentes y todas sus decisiones conserven evidencia trazable.
 
-### 18.4 Ensayo live
+### 18.5 Ensayo live
 
 Solo DANA exige ensayo live completo. Usa destinatarios controlados, whitelist, entorno development y mensajes `SIMULACIÓN`. Los otros cinco packs prueban generalidad mediante E2E de sistema sin exigir seis integraciones reales distintas.
 
-### 18.5 Postmortem y aprendizaje
+### 18.6 Postmortem y aprendizaje
 
 Al completar o abortar:
 
@@ -826,6 +867,9 @@ El postmortem se calcula contra `terminal_state_version`. Los eventos de `late_e
 26. La corroboración para acciones de alto impacto se calcula por clusters `confirmed_independent`, nunca por cantidad bruta de Signals.
 27. Una HumanDirective nunca puede violar un invariante transaccional ni modificar directamente el estado factual.
 28. Toda directiva activa aparece de forma explícita en el Plan, junto con su aplicación o la condición de mayor precedencia que impide cumplirla.
+29. Reconciliar Incidents nunca fusiona, elimina ni reclasifica sus Signals o `source_clusters`.
+30. Todo Incident `merged` o `split` conserva lineage y resuelve hacia uno o más Incidents canónicos activos o terminales.
+31. Un merge o split y el Plan que lo incorpora se confirman juntos o no producen ningún cambio.
 
 ## 20. Evolución del repositorio actual
 
@@ -837,7 +881,7 @@ La implementación debe:
 - impedir la aceptación runtime de contratos sin versión;
 - mover propagación, verbos y policies específicos al Scenario Pack;
 - separar recursos de entidades y evitar contadores duplicados;
-- crear schemas para Incident, Plan, Outcome, Command, Approval y eventos;
+- crear schemas para Incident, lineage, candidatos de reconciliación, Plan, Outcome, Command, Approval y eventos;
 - actualizar README y ejemplos para reflejar los tres workflows y el Gateway;
 - mantener la decisión existente de usar REST/Webhooks de HappyRobot y no MCP.
 
@@ -852,6 +896,7 @@ Los ejemplos anteriores de incendio o logística son material histórico, no con
 - Solo E2E externo: pierde la evaluación específica de prompts y nodos.
 - Un pack rígido de DANA: no demuestra generalidad.
 - Scripts arbitrarios en packs: rompen auditabilidad y aislamiento.
+- Merge automático por similitud semántica: puede confundir emergencias próximas y duplicar o desviar la respuesta.
 - Reintento ciego de efectos externos: puede duplicar comunicaciones o acciones.
 - Twin, Redis, Sheets o MCP como dependencia central: no están disponibles ni son necesarios.
 
@@ -871,5 +916,6 @@ El diseño se considera implementado cuando:
 10. un E2E provisional → retractación reevalúa dependientes, invalida los insuficientes, libera la reserva segura y conserva la historia;
 11. el E2E de rumor replicado demuestra que 21 Signals no idénticas de un mismo origen cuentan como un solo cluster;
 12. un E2E de intervención aplica una directiva válida, rechaza otra que usa una ruta cerrada y replantea al expirar;
-13. el E2E de saturación conserva todas las entradas únicas, prioriza control y outcomes y respeta los límites de concurrencia;
-14. ninguna dependencia opcional es necesaria para que funcione el camino base.
+13. el E2E de correlación conserva fuentes independientes, evita Actions duplicadas y demuestra merge/split reversible y atómico;
+14. el E2E de saturación conserva todas las entradas únicas, prioriza control y outcomes y respeta los límites de concurrencia;
+15. ninguna dependencia opcional es necesaria para que funcione el camino base.
