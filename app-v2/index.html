@@ -19,40 +19,97 @@
       id="app"
       data-preview-width="1440"
       data-preview-height="900"
-      style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; gap: 16px; padding: 16px; background: var(--surface-000); color: var(--ink); font-family: var(--font-sans); overflow: hidden; margin: 0 auto;"
+      style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 16px; background: var(--surface-000); color: var(--ink); font-family: var(--font-sans); overflow: hidden; margin: 0 auto;"
     >
-      <main
-        style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding: 24px 48px 48px;"
-      >
-        <header style="display: flex; align-items: baseline; gap: 12px;">
-          <span style="font-family: var(--font-display); font-size: 32px; line-height: 36px;">Valte</span>
-          <span style="font-size: 13px; line-height: 20px; color: var(--ink-muted);">con HappyRobot · v2</span>
-          <span
-            id="v2-status"
-            style="margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--ink-muted);"
-            >cargando…</span
-          >
-        </header>
-        <section id="v2-content" style="flex: 1; display: flex; align-items: center; justify-content: center;">
-          <p style="font-family: var(--font-display); font-size: 28px; color: var(--ink-muted);">
-            Dashboard v2 · adaptador Supabase Gateway
-          </p>
-        </section>
-        <footer style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">
-          Canvas fijo 1440×900 · tokens Valte v2 · build vite
-        </footer>
-      </main>
-      <aside
+      <!-- Header: scenario identity, health, viewer, switcher, KPIs -->
+      <header
         data-theme="dark"
-        style="width: 496px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 40px; padding: 40px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden; position: relative;"
+        style="flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); position: relative; overflow: hidden;"
       >
-        <p style="font-family: var(--font-display); font-size: 18px; line-height: 24px; position: relative;">
-          Tokens y componentes Valte v2 importados desde <code>origin/feat/valte-v2:frontend/assets</code>
-        </p>
-        <p style="font-size: 13px; line-height: 20px; color: var(--ink-muted); position: relative;">
-          Adapter Gateway → snapshot → proyección por jurisdicción → comandos
-        </p>
-      </aside>
+        <div style="display: flex; align-items: center; gap: 12px; position: relative;">
+          <span style="font-family: var(--font-display); font-size: 28px; line-height: 32px;">Valte</span>
+          <span style="font-size: 12px; color: var(--ink-muted);">con HappyRobot · v2</span>
+          <a href="#" id="v2-back-to-list" style="margin-left: 16px; font-family: var(--font-mono); font-size: 12px; color: var(--ink-muted); text-decoration: none; border: 1px solid var(--line-strong); padding: 4px 8px; border-radius: 6px;">← Escenarios</a>
+          <div style="display: flex; flex-direction: column; margin-left: 16px;">
+            <span id="v2-run-name" style="font-family: var(--font-display); font-size: 16px; line-height: 20px;">—</span>
+            <span id="v2-scenario-now" style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">—</span>
+          </div>
+          <span id="v2-health" style="margin-left: 12px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); border: 1px solid var(--line-strong); padding: 2px 6px; border-radius: 999px;">offline</span>
+          <span id="v2-viewer" style="margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--ink);">—</span>
+          <label for="v2-role-switcher" style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">Ver como</label>
+          <select id="v2-role-switcher" aria-label="Cambiar entidad" style="font-family: var(--font-mono); font-size: 12px; padding: 6px 8px; border-radius: 6px; background: var(--surface-100); color: var(--ink); border: 1px solid var(--line-strong); min-width: 220px;">
+            <option value="">— seleccionar entidad —</option>
+          </select>
+          <span id="v2-status" style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); margin-left: 8px;">cargando…</span>
+        </div>
+        <div style="display: flex; gap: 16px; padding-top: 12px; border-top: 1px solid var(--line-strong);">
+          <div style="flex:1; display:flex; flex-direction:column; gap:2px;"><span style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">Zonas</span><span id="kpi-zones" data-testid="kpi-zones" style="font-family: var(--font-mono); font-size: 22px; line-height: 24px;">0</span></div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:2px; border-left:1px solid var(--line-strong); padding-left:16px;"><span style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">Incidentes</span><span id="kpi-incidents" data-testid="kpi-incidents" style="font-family: var(--font-mono); font-size: 22px;">0</span></div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:2px; border-left:1px solid var(--line-strong); padding-left:16px;"><span style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">Acciones</span><span id="kpi-actions" data-testid="kpi-actions" style="font-family: var(--font-mono); font-size: 22px;">0</span></div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:2px; border-left:1px solid var(--line-strong); padding-left:16px;"><span style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">Recursos</span><span id="kpi-resources" data-testid="kpi-resources" style="font-family: var(--font-mono); font-size: 22px;">0</span></div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:2px; border-left:1px solid var(--line-strong); padding-left:16px;"><span style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">Contactos</span><span id="kpi-contacts" data-testid="kpi-contacts" style="font-family: var(--font-mono); font-size: 22px;">0</span></div>
+        </div>
+      </header>
+
+      <div style="flex:1; display:flex; gap:16px; min-height:0;">
+        <!-- Main column -->
+        <main style="flex:1; display:flex; flex-direction:column; gap:12px; min-width:0; overflow:hidden;">
+          <!-- List screen -->
+          <section id="v2-list-screen" style="flex:1; display:flex; flex-direction:column; padding:16px 20px; background: var(--surface-100, #fff); border-radius: var(--radius-lg); overflow:auto;">
+            <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:8px;">
+              <h2 style="margin:0; font-family: var(--font-display); font-size:22px;">Escenarios</h2>
+              <span style="font-family: var(--font-mono); font-size:12px; color:var(--ink-muted);">GET /api/runs · seleccionar para abrir como Coordinación</span>
+            </div>
+            <div id="v2-content" style="flex:1; display:flex; flex-direction:column;">
+              <p style="font-family: var(--font-display); font-size: 16px; color: var(--ink-muted);">Cargando escenarios…</p>
+            </div>
+          </section>
+
+          <!-- Dashboard (hidden until run selected) -->
+          <section id="v2-dashboard" style="flex:1; display:none; flex-direction:column; gap:12px; overflow:auto; padding-right:4px;">
+            <nav style="display:flex; gap:8px; font-family:var(--font-mono); font-size:12px; color:var(--ink-muted);">
+              <span>Zonas</span> · <span>Incidentes</span> · <span>Plan</span> · <span>Acciones</span> · <span>Recursos</span> · <span>Contactos</span>
+            </nav>
+            <div style="display:flex; gap:16px;">
+              <section style="flex:1; background:var(--surface-100, #fff); border-radius:var(--radius-lg); padding:12px;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><h3 style="margin:0; font-size:14px;">Zonas</h3><span id="v2-zones-count" style="font-family:var(--font-mono); font-size:12px; color:var(--ink-muted);">0</span></div>
+                <div id="v2-zones"></div>
+              </section>
+              <section style="flex:1; background:var(--surface-100, #fff); border-radius:var(--radius-lg); padding:12px;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><h3 style="margin:0; font-size:14px;">Incidentes</h3><span id="v2-incidents-count" style="font-family:var(--font-mono); font-size:12px; color:var(--ink-muted);">0</span></div>
+                <div id="v2-incidents"></div>
+                <div style="margin-top:12px;"><h4 style="margin:0 0 8px; font-size:13px;">Plan activo</h4><div id="v2-plan"></div></div>
+              </section>
+            </div>
+            <div style="display:flex; gap:16px;">
+              <section style="flex:1; background:var(--surface-100, #fff); border-radius:var(--radius-lg); padding:12px;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><h3 style="margin:0; font-size:14px;">Acciones</h3><span id="v2-actions-count" style="font-family:var(--font-mono); font-size:12px; color:var(--ink-muted);">0</span></div>
+                <div id="v2-actions"></div>
+              </section>
+              <section style="flex:1; background:var(--surface-100, #fff); border-radius:var(--radius-lg); padding:12px;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><h3 style="margin:0; font-size:14px;">Recursos</h3><span id="v2-resources-count" style="font-family:var(--font-mono); font-size:12px; color:var(--ink-muted);">0</span></div>
+                <div id="v2-resources"></div>
+                <div style="margin-top:12px;"><h4 style="margin:0 0 8px; font-size:13px;">Contactos</h4><div id="v2-contacts"></div></div>
+              </section>
+            </div>
+          </section>
+        </main>
+
+        <aside
+          data-theme="dark"
+          style="width: 380px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 24px; padding: 24px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden; position: relative;"
+        >
+          <p style="font-family: var(--font-display); font-size: 16px; line-height: 20px; position: relative;">
+            Valte v2 · Supabase Gateway como fuente única
+          </p>
+          <p style="font-size: 12px; line-height: 18px; color: var(--ink-muted); position: relative;">
+            Dashboard v2: GET /api/runs → GET /api/snapshot → proyección por jurisdicción. Header switcher filtra role != source. Zonas con display.x/y.
+          </p>
+          <footer style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">
+            Canvas fijo 1440×900 · tokens Valte v2 · build vite
+          </footer>
+        </aside>
+      </div>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>
