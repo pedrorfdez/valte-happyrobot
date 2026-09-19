@@ -1,0 +1,5 @@
+project_id = "valte-happyrobot"
+
+[functions.gateway]
+verify_jwt = false
+entrypoint = "./functions/gateway/index.ts"
