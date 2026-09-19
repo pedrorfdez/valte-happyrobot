@@ -81,3 +81,11 @@ learning pitch.
 
 Never cut: the real phone call, dashboard approve and reject,
 tripwires, the before and after at-risk numbers.
+
+## Parked: scale the data to the real catastrophe
+
+Decision 2026-09-19: mayors for every town, realistic responder unit
+counts, and demand scaling are parked until the base system is solid.
+They belong to one bigger change: scale the scenario data toward the
+real event (more entities, resources, messages, calls, news), keeping
+scarcity pressure relative to demand.
