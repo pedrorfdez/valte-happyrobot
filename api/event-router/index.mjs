@@ -63,7 +63,12 @@ export default async function eventRouter(context, req) {
     return;
   }
 
-  const limit = 1;
+  const requestedLimit = body.limit === undefined ? 1 : Number(body.limit);
+  if (!Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 10) {
+    context.res = jsonResponse(400, { error: "invalid_request", message: "limit must be integer 1..10" });
+    return;
+  }
+  const limit = Math.min(requestedLimit, 1);
   const runId = body.run_id ?? null;
   if (runId !== null && (typeof runId !== "string" || !runId.trim())) {
     context.res = jsonResponse(400, { error: "invalid_request", message: "run_id must be a non-empty string" });
