@@ -15,6 +15,9 @@ class World:
         for e in self.entities.values():
             if e["kind"] == "population":
                 self.population[e["zone"]] = dict(e["population"])
+        self.roads_closed: set[str] = set()
+        self.rescue_units: dict[str, int] = {}   # zone -> active units
+        self.evacuating: set[str] = set()
 
     def set_hazard(self, hazard: dict):
         self.hazards[hazard["id"]] = hazard
@@ -44,14 +47,45 @@ class World:
         pop = self.population.get(zone_id)
         return "severe_warned" if pop and pop["warned"] else "severe"
 
+    def warn_zone(self, zone_id: str):
+        pop = self.population.get(zone_id)
+        if pop and not pop["warned"]:
+            pop["warned"] = True
+            # immediate effect: people leave garages and ground floors
+            pop["at_risk_pct"] = max(2.0, pop["at_risk_pct"] * 0.7)
+
+    def start_evacuation(self, zone_id: str):
+        self.evacuating.add(zone_id)
+
+    def close_road(self, zone_id: str):
+        if zone_id not in self.roads_closed:
+            self.roads_closed.add(zone_id)
+            pop = self.population.get(zone_id)
+            if pop:  # vehicles stop entering the water path
+                pop["at_risk_pct"] = max(2.0, pop["at_risk_pct"] - 2.0)
+
+    def add_rescue(self, zone_id: str, units: int):
+        self.rescue_units[zone_id] = self.rescue_units.get(zone_id, 0) + units
+
     def drift_population(self, scenario_minutes: float):
         """Unwarned people in a severe-hazard zone drift into danger
-        (going down to garages for their cars). Warnings stop the drift;
-        kernel-side effects will reduce at_risk_pct on evacuation."""
+        (going down to garages for their cars). Warnings stop the drift
+        and start recovery; evacuation, closed roads, and rescue units
+        pull at_risk_pct down further."""
         for zone_id, pop in self.population.items():
             h = self.hazard_in_zone(zone_id)
-            if h and h["severity"] >= 6 and not pop["warned"]:
-                pop["at_risk_pct"] = min(100.0, pop["at_risk_pct"] + 0.2 * scenario_minutes)
+            hazard_on = bool(h and h["severity"] >= 6)
+            if hazard_on and not pop["warned"]:
+                rate = 0.2 * (0.5 if zone_id in self.roads_closed else 1.0)
+                pop["at_risk_pct"] = min(100.0, pop["at_risk_pct"] + rate * scenario_minutes)
+            elif pop["warned"]:
+                pop["at_risk_pct"] = max(2.0, pop["at_risk_pct"] - 0.15 * scenario_minutes)
+            if zone_id in self.evacuating and pop["evacuated_pct"] < 80.0:
+                pop["evacuated_pct"] = min(80.0, pop["evacuated_pct"] + 1.0 * scenario_minutes)
+                pop["at_risk_pct"] = max(1.0, pop["at_risk_pct"] - 0.2 * scenario_minutes)
+            rescue = self.rescue_units.get(zone_id, 0)
+            if rescue and pop["at_risk_pct"] > 1.0:
+                pop["at_risk_pct"] = max(1.0, pop["at_risk_pct"] - 0.25 * rescue * scenario_minutes)
 
     def summary(self, t: datetime) -> dict:
         return {

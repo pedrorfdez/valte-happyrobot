@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from .channels import ChannelRouter
 from .clock import ScenarioClock
 from .dynamics import Dynamics
+from .effects import Effects, KernelLink
 from .timeline import NoiseGenerator, TimelinePlayer
 from .world import World
 
@@ -28,6 +29,7 @@ class Engine:
         self.noise = NoiseGenerator(pack["noise"], self.buckets, list(pack["zones"]), rng)
         self.dynamics = Dynamics(self.world, self.buckets, rng)
         self.router = ChannelRouter(self.world.entities, rng)
+        self.effects = Effects(self.world, KernelLink())
         self._pending_echoes: list[tuple[object, dict]] = []  # (release_t, signal)
         self._echo_seq = 0
         self.emitter = emitter
@@ -86,6 +88,7 @@ class Engine:
             self.dynamics.hazard_updated(entry["hazard"], datetime.fromisoformat(entry["t"]))
         elif kind == "world_patch":
             self.world.patch_entity(entry["patch"]["entity"], entry["patch"]["set"])
+            self.effects.forward_world_patch(entry["patch"]["entity"], entry["patch"]["set"])
         elif kind == "marker":
             self.markers.append(entry)
             print(f"\033[1m== MARKER {entry['t'][11:16]}: {entry.get('note', '')}\033[0m")
@@ -109,6 +112,7 @@ class Engine:
                 self._pending_echoes = [e for e in self._pending_echoes if e[0] > t]
                 for _, echo in due_echoes:
                     self._emit(echo)
+                self.effects.step(dt_minutes)
 
                 time.sleep(self.tick_wall_s)
             # final drain: release anything scheduled inside the window that
