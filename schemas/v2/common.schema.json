@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://valte.dev/schemas/v2/common.schema.json",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "envelope": {
+      "type": "object",
+      "required": [
+        "contract_version",
+        "run_id",
+        "pack_id",
+        "pack_version",
+        "pack_digest",
+        "scenario_at",
+        "received_at",
+        "correlation_id",
+        "causation_id"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "2.0.0"
+        },
+        "run_id": {
+          "$ref": "#/$defs/id"
+        },
+        "pack_id": {
+          "$ref": "#/$defs/id"
+        },
+        "pack_version": {
+          "type": "string"
+        },
+        "pack_digest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "scenario_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "received_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlation_id": {
+          "$ref": "#/$defs/id"
+        },
+        "causation_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "evidence": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "signal_id",
+            "revision"
+          ],
+          "properties": {
+            "kind": {
+              "const": "signal"
+            },
+            "signal_id": {
+              "$ref": "#/$defs/id"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "incident_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "incident"
+            },
+            "incident_id": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

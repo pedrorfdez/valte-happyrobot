@@ -1,0 +1,13 @@
+{
+  "name": "valte-happyrobot",
+  "version": "1.0.0",
+  "description": "Team Valte's entry for the HappyRobot track at HackSpain 2026 (September 18-20 2026, UPM ETSIT, Madrid).",
+  "scripts": {
+    "contracts:check": "node scripts/validate-contracts.mjs"
+  },
+  "type": "module",
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
+  }
+}
