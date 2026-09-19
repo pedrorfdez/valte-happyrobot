@@ -1,22 +1,5 @@
-{
-  "zones": [
-    {
-      "zone_id": "pinar-norte",
-      "name": "Pinar Norte",
-      "kind": "forest",
-      "display": { "x": 22, "y": 24 }
-    },
-    {
-      "zone_id": "urbanizacion-este",
-      "name": "Urbanización Este",
-      "kind": "residential",
-      "display": { "x": 70, "y": 38 }
-    },
-    {
-      "zone_id": "corredor-sur",
-      "name": "Corredor Sur",
-      "kind": "transport",
-      "display": { "x": 46, "y": 76 }
-    }
-  ]
-}
+[
+  {"zone_id":"pinar-norte","name":"Pinar Norte","kind":"forest","display":{"x":22,"y":24}},
+  {"zone_id":"urbanizacion-este","name":"Urbanización Este","kind":"residential","display":{"x":70,"y":38}},
+  {"zone_id":"corredor-sur","name":"Corredor Sur","kind":"transport","display":{"x":46,"y":76}}
+]
