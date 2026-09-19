@@ -6,6 +6,8 @@ valte_root="$(cd "$(dirname "$0")/.." && pwd)"
 valte_env_file="${VALTE_ENV_FILE:-$valte_root/.env}"
 valte_requested_run="${RUN_ID:-}"
 valte_requested_port="${PORT:-}"
+valte_requested_gateway="${GATEWAY_URL:-}"
+valte_requested_supabase="${SUPABASE_URL:-}"
 valte_server_pid=""
 
 die() {
@@ -40,11 +42,21 @@ set +a
 
 valte_run_id="${valte_requested_run:-${DANA_RUN_ID:-}}"
 valte_port="${valte_requested_port:-4173}"
+valte_gateway_url="${valte_requested_gateway:-${GATEWAY_URL:-}}"
+valte_supabase_url="${valte_requested_supabase:-${SUPABASE_URL:-}}"
 
-[[ -n "${GATEWAY_URL:-}" ]] || die "GATEWAY_URL no está definido en $valte_env_file."
+case "$valte_gateway_url" in
+  ""|http://localhost:7071|http://localhost:7071/|http://127.0.0.1:7071|http://127.0.0.1:7071/)
+    if [[ -n "$valte_supabase_url" ]]; then
+      valte_gateway_url="${valte_supabase_url%/}/functions/v1/gateway"
+    fi
+    ;;
+esac
+
+[[ -n "$valte_gateway_url" ]] || die "Define GATEWAY_URL o SUPABASE_URL en $valte_env_file."
 [[ -n "$valte_run_id" ]] || die "Define DANA_RUN_ID en $valte_env_file o usa make up RUN_ID=<run-id>."
-case "$GATEWAY_URL" in
-  *'<'*|*'>'*|*your_gateway*|*your-gateway*) die "GATEWAY_URL todavía contiene un valor de plantilla." ;;
+case "$valte_gateway_url" in
+  *'<'*|*'>'*|*your_gateway*|*your-gateway*|*your-project-ref*|*.example*) die "GATEWAY_URL todavía contiene un valor de plantilla." ;;
 esac
 case "$valte_run_id" in
   *'<'*|*'>'*|*your_run*|*your-run*) die "El run ID todavía contiene un valor de plantilla." ;;
@@ -52,7 +64,7 @@ esac
 [[ "$valte_port" =~ ^[0-9]+$ ]] || die "PORT debe ser un entero entre 1 y 65535."
 (( valte_port >= 1 && valte_port <= 65535 )) || die "PORT debe ser un entero entre 1 y 65535."
 
-valte_gateway_origin="$(python3 - "$GATEWAY_URL" <<'PY'
+valte_gateway_base="$(python3 - "$valte_gateway_url" <<'PY'
 import sys
 from urllib.parse import urlsplit, urlunsplit
 
@@ -67,14 +79,14 @@ if (
     or not parsed.hostname
     or parsed.username
     or parsed.password
-    or parsed.path not in {"", "/"}
     or parsed.query
     or parsed.fragment
 ):
     raise SystemExit(1)
-print(urlunsplit((parsed.scheme, parsed.netloc, "", "", "")))
+path = parsed.path.rstrip("/")
+print(urlunsplit((parsed.scheme, parsed.netloc, path, "", "")))
 PY
-)" || die "GATEWAY_URL debe ser un origen HTTP(S) sin ruta, query ni credenciales."
+)" || die "GATEWAY_URL debe ser una URL base HTTP(S) sin query ni credenciales."
 
 valte_run_query="$(python3 - "$valte_run_id" <<'PY'
 import sys
@@ -83,7 +95,7 @@ from urllib.parse import urlencode
 print(urlencode({"run_id": sys.argv[1]}))
 PY
 )"
-valte_snapshot_url="$valte_gateway_origin/api/snapshot?$valte_run_query"
+valte_snapshot_url="$valte_gateway_base/api/snapshot?$valte_run_query"
 
 if ! valte_snapshot="$(curl -fsS --connect-timeout 3 --max-time 10 "$valte_snapshot_url")"; then
   die "El Gateway no responde para $valte_run_id. Revisa GATEWAY_URL, el run y tu conexión."
@@ -97,7 +109,7 @@ raise SystemExit(0 if payload.get("run", {}).get("run_id") == expected else 1)
   die "El Gateway respondió, pero el snapshot no corresponde a $valte_run_id."
 fi
 
-valte_dashboard_url="$(python3 - "$valte_port" "$valte_run_id" "$valte_gateway_origin" <<'PY'
+valte_dashboard_url="$(python3 - "$valte_port" "$valte_run_id" "$valte_gateway_base" <<'PY'
 import sys
 from urllib.parse import urlencode
 

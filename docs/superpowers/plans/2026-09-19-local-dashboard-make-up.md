@@ -88,7 +88,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlsplit(self.path)
         run_id = parse_qs(parsed.query).get("run_id", [""])[0]
-        if parsed.path != "/api/snapshot" or not run_id:
+        if parsed.path != "/functions/v1/gateway/api/snapshot" or not run_id:
             self.send_response(404)
             self.end_headers()
             return
@@ -112,7 +112,7 @@ valte_mock_pid=$!
 wait_for_file "$valte_port_file" || fail "mock Gateway did not start"
 valte_mock_port="$(cat "$valte_port_file")"
 valte_env="$valte_tmp/.env"
-printf 'GATEWAY_URL=http://127.0.0.1:%s\nDANA_RUN_ID=run-dana-demo\n' \
+printf 'GATEWAY_URL=http://127.0.0.1:%s/functions/v1/gateway\nDANA_RUN_ID=run-dana-demo\n' \
   "$valte_mock_port" > "$valte_env"
 
 if VALTE_ENV_FILE="$valte_tmp/missing.env" "$valte_launcher" check >"$valte_tmp/missing.log" 2>&1; then
@@ -147,7 +147,7 @@ wait_for_http "http://127.0.0.1:$valte_dashboard_port/" || fail "dashboard did n
 curl -fsS "http://127.0.0.1:$valte_dashboard_port/" | \
   grep -q 'Centro de coordinación de crisis' || fail "dashboard content is missing"
 grep -q 'run_id=run-wildfire-demo' "$valte_tmp/up.log" || fail "selected run is absent from URL"
-grep -q 'gateway_url=http%3A%2F%2F127.0.0.1' "$valte_tmp/up.log" || fail "Gateway URL is not encoded"
+grep -q 'gateway_url=http%3A%2F%2F127.0.0.1.*%2Ffunctions%2Fv1%2Fgateway' "$valte_tmp/up.log" || fail "Edge Gateway path is absent from URL"
 
 kill -TERM "$valte_up_pid"
 wait "$valte_up_pid" || true
@@ -184,6 +184,8 @@ valte_root="$(cd "$(dirname "$0")/.." && pwd)"
 valte_env_file="${VALTE_ENV_FILE:-$valte_root/.env}"
 valte_requested_run="${RUN_ID:-}"
 valte_requested_port="${PORT:-}"
+valte_requested_gateway="${GATEWAY_URL:-}"
+valte_requested_supabase="${SUPABASE_URL:-}"
 valte_server_pid=""
 
 die() {
@@ -218,11 +220,21 @@ set +a
 
 valte_run_id="${valte_requested_run:-${DANA_RUN_ID:-}}"
 valte_port="${valte_requested_port:-4173}"
+valte_gateway_url="${valte_requested_gateway:-${GATEWAY_URL:-}}"
+valte_supabase_url="${valte_requested_supabase:-${SUPABASE_URL:-}}"
 
-[[ -n "${GATEWAY_URL:-}" ]] || die "GATEWAY_URL no está definido en $valte_env_file."
+case "$valte_gateway_url" in
+  ""|http://localhost:7071|http://localhost:7071/|http://127.0.0.1:7071|http://127.0.0.1:7071/)
+    if [[ -n "$valte_supabase_url" ]]; then
+      valte_gateway_url="${valte_supabase_url%/}/functions/v1/gateway"
+    fi
+    ;;
+esac
+
+[[ -n "$valte_gateway_url" ]] || die "Define GATEWAY_URL o SUPABASE_URL en $valte_env_file."
 [[ -n "$valte_run_id" ]] || die "Define DANA_RUN_ID en $valte_env_file o usa make up RUN_ID=<run-id>."
-case "$GATEWAY_URL" in
-  *'<'*|*'>'*|*your_gateway*|*your-gateway*) die "GATEWAY_URL todavía contiene un valor de plantilla." ;;
+case "$valte_gateway_url" in
+  *'<'*|*'>'*|*your_gateway*|*your-gateway*|*your-project-ref*|*.example*) die "GATEWAY_URL todavía contiene un valor de plantilla." ;;
 esac
 case "$valte_run_id" in
   *'<'*|*'>'*|*your_run*|*your-run*) die "El run ID todavía contiene un valor de plantilla." ;;
@@ -230,7 +242,7 @@ esac
 [[ "$valte_port" =~ ^[0-9]+$ ]] || die "PORT debe ser un entero entre 1 y 65535."
 (( valte_port >= 1 && valte_port <= 65535 )) || die "PORT debe ser un entero entre 1 y 65535."
 
-valte_gateway_origin="$(python3 - "$GATEWAY_URL" <<'PY'
+valte_gateway_base="$(python3 - "$valte_gateway_url" <<'PY'
 import sys
 from urllib.parse import urlsplit, urlunsplit
 
@@ -245,14 +257,14 @@ if (
     or not parsed.hostname
     or parsed.username
     or parsed.password
-    or parsed.path not in {"", "/"}
     or parsed.query
     or parsed.fragment
 ):
     raise SystemExit(1)
-print(urlunsplit((parsed.scheme, parsed.netloc, "", "", "")))
+path = parsed.path.rstrip("/")
+print(urlunsplit((parsed.scheme, parsed.netloc, path, "", "")))
 PY
-)" || die "GATEWAY_URL debe ser un origen HTTP(S) sin ruta, query ni credenciales."
+)" || die "GATEWAY_URL debe ser una URL base HTTP(S) sin query ni credenciales."
 
 valte_run_query="$(python3 - "$valte_run_id" <<'PY'
 import sys
@@ -260,7 +272,7 @@ from urllib.parse import urlencode
 print(urlencode({"run_id": sys.argv[1]}))
 PY
 )"
-valte_snapshot_url="$valte_gateway_origin/api/snapshot?$valte_run_query"
+valte_snapshot_url="$valte_gateway_base/api/snapshot?$valte_run_query"
 
 if ! valte_snapshot="$(curl -fsS --connect-timeout 3 --max-time 10 "$valte_snapshot_url")"; then
   die "El Gateway no responde para $valte_run_id. Revisa GATEWAY_URL, el run y tu conexión."
@@ -274,7 +286,7 @@ raise SystemExit(0 if payload.get("run", {}).get("run_id") == expected else 1)
   die "El Gateway respondió, pero el snapshot no corresponde a $valte_run_id."
 fi
 
-valte_dashboard_url="$(python3 - "$valte_port" "$valte_run_id" "$valte_gateway_origin" <<'PY'
+valte_dashboard_url="$(python3 - "$valte_port" "$valte_run_id" "$valte_gateway_base" <<'PY'
 import sys
 from urllib.parse import urlencode
 port, run_id, gateway = sys.argv[1:]
@@ -421,30 +433,17 @@ git commit -m "feat: add dashboard make targets"
 ### Task 3: Update the launch documentation and run the real smoke
 
 **Files:**
-- Modify: `README.md:51-225`
+- Modify: `README.md:232-252`
 
-- [ ] **Step 1: Update the prerequisite and Gateway sections**
+- [ ] **Step 1: Confirm the Supabase Edge Gateway instructions are already authoritative**
 
-In `README.md`, remove `func --version` from the prerequisite commands and replace the local Gateway prerequisite with a deployed Gateway URL. Change the environment example to:
-
-```dotenv
-GATEWAY_URL=https://your-deployed-gateway.example
-```
-
-Replace the local Azure Functions startup section with:
-
-```markdown
-### Step 4 — Verify the deployed Gateway
-
-The dashboard and HappyRobot workflows use the deployed Gateway configured in `.env`; no local Azure Functions process is required.
+Run:
 
 ```bash
-curl -fsS "$GATEWAY_URL/api/snapshot?run_id=$DANA_RUN_ID" \
-  | jq -e '.run.run_id == "run-dana-demo"'
+rg -n 'Supabase Edge Gateway|functions/v1/gateway|Azure Functions Core Tools.*not required' README.md
 ```
 
-Continue when `jq` prints `true`.
-```
+Expected: the README configures `GATEWAY_URL` as `$SUPABASE_URL/functions/v1/gateway`, documents its deployment, and states that local Azure Functions are unnecessary. Do not replace this base URL with a bare Supabase origin because the Edge Function path is part of the contract.
 
 - [ ] **Step 2: Make `make up` the recommended dashboard command**
 
@@ -459,7 +458,7 @@ From the repository root:
 make up
 ```
 
-The command loads `.env`, verifies the selected run through the deployed Gateway, starts the dashboard on port `4173`, and opens the correctly configured URL. It stays attached to the terminal; press `Ctrl-C` to stop it.
+The command loads `.env`, verifies the selected run through the Supabase Edge Gateway, preserves the `/functions/v1/gateway` base path, starts the dashboard on port `4173`, and opens the correctly configured URL. It stays attached to the terminal; press `Ctrl-C` to stop it.
 
 To show the wildfire run or select another port:
 
@@ -477,10 +476,10 @@ Run:
 git diff --check -- Makefile scripts/dashboard-local.sh scripts/test-dashboard-local.sh README.md
 bash -n scripts/dashboard-local.sh scripts/test-dashboard-local.sh
 make test-dashboard
-rg -n 'make up|deployed Gateway|no local Azure Functions' README.md
+rg -n 'make up|Supabase Edge Gateway|functions/v1/gateway' README.md
 ```
 
-Expected: no whitespace or shell syntax errors, launcher test passes, and README contains the new launch path.
+Expected: no whitespace or shell syntax errors, launcher test passes, and README contains both the new launch path and the Edge Gateway base path.
 
 - [ ] **Step 4: Stop the manually started dashboard and run the configured preflight**
 
@@ -490,11 +489,11 @@ Stop the existing Python dashboard process on port `4173` only after identifying
 make check
 ```
 
-Expected: either a successful remote Gateway check, or an actionable failure naming the `.env` value that must be corrected. Do not substitute a local Azure Functions URL.
+Expected: a successful Supabase Edge Gateway check. If it fails, report the `.env` value that must be corrected; do not substitute a local Azure Functions URL or strip `/functions/v1/gateway`.
 
 - [ ] **Step 5: Run the real foreground smoke**
 
-Run `make up` in a managed terminal session, wait for `HTTP 200` from `http://127.0.0.1:4173/`, verify the printed URL uses the configured Gateway rather than an implicit `localhost:7071`, send `Ctrl-C`, and confirm the port is released.
+Run `make up` in a managed terminal session, wait for `HTTP 200` from `http://127.0.0.1:4173/`, verify the printed URL includes the encoded `/functions/v1/gateway` path, send `Ctrl-C`, and confirm the port is released.
 
 - [ ] **Step 6: Commit documentation**
 

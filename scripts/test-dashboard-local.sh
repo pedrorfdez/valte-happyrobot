@@ -59,7 +59,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlsplit(self.path)
         run_id = parse_qs(parsed.query).get("run_id", [""])[0]
-        if parsed.path != "/api/snapshot" or not run_id:
+        if parsed.path != "/functions/v1/gateway/api/snapshot" or not run_id:
             self.send_response(404)
             self.end_headers()
             return
@@ -84,7 +84,7 @@ valte_mock_pid=$!
 wait_for_file "$valte_port_file" || fail "mock Gateway did not start"
 valte_mock_port="$(cat "$valte_port_file")"
 valte_env="$valte_tmp/.env"
-printf 'GATEWAY_URL=http://127.0.0.1:%s\nDANA_RUN_ID=run-dana-demo\n' \
+printf 'SUPABASE_URL=http://127.0.0.1:%s\nGATEWAY_URL=http://localhost:7071\nDANA_RUN_ID=run-dana-demo\n' \
   "$valte_mock_port" > "$valte_env"
 
 if VALTE_ENV_FILE="$valte_tmp/missing.env" "$valte_launcher" check >"$valte_tmp/missing.log" 2>&1; then
@@ -119,7 +119,7 @@ wait_for_http "http://127.0.0.1:$valte_dashboard_port/" || fail "dashboard did n
 curl -fsS "http://127.0.0.1:$valte_dashboard_port/" | \
   grep -q 'Centro de coordinación de crisis' || fail "dashboard content is missing"
 grep -q 'run_id=run-wildfire-demo' "$valte_tmp/up.log" || fail "selected run is absent from URL"
-grep -q 'gateway_url=http%3A%2F%2F127.0.0.1' "$valte_tmp/up.log" || fail "Gateway URL is not encoded"
+grep -q 'gateway_url=http%3A%2F%2F127.0.0.1.*%2Ffunctions%2Fv1%2Fgateway' "$valte_tmp/up.log" || fail "Edge Gateway path is absent from URL"
 
 kill -TERM "$valte_up_pid"
 wait "$valte_up_pid" || true

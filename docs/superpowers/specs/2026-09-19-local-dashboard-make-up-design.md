@@ -34,12 +34,13 @@ The `Makefile` is a small command interface. It declares phony targets and deleg
 1. Resolve the repository root independently of the current working directory.
 2. Load the root `.env` with automatic export enabled.
 3. Resolve `RUN_ID` from the command override or `DANA_RUN_ID`.
-4. Resolve `PORT` to `4173` when no override is provided.
-5. Validate required commands, configuration, URL shape, run ID, and port.
-6. Request `GET $GATEWAY_URL/api/snapshot?run_id=<encoded-run-id>` with a bounded timeout.
-7. Build a browser-safe local URL containing the selected `run_id` and remote `gateway_url` query parameters.
-8. Start `python3 -m http.server` for `app/`, wait until it responds locally, and then open or print the URL.
-9. Stay in the foreground and forward shutdown by terminating only the Python process it created.
+4. Use an explicit remote `GATEWAY_URL`; when it is absent or equals the obsolete local Azure URL, derive the Supabase Edge base as `$SUPABASE_URL/functions/v1/gateway`.
+5. Resolve `PORT` to `4173` when no override is provided.
+6. Validate required commands, configuration, URL shape, run ID, and port.
+7. Request `GET $GATEWAY_URL/api/snapshot?run_id=<encoded-run-id>` with a bounded timeout.
+8. Build a browser-safe local URL containing the selected `run_id` and remote `gateway_url` query parameters.
+9. Start `python3 -m http.server` for `app/`, wait until it responds locally, and then open or print the URL.
+10. Stay in the foreground and forward shutdown by terminating only the Python process it created.
 
 The URL is constructed with a standard-library URL encoder rather than shell concatenation so reserved characters cannot corrupt its query string.
 
@@ -49,8 +50,8 @@ The command exits before starting the dashboard when:
 
 - `.env` is missing;
 - `python3` or `curl` is unavailable;
-- `GATEWAY_URL` or the selected run ID is missing or still uses an example placeholder;
-- `GATEWAY_URL` is not an HTTP(S) origin;
+- neither a usable `GATEWAY_URL` nor `SUPABASE_URL` is available, or the selected run ID still uses an example value;
+- `GATEWAY_URL` is not an HTTP(S) base URL, or includes query parameters or credentials;
 - the port is not an integer from 1 through 65535;
 - the selected port is already occupied;
 - the remote snapshot cannot be obtained successfully.
@@ -63,6 +64,8 @@ Each failure names the missing or invalid input and gives the next corrective ac
 - The launcher never migrates, seeds, or writes directly to Supabase.
 - The launcher never starts or publishes HappyRobot workflows.
 - Gateway connectivity is read-only during preflight.
+- The Supabase Edge Gateway path `/functions/v1/gateway` is preserved when the launcher appends `/api/snapshot`.
+- The obsolete `localhost:7071` setting is replaced in memory only when `SUPABASE_URL` is available; arbitrary remote Gateway URLs are never overridden.
 - Supabase Realtime parameters are not required; the dashboard's existing polling path is sufficient for normal operation.
 - `Ctrl-C` stops only the server process started by the current `make up` invocation.
 - An occupied port is reported, never killed or reused implicitly.
