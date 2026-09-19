@@ -21,7 +21,9 @@ def zones():
 
 
 @router.get("/state")
-def state():
+def state(format: str = "json"):
+    """format=string wraps the whole state as one JSON string field, so a
+    HappyRobot GET node exposes it as a single template variable."""
     rid = _run()
     ents = q("select doc, units_available from entities where run_id=%s", (rid,))
     assignments = q("""select entity_id, action_id, units, zone from assignments
@@ -46,7 +48,10 @@ def state():
     tws = q("select doc, set_by, status from tripwires where run_id=%s and status='active'", (rid,))
     pending = q("""select doc from actions where run_id=%s and status='pending_approval'
                    order by t desc limit 10""", (rid,))
-    return {
+    recent_actions = q("""select doc from actions where run_id=%s
+                          order by created_at desc limit 15""", (rid,))
+    out = {
+        "recent_actions": [r["doc"] for r in recent_actions],
         "zones": [r["doc"] for r in q("select doc from zones where run_id=%s", (rid,))],
         "entities": entities,
         "situation": situation["doc"] if situation else {},
@@ -54,3 +59,7 @@ def state():
         "recent_signals": [dict(r["doc"], confidence=r["confidence"]) for r in recent],
         "pending_approval": [r["doc"] for r in pending],
     }
+    if format == "string":
+        import json as _json
+        return {"state_json": _json.dumps(out, ensure_ascii=False, default=str)}
+    return out

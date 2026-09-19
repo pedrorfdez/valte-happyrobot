@@ -2,6 +2,7 @@
 gate, system verbs. The kernel does not trust the agent: everything is
 checked, and rejections explain themselves so the LLM can re-plan."""
 
+import json
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -25,11 +26,103 @@ def _run() -> str:
     return rid
 
 
+async def _body_or_query(request: Request, json_param: str) -> dict:
+    """HappyRobot webhook actions deliver tool arguments as query params;
+    accept a JSON document either as the request body or as one param."""
+    try:
+        body = await request.json()
+        if body:
+            return body
+    except Exception:
+        pass
+    raw = request.query_params.get(json_param)
+    if raw:
+        import json as _json
+        try:
+            return _json.loads(raw)
+        except Exception:
+            raise HTTPException(422, f"{json_param} is not valid JSON")
+    return dict(request.query_params)
+
+
 @router.post("/actions", status_code=201)
 async def create_action(request: Request,
                         idempotency_key: str | None = Header(default=None)):
-    action = await request.json()
+    action = await _body_or_query(request, "action_json")
+    return submit_action(_run(), action, idempotency_key)
+
+
+def _extract_json_objects(s: str) -> list[str]:
+    """Pull balanced top-level {...} JSON objects out of any wrapper text
+    (HappyRobot serializes object variables in Go map format, but the
+    action strings inside remain valid JSON)."""
+    out, depth, start, in_str, esc = [], 0, None, False, False
+    for i, ch in enumerate(s):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0 and start is not None:
+                out.append(s[start:i + 1])
+                start = None
+    return out
+
+
+@router.post("/decisions", status_code=201)
+async def submit_decisions(request: Request):
+    """Batch ingress for the coordinator: one LLM turn returns several
+    actions (each a JSON string, strict-schema friendly) plus a situation
+    note. Invalid actions are reported per item, valid ones proceed."""
+    body = await _body_or_query(request, "decisions_json")
     rid = _run()
+    raw_actions = body.get("actions") or []
+    if isinstance(raw_actions, str):
+        try:
+            parsed = json.loads(raw_actions)
+            raw_actions = parsed if isinstance(parsed, list) else [parsed]
+        except Exception:
+            raw_actions = _extract_json_objects(raw_actions)
+    results = []
+    for i, raw in enumerate(raw_actions):
+        try:
+            action = json.loads(raw) if isinstance(raw, str) else raw
+        except Exception:
+            results.append({"index": i, "error": "not valid JSON"})
+            continue
+        try:
+            results.append({"index": i, "id": action.get("id"),
+                            **submit_action(rid, action, None)})
+        except HTTPException as e:
+            results.append({"index": i, "id": action.get("id"), "error": str(e.detail)})
+    situation_note = body.get("situation_note")
+    if situation_note:
+        row = q("select doc from situation where run_id=%s", (rid,), one=True)
+        doc = row["doc"] if row else {}
+        doc["notes"] = situation_note
+        if body.get("emergency_level") not in (None, ""):
+            try:
+                doc["emergency_level"] = int(body["emergency_level"])
+            except (TypeError, ValueError):
+                pass
+        q("update situation set doc=%s, updated_at=now() where run_id=%s", (js(doc), rid))
+    mark_agent_responded()  # reopen the coordinator wake-up gate
+    accepted = sum(1 for r in results if "error" not in r)
+    return {"accepted": accepted, "rejected": len(results) - accepted, "results": results}
+
+
+def submit_action(rid: str, action: dict, idempotency_key: str | None) -> dict:
     validate(action, "action")
 
     if idempotency_key:
@@ -121,7 +214,10 @@ async def create_action(request: Request,
 
 @router.patch("/actions/{action_id}")
 async def patch_action(action_id: str, request: Request):
-    patch = await request.json()
+    patch = await _body_or_query(request, "patch_json")
+    if patch.get("real_kind"):  # flattened query form
+        patch["real_interaction"] = {"kind": patch.pop("real_kind"),
+                                     "to": patch.pop("real_to", "")}
     rid = _run()
     row = q("select doc, status from actions where run_id=%s and id=%s", (rid, action_id), one=True)
     if not row:

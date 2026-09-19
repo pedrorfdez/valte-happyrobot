@@ -16,7 +16,17 @@ def get_situation():
 
 @router.put("/situation")
 async def put_situation(request: Request):
-    doc = await request.json()
+    try:
+        doc = await request.json()
+    except Exception:
+        doc = None
+    if not doc:
+        import json as _json
+        raw = request.query_params.get("situation_json", "")
+        try:
+            doc = _json.loads(raw)
+        except Exception:
+            raise HTTPException(422, "situation_json is not valid JSON")
     if not isinstance(doc, dict):
         raise HTTPException(422, "situation must be a JSON object")
     q("update situation set doc=%s, updated_at=now() where run_id=%s",
