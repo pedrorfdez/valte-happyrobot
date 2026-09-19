@@ -29,6 +29,8 @@ delete from plans where run_id in ('run-dana-demo', 'run-wildfire-demo');
 delete from incidents where run_id in ('run-dana-demo', 'run-wildfire-demo');
 delete from signals where run_id in ('run-dana-demo', 'run-wildfire-demo');
 delete from source_inputs where run_id in ('run-dana-demo', 'run-wildfire-demo');
+delete from scenario_zones where run_id in ('run-dana-demo', 'run-wildfire-demo', 'run-dana-demo-2');
+delete from scenario_entities where run_id in ('run-dana-demo', 'run-wildfire-demo', 'run-dana-demo-2');
 delete from resources where run_id in ('run-dana-demo', 'run-wildfire-demo');
 
 insert into resources (run_id, resource_id, resource_mode, capacity, available, document)
