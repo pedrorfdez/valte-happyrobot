@@ -69,6 +69,7 @@ Each failure names the missing or invalid input and gives the next corrective ac
 - Supabase Realtime parameters are not required; the dashboard's existing polling path is sufficient for normal operation.
 - `Ctrl-C` stops only the server process started by the current `make up` invocation.
 - An occupied port is reported, never killed or reused implicitly.
+- A released port can be reused immediately after `Ctrl-C`; the availability check follows the HTTP server's `SO_REUSEADDR` behavior.
 
 ## Documentation
 
@@ -84,6 +85,7 @@ Verification covers:
 4. `make up` serving the dashboard on the selected port.
 5. The generated URL containing the selected run ID and remote Gateway, never `localhost:7071` unless explicitly configured by the user.
 6. `Ctrl-C` stopping the server and releasing the port.
+7. A second `make up` starting immediately on that released port.
 
 ## Acceptance criteria
 

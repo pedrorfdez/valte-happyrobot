@@ -128,6 +128,7 @@ import socket
 import sys
 
 with socket.socket() as sock:
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(("127.0.0.1", int(sys.argv[1])))
 PY
 then

@@ -157,6 +157,17 @@ if curl -fsS --max-time 1 "http://127.0.0.1:$valte_dashboard_port/" >/dev/null 2
   fail "dashboard port remained open after shutdown"
 fi
 
+VALTE_ENV_FILE="$valte_env" \
+VALTE_OPEN_BROWSER=0 \
+PORT="$valte_dashboard_port" \
+  "$valte_launcher" up >"$valte_tmp/restart.log" 2>&1 &
+valte_up_pid=$!
+
+wait_for_http "http://127.0.0.1:$valte_dashboard_port/" || fail "dashboard could not restart on its released port"
+kill -TERM "$valte_up_pid"
+wait "$valte_up_pid" || true
+valte_up_pid=""
+
 echo "PASS dashboard launcher"
 ```
 
@@ -303,6 +314,7 @@ if ! python3 - "$valte_port" <<'PY' >/dev/null 2>&1
 import socket
 import sys
 with socket.socket() as sock:
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(("127.0.0.1", int(sys.argv[1])))
 PY
 then
