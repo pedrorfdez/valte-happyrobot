@@ -71,8 +71,20 @@ def ingest_perception(request: Request, p: dict | None = Body(None)):
     }
     result = ingest_signal(rid, signal)
     # perception extras stored on the signal doc for the audit trail
+    is_noise = _bool(p.get("is_noise"))
     q("""update signals set doc = doc || %s::jsonb where run_id=%s and id=%s""",
       (js({"perception": {"summary": p.get("summary", ""),
                           "secondhand": _bool(p.get("secondhand")),
+                          "is_noise": is_noise,
                           "channel": channel}}), rid, signal["id"]))
+    # relevant but claimless (a resource offer, a status report) is NOT noise:
+    # it gets base confidence and wakes the coordinator as informational
+    if not is_noise and not signal["claims"] and result.get("confidence") is None:
+        q("update signals set confidence='low' where run_id=%s and id=%s", (rid, signal["id"]))
+        from ..services.outbox import emit_event
+        emit_event(rid, "signal", {
+            "signal_id": signal["id"], "zone": signal["location"].get("zone"),
+            "confidence": "low",
+            "detail": "INFORMATIONAL (no hazard claim): " + (p.get("summary") or signal["content"])[:110]})
+        result["confidence"] = "low"
     return result

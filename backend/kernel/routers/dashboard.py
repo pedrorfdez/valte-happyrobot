@@ -55,7 +55,8 @@ def dashboard_state(key: str = "", run_id: str = ""):
     pending = [r["doc"] for r in q(
         "select doc from actions where run_id=%s and status='pending_approval' order by created_at desc", (rid,))]
     signals = q("""select doc, confidence from signals where run_id=%s
-                   and jsonb_array_length(doc->'claims') > 0
+                   and (jsonb_array_length(doc->'claims') > 0
+                        or (doc->'perception'->>'is_noise') = 'false')
                    order by t desc limit 18""", (rid,))
     rejected = q("""select payload, created_at from events
                     where run_id=%s and type='action_rejected'
