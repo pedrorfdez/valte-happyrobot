@@ -20,6 +20,7 @@ import {
   formatCommandError,
   getVersionConflictMessage,
 } from "./adapter/gateway.js";
+import { createRealtimeManager, HEALTH } from "./adapter/realtime.js";
 import { buildViewerProjection } from "./adapter/projection.js";
 import { renderList, attachListHandlers } from "./screens/list.js";
 import { renderZones } from "./screens/zones.js";
@@ -39,6 +40,86 @@ let currentRunId = null;
 let snapshotCache = null;
 let viewer = { role: "coordination", entity_id: "cecopi-coordination" };
 let projection = null;
+let realtimeManager = null;
+let realtimeHealth = HEALTH.OFFLINE;
+
+function updateRealtimeBar(health) {
+  realtimeHealth = health;
+  if (typeof document === "undefined") return;
+  const el = byId("v2-realtime-status");
+  const bar = byId("v2-realtime-bar");
+  const dot = bar?.querySelector("span[aria-hidden]");
+  if (el) {
+    el.textContent = health;
+    el.dataset.health = health;
+    const colors = {
+      live: "var(--success, #0a0)",
+      degraded: "var(--warning, #c79a00)",
+      stale: "var(--critical, #e00)",
+      offline: "var(--ink-muted)",
+    };
+    el.style.color = colors[health] || "var(--ink-muted)";
+    if (dot) dot.style.background = colors[health] || "var(--ink-muted)";
+  }
+  if (bar) bar.style.display = snapshotCache ? "flex" : "none";
+  // keep legacy header health in sync
+  setText("v2-health", health);
+}
+
+function startRealtime(runId) {
+  if (typeof document === "undefined") return;
+  if (realtimeManager) {
+    try { realtimeManager.stop(); } catch {}
+    realtimeManager = null;
+  }
+  if (!runId) {
+    updateRealtimeBar(HEALTH.OFFLINE);
+    return;
+  }
+  // Resolve Supabase URL/key from meta/env if available (optional, polling fallback otherwise)
+  let supabaseUrl = null;
+  let supabaseAnonKey = null;
+  try {
+    supabaseUrl = (typeof window !== "undefined" && (window.SUPABASE_URL || window.__SUPABASE_URL)) || null;
+    supabaseAnonKey = (typeof window !== "undefined" && (window.SUPABASE_ANON_KEY || window.__SUPABASE_ANON_KEY)) || null;
+    // also try from localStorage injected by dashboard-v2.sh query? fallback to null → polling degraded
+  } catch {}
+  realtimeManager = createRealtimeManager({
+    runId,
+    fetchSnapshot: async () => {
+      const snap = await fetchSnapshot(runId);
+      return snap;
+    },
+    onSnapshot: (snap) => {
+      snapshotCache = snap;
+      projection = buildViewerProjection(snap, viewer);
+      renderAll();
+    },
+    onHealthChange: (h) => updateRealtimeBar(h),
+    onError: (err) => {
+      if (err && (err.status === 404 || err.code === "run_not_found")) {
+        updateRealtimeBar(HEALTH.OFFLINE);
+      }
+    },
+    supabaseUrl,
+    supabaseAnonKey,
+    pollIntervalMs: 5000,
+    staleThresholdMs: 30000,
+    debounceMs: 250,
+  });
+  updateRealtimeBar(HEALTH.OFFLINE);
+  realtimeManager.start().catch(() => updateRealtimeBar(realtimeManager.getHealth()));
+}
+
+function stopRealtime() {
+  if (realtimeManager) {
+    try { realtimeManager.stop(); } catch {}
+    realtimeManager = null;
+  }
+  updateRealtimeBar(HEALTH.OFFLINE);
+  const bar = typeof document !== "undefined" ? byId("v2-realtime-bar") : null;
+  if (bar && !snapshotCache) bar.style.display = "none";
+}
 
 // Helpers safe for node tests (no window/document)
 function getStorage(key) {
@@ -93,6 +174,7 @@ export async function selectRun(runId) {
   projection = buildViewerProjection(snap, viewer);
   if (typeof document !== "undefined") {
     renderAll();
+    startRealtime(runId);
   }
   return { snapshot: snap, projection, viewer: { ...viewer } };
 }
@@ -128,7 +210,23 @@ function renderHeader(proj) {
   setText("v2-run-name", run?.run_id ? `${run.run_id}` : "—");
   setText("v2-scenario-now", snapshot?.run?.scenario_now ? new Date(snapshot.run.scenario_now).toISOString() : run?.scenario_now || "—");
   setText("v2-viewer", `${viewer.role} · ${viewer.entity_id}`);
-  setText("v2-health", snapshot ? "live" : "offline");
+  // health ahora lo maneja realtime bar; mantenemos v2-health sincronizado
+  if (realtimeManager) {
+    setText("v2-health", realtimeManager.getHealth());
+  } else {
+    setText("v2-health", snapshot ? "degraded" : "offline");
+  }
+  // actualizar barra tiempo real debajo del header
+  if (snapshot && realtimeManager) {
+    updateRealtimeBar(realtimeManager.getHealth());
+  } else if (snapshot) {
+    updateRealtimeBar(HEALTH.DEGRADED);
+    const bar = byId("v2-realtime-bar");
+    if (bar) bar.style.display = "flex";
+  } else {
+    const bar = byId("v2-realtime-bar");
+    if (bar) bar.style.display = "none";
+  }
   // KPIs computed after filtering (spec §7.2)
   const k = proj?.kpis;
   if (k) {
@@ -230,6 +328,18 @@ function renderHeader(proj) {
 
 async function refreshSnapshot(reason = "manual") {
   if (!currentRunId) return null;
+  // si realtime manager está activo, usa su refreshNow para mantener health coherente
+  if (realtimeManager && typeof realtimeManager.refreshNow === "function") {
+    try {
+      const snap = await realtimeManager.refreshNow(reason);
+      snapshotCache = snap;
+      projection = buildViewerProjection(snap, viewer);
+      if (typeof document !== "undefined") renderAll();
+      return snap;
+    } catch {
+      // fallback a fetch directo
+    }
+  }
   const snap = await fetchSnapshot(currentRunId);
   snapshotCache = snap;
   projection = buildViewerProjection(snap, viewer);
@@ -370,15 +480,39 @@ async function renderListScreen() {
 function installSwitcher() {
   if (typeof document === "undefined") return;
   const sel = byId("v2-role-switcher");
-  if (!sel) return;
-  sel.addEventListener("change", () => {
-    const entityId = sel.value;
-    const opt = sel.options[sel.selectedIndex];
-    const role = opt?.dataset?.role || "authority";
-    switchViewer({ role, entity_id: entityId });
-    const statusEl = byId("v2-status");
-    if (statusEl && currentRunId) statusEl.textContent = `v2 · ${currentRunId} · ${role}`;
-  });
+  if (sel && !sel.dataset.bound) {
+    sel.dataset.bound = "1";
+    sel.addEventListener("change", () => {
+      const entityId = sel.value;
+      const opt = sel.options[sel.selectedIndex];
+      const role = opt?.dataset?.role || "authority";
+      switchViewer({ role, entity_id: entityId });
+      const statusEl = byId("v2-status");
+      if (statusEl && currentRunId) statusEl.textContent = `v2 · ${currentRunId} · ${role}`;
+    });
+  }
+  const backBtn = byId("v2-back-to-list");
+  if (backBtn && !backBtn.dataset.bound) {
+    backBtn.dataset.bound = "1";
+    backBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      stopRealtime();
+      currentRunId = null;
+      snapshotCache = null;
+      projection = null;
+      try { localStorage.removeItem(STORAGE_RUN); } catch {}
+      const listWrap = byId("v2-list-screen");
+      const dash = byId("v2-dashboard");
+      if (listWrap) listWrap.style.display = "flex";
+      if (dash) dash.style.display = "none";
+      const bar = byId("v2-realtime-bar");
+      if (bar) bar.style.display = "none";
+      setText("v2-health", "offline");
+      setText("v2-run-name", "—");
+      setText("v2-scenario-now", "—");
+      renderListScreen();
+    });
+  }
 }
 
 async function init() {
