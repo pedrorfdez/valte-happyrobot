@@ -7,7 +7,19 @@
  * Re-renders all screens and KPIs on switcher change (spec §16.3)
  */
 
-import { fetchRuns, fetchSnapshot } from "./adapter/gateway.js";
+import {
+  fetchRuns,
+  fetchSnapshot,
+  approveAction,
+  rejectAction,
+  pauseRun,
+  resumeRun,
+  abortRun,
+  canRenderRunControls,
+  isVersionConflictError,
+  formatCommandError,
+  getVersionConflictMessage,
+} from "./adapter/gateway.js";
 import { buildViewerProjection } from "./adapter/projection.js";
 import { renderList, attachListHandlers } from "./screens/list.js";
 import { renderZones } from "./screens/zones.js";
@@ -152,6 +164,77 @@ function renderHeader(proj) {
       sel.appendChild(opt);
     }
   }
+  // Run controls: only Coordination view renders pause/resume/abort (spec §10)
+  let controlsEl = byId("v2-run-controls");
+  const headerEl = byId("v2-run-name")?.closest("header") || document.querySelector("header");
+  if (!controlsEl && headerEl) {
+    controlsEl = document.createElement("div");
+    controlsEl.id = "v2-run-controls";
+    controlsEl.setAttribute("data-testid", "run-controls");
+    controlsEl.style.cssText = "display:flex; gap:8px; align-items:center; margin-left:12px;";
+    // insert after viewer/switcher row: append to header first row container
+    const firstRow = headerEl.querySelector("div");
+    if (firstRow) firstRow.appendChild(controlsEl);
+    else headerEl.appendChild(controlsEl);
+  }
+  if (controlsEl) {
+    const canControl = canRenderRunControls(viewer) && !!snapshot;
+    if (!canControl) {
+      controlsEl.style.display = "none";
+      controlsEl.innerHTML = "";
+    } else {
+      controlsEl.style.display = "flex";
+      const status = snapshot?.run?.status || "unknown";
+      controlsEl.innerHTML = `
+        <button data-testid="pause-btn" data-action="pause" style="padding:4px 10px; border-radius:6px; border:1px solid var(--line-strong); background:var(--surface-100); color:var(--ink); font-family:var(--font-mono); font-size:11px; cursor:pointer;" ${status==="paused" ? "disabled" : ""}>Pausar</button>
+        <button data-testid="resume-btn" data-action="resume" style="padding:4px 10px; border-radius:6px; border:1px solid var(--line-strong); background:var(--surface-100); color:var(--ink); font-family:var(--font-mono); font-size:11px; cursor:pointer;" ${status==="running" ? "disabled" : status==="ready" || status==="paused" ? "" : "disabled"}>Reanudar</button>
+        <button data-testid="abort-btn" data-action="abort" style="padding:4px 10px; border-radius:6px; border:1px solid var(--critical, #e00); background:var(--surface-100); color:var(--critical, #e00); font-family:var(--font-mono); font-size:11px; cursor:pointer;">Abortar</button>
+        <span data-testid="run-control-feedback" style="font-family:var(--font-mono); font-size:11px; color:var(--ink-muted); margin-left:4px;"></span>
+      `;
+      // attach once
+      if (!controlsEl.dataset.bound) {
+        controlsEl.dataset.bound = "1";
+        controlsEl.addEventListener("click", async (e) => {
+          const btn = e.target.closest("button[data-action]");
+          if (!btn) return;
+          const action = btn.dataset.action;
+          const feedback = controlsEl.querySelector('[data-testid="run-control-feedback"]');
+          const setFeedback = (msg, isError) => { if (feedback) { feedback.textContent = msg; feedback.style.color = isError ? "var(--critical, #e00)" : "var(--ink-muted)"; } };
+          // disable all during request
+          const allBtns = controlsEl.querySelectorAll("button");
+          allBtns.forEach((b) => (b.disabled = true));
+          setFeedback("enviando…", false);
+          try {
+            let res;
+            if (action === "pause") res = await pauseRun(snapshotCache);
+            else if (action === "resume") res = await resumeRun(snapshotCache);
+            else if (action === "abort") res = await abortRun(snapshotCache);
+            setFeedback("ok", false);
+            await refreshSnapshot("run-control");
+          } catch (err) {
+            if (isVersionConflictError(err)) {
+              setFeedback(getVersionConflictMessage(), true);
+              await refreshSnapshot("version_conflict");
+            } else {
+              setFeedback(formatCommandError(err), true);
+            }
+          } finally {
+            // re-enable via rerender; renderHeader will rebuild buttons
+            setTimeout(() => renderHeader(projection), 300);
+          }
+        });
+      }
+    }
+  }
+}
+
+async function refreshSnapshot(reason = "manual") {
+  if (!currentRunId) return null;
+  const snap = await fetchSnapshot(currentRunId);
+  snapshotCache = snap;
+  projection = buildViewerProjection(snap, viewer);
+  if (typeof document !== "undefined") renderAll();
+  return snap;
 }
 
 function renderScreens(proj) {
@@ -161,7 +244,41 @@ function renderScreens(proj) {
   const incEl = byId("v2-incidents");
   if (incEl) incEl.innerHTML = renderIncidents(proj?.incidents || []);
   const actEl = byId("v2-actions");
-  if (actEl) actEl.innerHTML = renderActions(proj?.actions || []);
+  if (actEl) {
+    actEl.innerHTML = renderActions(proj?.actions || [], viewer);
+    // attach approve/reject delegation once
+    if (!actEl.dataset.bound) {
+      actEl.dataset.bound = "1";
+      actEl.addEventListener("click", async (e) => {
+        const btn = e.target.closest("button[data-decide]");
+        if (!btn) return;
+        const actionId = btn.dataset.actionId || btn.getAttribute("data-action-id");
+        const decide = btn.dataset.decide;
+        if (!actionId || !decide) return;
+        const feedback = actEl.querySelector(`[data-testid="action-decision-feedback"][data-action-id="${actionId}"]`) || btn.parentElement?.querySelector('[data-testid="action-decision-feedback"]');
+        const setFeedback = (msg, isError) => { if (feedback) { feedback.textContent = msg; feedback.style.color = isError ? "var(--critical, #e00)" : "var(--ink-muted)"; } };
+        const allBtns = actEl.querySelectorAll(`button[data-action-id="${actionId}"]`);
+        allBtns.forEach((b) => (b.disabled = true));
+        setFeedback("enviando…", false);
+        try {
+          if (decide === "approve") await approveAction(snapshotCache, actionId, viewer.entity_id);
+          else await rejectAction(snapshotCache, actionId, viewer.entity_id);
+          setFeedback("ok", false);
+          await refreshSnapshot(decide);
+        } catch (err) {
+          if (isVersionConflictError(err)) {
+            setFeedback(getVersionConflictMessage(), true);
+            try { await refreshSnapshot("version_conflict"); } catch {}
+          } else {
+            setFeedback(formatCommandError(err), true);
+          }
+        } finally {
+          // re-enable via rerender
+          setTimeout(() => { if (projection) renderScreens(projection); }, 400);
+        }
+      });
+    }
+  }
   const resEl = byId("v2-resources");
   if (resEl) resEl.innerHTML = renderResources(proj?.resources || []);
   const contEl = byId("v2-contacts");

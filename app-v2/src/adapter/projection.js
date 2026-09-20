@@ -10,13 +10,18 @@ function cloneArray(arr) {
   return Array.isArray(arr) ? [...arr] : [];
 }
 
-function sanitizeEvidence(evidence) {
+function sanitizeEvidence(evidence, fallbackReasoning) {
   if (!Array.isArray(evidence) || evidence.length === 0) return [];
   // Replace any signal-referenced evidence with redacted operational evidence
   // to avoid leaking signal_id/revision/content in view model.
+  // Fallback preserves action/incident reasoning so demo looks useful without signal leakage.
+  const summary =
+    typeof fallbackReasoning === "string" && fallbackReasoning.trim()
+      ? fallbackReasoning.trim().slice(0, 80)
+      : "Evidencia operativa";
   return evidence.map(() => ({
     kind: "operational",
-    summary: "Evidencia operativa",
+    summary,
     redacted: true,
   }));
 }
@@ -24,7 +29,7 @@ function sanitizeEvidence(evidence) {
 function sanitizeIncident(incident) {
   if (!incident || typeof incident !== "object") return incident;
   const copy = { ...incident };
-  if (Array.isArray(copy.evidence)) copy.evidence = sanitizeEvidence(copy.evidence);
+  if (Array.isArray(copy.evidence)) copy.evidence = sanitizeEvidence(copy.evidence, copy.summary || copy.title || copy.reasoning || "");
   // ensure we do not leak signal fields elsewhere
   return copy;
 }
@@ -32,14 +37,14 @@ function sanitizeIncident(incident) {
 function sanitizeAction(action) {
   if (!action || typeof action !== "object") return action;
   const copy = { ...action };
-  if (Array.isArray(copy.evidence)) copy.evidence = sanitizeEvidence(copy.evidence);
+  if (Array.isArray(copy.evidence)) copy.evidence = sanitizeEvidence(copy.evidence, copy.reasoning || "");
   return copy;
 }
 
 function sanitizePlan(plan) {
   if (!plan || typeof plan !== "object") return plan;
   const copy = { ...plan };
-  if (Array.isArray(copy.evidence)) copy.evidence = sanitizeEvidence(copy.evidence);
+  if (Array.isArray(copy.evidence)) copy.evidence = sanitizeEvidence(copy.evidence, copy.reasoning || copy.summary || "");
   return copy;
 }
 
@@ -141,7 +146,7 @@ export function buildContacts(entities, visibleActions, outbox, outcomes, viewer
     const sanitizedRelated = relatedActions.map(sanitizeAction);
     const sanitizedOutcomes = relatedOutcomes.map((o) => {
       const copy = { ...o };
-      if (Array.isArray(copy.evidence)) copy.evidence = sanitizeEvidence(copy.evidence);
+      if (Array.isArray(copy.evidence)) copy.evidence = sanitizeEvidence(copy.evidence, copy.summary || copy.reasoning || "");
       return copy;
     });
 
@@ -184,7 +189,7 @@ export function redactSignals(snapshot) {
   if (Array.isArray(copy.outcomes)) {
     copy.outcomes = copy.outcomes.map((o) => {
       const c = { ...o };
-      if (Array.isArray(c.evidence)) c.evidence = sanitizeEvidence(c.evidence);
+      if (Array.isArray(c.evidence)) c.evidence = sanitizeEvidence(c.evidence, c.summary || c.reasoning || "");
       return c;
     });
   }
@@ -250,7 +255,7 @@ export function buildViewerProjection(snapshot, viewer) {
           })
           .map((o) => {
             const c = { ...o };
-            if (Array.isArray(c.evidence)) c.evidence = sanitizeEvidence(c.evidence);
+            if (Array.isArray(c.evidence)) c.evidence = sanitizeEvidence(c.evidence, c.summary || c.reasoning || "");
             return c;
           })
       : [],
