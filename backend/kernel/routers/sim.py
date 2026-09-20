@@ -52,10 +52,10 @@ def sim_start(body: dict = Body(default={})):
     t = threading.Thread(
         target=_run_engine,
         args=(body.get("scenario_id", "dana-valencia"),
-              float(body.get("speed", 30)), int(body.get("seed", 42))),
+              float(body.get("speed", 60)), int(body.get("seed", 42))),
         daemon=True)
     t.start()
-    return {"started": True, "speed": body.get("speed", 30), "seed": body.get("seed", 42)}
+    return {"started": True, "speed": body.get("speed", 60), "seed": body.get("seed", 42)}
 
 
 @router.post("/sim/stop")

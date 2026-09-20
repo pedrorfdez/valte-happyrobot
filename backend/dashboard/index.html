@@ -484,7 +484,7 @@ async function simToggle(){
   btn.disabled = true;
   try {
     const r = await fetch("/sim/start", { method:"POST", headers:{...H, "Content-Type":"application/json"},
-      body: JSON.stringify({scenario_id:"dana-valencia", speed:30, seed:42}) });
+      body: JSON.stringify({scenario_id:"dana-valencia", speed:60, seed:42}) });
     if (r.ok) simStarted = true;   // auto-follow the run it creates
     else {
       document.getElementById("err").textContent = "start failed: " + (await r.text()).slice(0,120);
