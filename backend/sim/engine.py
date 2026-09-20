@@ -38,6 +38,7 @@ class Engine:
         self._truth = open(truth_path, "a") if truth_path else None
         self.emitted = 0
         self.markers: list[dict] = []
+        self.stop_requested = False
 
     def _emit(self, signal: dict, call_meta: dict | None = None):
         channel, mode, payload = self.router.adapt(signal, call_meta)
@@ -103,7 +104,7 @@ class Engine:
         self.clock.start_running()
         last_t = self.clock.start
         try:
-            while not self.clock.finished():
+            while not self.clock.finished() and not self.stop_requested:
                 t = self.clock.now()
                 dt_minutes = (t - last_t).total_seconds() / 60.0
                 last_t = t

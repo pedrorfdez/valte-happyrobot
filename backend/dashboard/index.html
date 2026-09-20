@@ -136,6 +136,10 @@ button:focus-visible { outline:2px solid var(--sev-3); outline-offset:2px; }
   </div>
   <div class="clock mono" id="clock">--:--</div>
   <span class="chip level0" id="level">LEVEL –</span>
+  <span id="simctl">
+    <button class="ok" id="simbtn" onclick="simToggle()">Start scenario</button>
+    <span class="small muted" id="simstate"></span>
+  </span>
   <div class="hero">
     <div class="n mono" id="alerttime">no alert yet</div>
     <div class="cap" id="alertcap">mass alert to the population</div>
@@ -472,6 +476,36 @@ async function gate(id, verb){
   tick();
 }
 
+let simRunning = false, simStarted = false;
+async function simToggle(){
+  const btn = document.getElementById("simbtn");
+  btn.disabled = true;
+  try {
+    if (simRunning) {
+      await fetch("/sim/stop", { method:"POST", headers:H });
+    } else {
+      const r = await fetch("/sim/start", { method:"POST", headers:{...H, "Content-Type":"application/json"},
+        body: JSON.stringify({scenario_id:"dana-valencia", speed:30, seed:42}) });
+      if (r.ok) simStarted = true;   // auto-follow the run it creates
+      else document.getElementById("err").textContent = "start failed: " + (await r.text()).slice(0,120);
+    }
+  } finally { btn.disabled = false; }
+  pollSim();
+}
+async function pollSim(){
+  try {
+    const s = await (await fetch("/sim/status", { headers:H })).json();
+    simRunning = s.running;
+    const btn = document.getElementById("simbtn");
+    btn.textContent = simRunning ? "Stop scenario" : "Start scenario";
+    btn.className = simRunning ? "no" : "ok";
+    document.getElementById("simstate").textContent =
+      s.error ? "sim error: " + s.error.slice(0,80)
+      : simRunning ? `simulating (${s.emitted ?? 0} signals sent)` : "";
+  } catch(e) {}
+}
+setInterval(pollSim, 3000); pollSim();
+
 let pinnedRun = new URLSearchParams(location.search).get("run_id") || "";
 function switchRun(id){ pinnedRun = id; document.getElementById("newrun").hidden = true; tick(); }
 async function tick(){
@@ -482,6 +516,7 @@ async function tick(){
     if (!pinnedRun) pinnedRun = d.run.id;
     const banner = document.getElementById("newrun");
     if (d.latest_run_id && d.latest_run_id !== d.run.id) {
+      if (simStarted) { simStarted = false; switchRun(d.latest_run_id); return; }
       banner.hidden = false;
       banner.querySelector("button").onclick = () => switchRun(d.latest_run_id);
     } else banner.hidden = true;

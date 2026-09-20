@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir fastapi "uvicorn[standard]" "psycopg[binary,pool]
 COPY schemas/ /schemas/
 COPY scenarios/ /scenarios/
 COPY backend/kernel/ /app/kernel/
+COPY backend/sim/ /app/sim/
 COPY backend/dashboard/ /app/dashboard/
 COPY backend/migrations/ /app/migrations/
 COPY backend/scripts/migrate.py /app/scripts/migrate.py
