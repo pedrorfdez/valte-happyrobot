@@ -123,7 +123,9 @@ def submit_decisions(request: Request, req_body: dict | None = Body(None)):
         if hr_run_id:
             doc["hr_run_id"] = hr_run_id
         q("update situation set doc=%s, updated_at=now() where run_id=%s", (js(doc), rid))
-        q("insert into situation_history (run_id, doc) values (%s, %s)", (rid, js(doc)))
+        newest = q("select max(t) as m from signals where run_id=%s", (rid,), one=True)
+        hist = {**doc, "scenario_t": newest["m"].isoformat() if newest and newest["m"] else None}
+        q("insert into situation_history (run_id, doc) values (%s, %s)", (rid, js(hist)))
     mark_agent_responded()  # reopen the coordinator wake-up gate
     accepted = sum(1 for r in results if "error" not in r)
     return {"accepted": accepted, "rejected": len(results) - accepted, "results": results}
@@ -210,7 +212,10 @@ def submit_action(rid: str, action: dict, idempotency_key: str | None) -> dict:
                 f"duplicate: {dup['id']} is already {dup['status']} for {actor_id} {verb} on the same zones. "
                 f"Do not repeat it; act again only when it completes or conditions change materially.")
 
-    needs_approval = (adoc.get("activation") or {}).get("cost") == "high"
+    # high-cost actors are gated; so is requesting the military, whoever
+    # asks: that political decision belongs to a human in every run
+    needs_approval = ((adoc.get("activation") or {}).get("cost") == "high"
+                      or verb == "request_ume")
     status = "pending_approval" if needs_approval else "approved"
     action["status"] = status
 

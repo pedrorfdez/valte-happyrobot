@@ -82,7 +82,8 @@ def dashboard_state(key: str = "", run_id: str = ""):
         "assignments": [dict(a) for a in assignments],
         "situation": situation["doc"] if situation else {},
         "situation_history": [
-            {"t": r["written_at"].isoformat(), "notes": r["doc"].get("notes", ""),
+            {"t": r["doc"].get("scenario_t") or r["written_at"].isoformat(),
+             "notes": r["doc"].get("notes", ""),
              "level": r["doc"].get("emergency_level")} for r in sit_history],
         "tripwires": [{**r["doc"], "id": r["id"], "status": r["status"], "set_by": r["set_by"]}
                       for r in tripwires],

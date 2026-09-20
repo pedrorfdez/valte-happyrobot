@@ -27,5 +27,7 @@ def put_situation(request: Request, doc: dict | None = Body(None)):
         raise HTTPException(422, "situation must be a JSON object")
     rid = current_run_id()
     q("update situation set doc=%s, updated_at=now() where run_id=%s", (js(doc), rid))
-    q("insert into situation_history (run_id, doc) values (%s, %s)", (rid, js(doc)))
+    newest = q("select max(t) as m from signals where run_id=%s", (rid,), one=True)
+    hist = {**doc, "scenario_t": newest["m"].isoformat() if newest and newest["m"] else None}
+    q("insert into situation_history (run_id, doc) values (%s, %s)", (rid, js(hist)))
     return {"situation": doc}
