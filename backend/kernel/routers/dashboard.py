@@ -62,7 +62,7 @@ def dashboard_state(key: str = "", run_id: str = ""):
     signals = q("""select doc, confidence from signals where run_id=%s
                    and (jsonb_array_length(doc->'claims') > 0
                         or (doc->'perception'->>'is_noise') = 'false')
-                   order by t desc limit 18""", (rid,))
+                   order by t desc, received_at desc, id desc limit 18""", (rid,))
     rejected = q("""select payload, created_at from events
                     where run_id=%s and type='action_rejected'
                     order by pk desc limit 10""", (rid,))

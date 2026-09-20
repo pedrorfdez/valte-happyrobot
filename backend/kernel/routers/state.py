@@ -44,7 +44,7 @@ def state(format: str = "json"):
     recent = q("""select doc, confidence from signals where run_id=%s
                   and ((confidence in ('medium','high') and jsonb_array_length(doc->'claims') > 0)
                        or (doc->'perception'->>'is_noise') = 'false' and jsonb_array_length(doc->'claims') = 0)
-                  order by t desc limit 12""", (rid,))
+                  order by t desc, received_at desc, id desc limit 12""", (rid,))
     situation = q("select doc, updated_at from situation where run_id=%s", (rid,), one=True)
     tws = q("select doc, set_by, status from tripwires where run_id=%s and status='active'", (rid,))
     pending = q("""select doc from actions where run_id=%s and status='pending_approval'
