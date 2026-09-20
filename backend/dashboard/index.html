@@ -23,6 +23,8 @@ html, body { height:100%; }
 body { background:var(--surface-0); color:var(--text-primary);
   font:14px/1.5 ui-sans-serif, system-ui, "Segoe UI", sans-serif;
   padding:0 20px; overflow:hidden; display:flex; flex-direction:column; }
+main { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain;
+  scrollbar-width:thin; scrollbar-color:var(--surface-3) transparent; }
 
 /* status band: the level paints the rule across the top of the room */
 header { display:flex; align-items:center; gap:22px; flex-wrap:wrap;
@@ -50,7 +52,8 @@ h2 { font-size:13px; font-weight:650; color:var(--text-secondary);
   margin:0 0 10px; display:flex; align-items:baseline; gap:8px; }
 .spark { color:var(--text-muted); font-size:11.5px; font-weight:450; margin-left:auto; }
 
-.grid { display:grid; grid-template-columns: 430px 1fr 1fr; gap:14px; flex:1; min-height:0; }
+.grid { display:grid; grid-template-columns: 430px 1fr 1fr; gap:14px;
+  height:calc(100vh - 110px); min-height:520px; }
 @media (max-width:1200px){ .grid{ grid-template-columns:1fr 1fr; } }
 @media (max-width:800px){ .grid{ grid-template-columns:1fr; } }
 .card { background:var(--surface-1); border:1px solid var(--border-soft);
@@ -62,7 +65,7 @@ h2 { font-size:13px; font-weight:650; color:var(--text-secondary);
 
 /* map card sits on the exact validated chart surface */
 #mapcard { margin-bottom:14px; flex:none; }
-#mapcard svg { display:block; width:100%; height:46vh; min-height:300px; }
+#mapcard svg { display:block; width:100%; height:60vh; min-height:340px; }
 svg { background:var(--surface-1); border-radius:6px; }
 svg text { font:11px ui-sans-serif, system-ui; fill:var(--text-secondary); }
 svg .zname { fill:var(--text-primary); font-weight:650; font-size:12px; }
@@ -169,6 +172,7 @@ button:focus-visible { outline:2px solid var(--sev-3); outline-offset:2px; }
   <button style="margin-left:10px">Switch to newest run</button>
 </div>
 
+<main>
 <div class="card" id="mapcard">
   <h2>Basin — ground truth</h2>
   <svg id="map" viewBox="0 0 400 280" role="img" aria-label="Basin map"></svg>
@@ -222,6 +226,7 @@ button:focus-visible { outline:2px solid var(--sev-3); outline-offset:2px; }
     </div>
   </div>
 </div>
+</main>
 
 <script>
 const KEY = "__API_KEY__";
@@ -266,29 +271,43 @@ const hm = t => {
 };
 let entName = {};   // id -> display name, refreshed each render
 
-let bbox = null;   // derived from the pack's zone centroids
-function computeBbox(zones){
+let bbox = null, CW = 400, CH = 280;  // canvas follows the card's real aspect
+function computeBbox(zones, svg){
   const lats = zones.map(z=>z.centroid.lat), lngs = zones.map(z=>z.centroid.lng);
-  const padLat = (Math.max(...lats)-Math.min(...lats)) * 0.18 + 0.005;
-  const padLng = (Math.max(...lngs)-Math.min(...lngs)) * 0.18 + 0.005;
-  bbox = { la0: Math.min(...lats)-padLat, la1: Math.max(...lats)+padLat,
-           lo0: Math.min(...lngs)-padLng, lo1: Math.max(...lngs)+padLng };
+  const padLat = (Math.max(...lats)-Math.min(...lats)) * 0.20 + 0.006;
+  const padLng = (Math.max(...lngs)-Math.min(...lngs)) * 0.20 + 0.006;
+  let la0 = Math.min(...lats)-padLat, la1 = Math.max(...lats)+padLat;
+  let lo0 = Math.min(...lngs)-padLng, lo1 = Math.max(...lngs)+padLng;
+  // adapt the canvas to the rendered card and widen the shorter geographic
+  // axis so proportions stay true and the card fills edge to edge
+  const rect = svg.getBoundingClientRect();
+  if (rect.width > 0 && rect.height > 0) { CH = 280; CW = 280 * rect.width / rect.height; }
+  svg.setAttribute("viewBox", `0 0 ${CW} ${CH}`);
+  const cosm = Math.cos((la0+la1)/2 * Math.PI/180);
+  const targetLngSpan = (la1-la0) * ((CW-40)/(CH-50)) / cosm;
+  if (lo1-lo0 < targetLngSpan) {
+    const grow = (targetLngSpan - (lo1-lo0)) / 2; lo0 -= grow; lo1 += grow;
+  } else {
+    const targetLatSpan = (lo1-lo0) * cosm / ((CW-40)/(CH-50));
+    const grow = (targetLatSpan - (la1-la0)) / 2; la0 -= grow; la1 += grow;
+  }
+  bbox = { la0, la1, lo0, lo1 };
 }
 function project(lat, lng){
-  const x = (lng - bbox.lo0) / (bbox.lo1 - bbox.lo0) * 360 + 20;
-  const y = (bbox.la1 - lat) / (bbox.la1 - bbox.la0) * 230 + 20;
+  const x = (lng - bbox.lo0) / (bbox.lo1 - bbox.lo0) * (CW-40) + 20;
+  const y = (bbox.la1 - lat) / (bbox.la1 - bbox.la0) * (CH-50) + 20;
   return [x, y];
 }
 
 // stitched satellite underlay (ships in the container; tile-aligned bounds)
-const IMG = { href:"/dashboard/basin.jpg", lngW:-0.87891, lngE:-0.26367, latN:39.57182, latS:39.3003 };
+const IMG = { href:"/dashboard/basin.jpg", lngW:-1.14258, lngE:-0.08789, latN:39.63954, latS:39.23225 };
 function renderMap(d){
   const svg = document.getElementById("map");
   const hz = {}; d.hazards.forEach(h => { if(!hz[h.zone] || h.severity > hz[h.zone].severity) hz[h.zone]=h; });
   const pop = {}; d.entities.filter(e=>e.kind==="population").forEach(e => pop[e.zone]=e.population);
   const zs = d.zones.filter(z => z.centroid &&
     ((z.population||0) > 0 || d.hazards.some(h=>h.zone===z.id)));
-  computeBbox(zs.length ? zs : d.zones.filter(z=>z.centroid));
+  computeBbox(zs.length ? zs : d.zones.filter(z=>z.centroid), svg);
   const byId = Object.fromEntries(zs.map(z=>[z.id,z]));
   let out = "";
   { // satellite underlay, positioned by its geographic corners
