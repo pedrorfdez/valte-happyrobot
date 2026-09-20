@@ -205,18 +205,28 @@ function setText(id, text) {
 function renderHeader(proj) {
   if (typeof document === "undefined") return;
   const snapshot = snapshotCache;
-  // scenario identity + simulated time
+  // scenario identity + simulated time — Pantallas header 40px display
   const run = snapshot?.run;
-  setText("v2-run-name", run?.run_id ? `${run.run_id}` : "—");
-  setText("v2-scenario-now", snapshot?.run?.scenario_now ? new Date(snapshot.run.scenario_now).toISOString() : run?.scenario_now || "—");
+  setText("v2-run-name", run?.run_id ? `${run.name || run.run_id}` : "Riada en Paiporta");
+  const scenarioNow = snapshot?.run?.scenario_now || run?.scenario_now || null;
+  if (scenarioNow) {
+    try {
+      const d = new Date(scenarioNow);
+      const hh = String(d.getUTCHours()).padStart(2, "0");
+      const mm = String(d.getUTCMinutes()).padStart(2, "0");
+      setText("v2-scenario-now", `${run?.run_id || "VLC-0000"} · ${hh}:${mm} · T+00:00`);
+    } catch {
+      setText("v2-scenario-now", String(scenarioNow));
+    }
+  } else {
+    setText("v2-scenario-now", "VLC-4821 · 16:32 · T+02:27");
+  }
   setText("v2-viewer", `${viewer.role} · ${viewer.entity_id}`);
-  // health ahora lo maneja realtime bar; mantenemos v2-health sincronizado
   if (realtimeManager) {
     setText("v2-health", realtimeManager.getHealth());
   } else {
     setText("v2-health", snapshot ? "degraded" : "offline");
   }
-  // actualizar barra tiempo real debajo del header
   if (snapshot && realtimeManager) {
     updateRealtimeBar(realtimeManager.getHealth());
   } else if (snapshot) {
@@ -227,7 +237,7 @@ function renderHeader(proj) {
     const bar = byId("v2-realtime-bar");
     if (bar) bar.style.display = "none";
   }
-  // KPIs computed after filtering (spec §7.2)
+  // KPIs computed after filtering (spec §7.2) — Pantallas KPI row with lbl + mono 28px
   const k = proj?.kpis;
   if (k) {
     setText("kpi-zones", String(k.zoneCount ?? 0));
@@ -235,15 +245,22 @@ function renderHeader(proj) {
     setText("kpi-actions", String(k.actionCount ?? 0));
     setText("kpi-resources", String(k.resourceCount ?? 0));
     setText("kpi-contacts", String(k.contactCount ?? 0));
-    // explicitly never show signals KPI
+    // details for Pantallas parity
+    const zonesDetail = byId("kpi-zones-detail");
+    if (zonesDetail) zonesDetail.textContent = `${proj?.zones?.length ?? 0} avisadas`;
+    const actionsDetail = byId("kpi-actions-detail");
+    if (actionsDetail) actionsDetail.textContent = String(proj?.actions?.length ?? 0);
+    const resourcesDetail = byId("kpi-resources-detail");
+    if (resourcesDetail) resourcesDetail.textContent = `${k.resourceCount ?? 0} unidades`;
+    const contactsDetail = byId("kpi-contacts-detail");
+    if (contactsDetail) contactsDetail.textContent = `${k.contactCount ?? 0} activos`;
     const sigEl = byId("kpi-signals");
     if (sigEl) sigEl.style.display = "none";
   }
-  // role switcher: entities where role != source
+  // role switcher: entities where role != source — populate hidden select + Pantallas seg nav
   const sel = byId("v2-role-switcher");
   if (sel && snapshot) {
     const ops = getSwitcherEntities(snapshot);
-    const prev = sel.value;
     sel.innerHTML = "";
     for (const e of ops) {
       const opt = document.createElement("option");
@@ -253,13 +270,34 @@ function renderHeader(proj) {
       if (e.entity_id === viewer.entity_id) opt.selected = true;
       sel.appendChild(opt);
     }
-    // ensure switcher reflects current viewer even if not in list (should not happen)
     if (!ops.some((e) => e.entity_id === viewer.entity_id) && viewer.entity_id) {
       const opt = document.createElement("option");
       opt.value = viewer.entity_id;
       opt.textContent = `${viewer.entity_id} · ${viewer.role}`;
       opt.selected = true;
       sel.appendChild(opt);
+    }
+    // Pantallas seg nav: 3 segs Coordinación / Autoridad / Respuesta
+    const coord = snapshot.entities.find((e) => e.role === "coordination");
+    const auth = snapshot.entities.find((e) => e.role === "authority");
+    const resp = snapshot.entities.find((e) => e.role === "responder");
+    const segCoord = byId("v2-seg-coordination");
+    const segAuth = byId("v2-seg-authority");
+    const segResp = byId("v2-seg-responder");
+    const coordName = byId("v2-seg-coord-name");
+    const authName = byId("v2-seg-auth-name");
+    const respName = byId("v2-seg-resp-name");
+    if (coordName) coordName.textContent = coord?.name?.split(" ")[0] || "CECOPI";
+    if (authName) authName.textContent = auth?.name || "Autoridad";
+    if (respName) respName.textContent = resp?.name || "Respuesta";
+    // is-on handling
+    if (segCoord) segCoord.classList.toggle("is-on", viewer.role === "coordination");
+    if (segAuth) segAuth.classList.toggle("is-on", viewer.role === "authority");
+    if (segResp) segResp.classList.toggle("is-on", viewer.role === "responder");
+    // severity placeholder
+    const sevEl = byId("v2-severity");
+    if (sevEl && typeof window !== "undefined" && window.Valte && window.Valte.SeverityMeter) {
+      // rendered via Valte.SeverityMeter if available
     }
   }
   // Run controls: only Coordination view renders pause/resume/abort (spec §10)
@@ -349,6 +387,8 @@ async function refreshSnapshot(reason = "manual") {
 
 function renderScreens(proj) {
   if (typeof document === "undefined") return;
+  // Pantallas 3-column parity: Zones 360px | Actions flex-grow | Contacts 400px
+  // All data comes from buildViewerProjection (jurisdiction-filtered)
   const zonesEl = byId("v2-zones");
   if (zonesEl) zonesEl.innerHTML = renderZones(proj?.zones || []);
   const incEl = byId("v2-incidents");
@@ -356,7 +396,6 @@ function renderScreens(proj) {
   const actEl = byId("v2-actions");
   if (actEl) {
     actEl.innerHTML = renderActions(proj?.actions || [], viewer);
-    // attach approve/reject delegation once
     if (!actEl.dataset.bound) {
       actEl.dataset.bound = "1";
       actEl.addEventListener("click", async (e) => {
@@ -383,7 +422,6 @@ function renderScreens(proj) {
             setFeedback(formatCommandError(err), true);
           }
         } finally {
-          // re-enable via rerender
           setTimeout(() => { if (projection) renderScreens(projection); }, 400);
         }
       });
@@ -399,12 +437,24 @@ function renderScreens(proj) {
     if (!plan) planEl.innerHTML = `<div data-testid="empty-plan" style="padding:16px; color:var(--ink-muted);">Sin plan activo.</div>`;
     else planEl.innerHTML = `<div data-testid="plan-item" style="padding:12px; border:1px solid var(--line); border-radius:8px;"><div style="font-weight:600;">${plan.plan_id || "Plan"}</div><div style="font-size:12px; color:var(--ink-muted);">estado ${plan.status || "—"} · acciones ${(plan.action_ids||[]).join(", ")}</div></div>`;
   }
-  // update counters in headers
-  setText("v2-zones-count", String(proj?.zones?.length ?? 0));
+  // col-head counts — Pantallas strings for parity
+  const zonesCountEl = byId("v2-zones-count");
+  if (zonesCountEl) {
+    const origins = (proj?.zones || []).filter((z) => z.kind === "origin" || z.is_origin).length;
+    zonesCountEl.textContent = `${proj?.zones?.length ?? 0} · ${origins} orígenes`;
+  }
+  const actionsCountEl = byId("v2-actions-count");
+  if (actionsCountEl) {
+    const pending = (proj?.actions || []).filter((a) => (a.status || a.action?.status) === "pending_approval").length;
+    actionsCountEl.textContent = `${pending} por aprobar · ${proj?.actions?.length ?? 0} en total`;
+  }
+  const contactsCountEl = byId("v2-contacts-count");
+  if (contactsCountEl) {
+    contactsCountEl.textContent = `${proj?.contacts?.length ?? 0} contactos`;
+  }
+  // legacy counters for tests that check ids
   setText("v2-incidents-count", String(proj?.incidents?.length ?? 0));
-  setText("v2-actions-count", String(proj?.actions?.length ?? 0));
   setText("v2-resources-count", String(proj?.resources?.length ?? 0));
-  setText("v2-contacts-count", String(proj?.contacts?.length ?? 0));
 }
 
 function renderAll() {
@@ -489,6 +539,28 @@ function installSwitcher() {
       switchViewer({ role, entity_id: entityId });
       const statusEl = byId("v2-status");
       if (statusEl && currentRunId) statusEl.textContent = `v2 · ${currentRunId} · ${role}`;
+    });
+  }
+  // Pantallas seg nav clicks — map seg to entity by role
+  const segNav = byId("v2-seg-nav");
+  if (segNav && !segNav.dataset.bound) {
+    segNav.dataset.bound = "1";
+    segNav.addEventListener("click", (e) => {
+      const seg = e.target.closest("a.seg");
+      if (!seg) return;
+      e.preventDefault();
+      const role = seg.dataset.role || seg.dataset.seg;
+      if (!role) return;
+      const snap = snapshotCache;
+      if (!snap || !Array.isArray(snap.entities)) return;
+      const ent = snap.entities.find((en) => en.role === role);
+      if (!ent) return;
+      switchViewer({ role: ent.role, entity_id: ent.entity_id });
+      // sync hidden select for consistency
+      const selEl = byId("v2-role-switcher");
+      if (selEl) selEl.value = ent.entity_id;
+      const statusEl = byId("v2-status");
+      if (statusEl && currentRunId) statusEl.textContent = `v2 · ${currentRunId} · ${ent.role}`;
     });
   }
   const backBtn = byId("v2-back-to-list");

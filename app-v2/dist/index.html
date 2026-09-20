@@ -13,110 +13,126 @@
     <script src="/assets/valte-ds.js"></script>
     <script src="/assets/valte-live.js"></script>
     <script src="/assets/valte-map.js"></script>
-    <script type="module" crossorigin src="/assets/index-BadX4JZc.js"></script>
+    <style>
+      /* Pantallas parity: seg, wave, col, kpi-link from PanelCoordinacion.page.css + Main.page.css */
+      .wave{fill:none;stroke:var(--line-strong);stroke-width:1;opacity:.5;}
+      .seg{display:flex;flex-direction:column;gap:2px;padding:8px 14px;border-radius:var(--radius-md);border:1px solid var(--line-strong);color:var(--ink);text-decoration:none;min-width:150px;}
+      .seg:hover{background:var(--surface-200);color:var(--ink);}
+      .seg.is-on{background:var(--ink);border-color:var(--ink);color:var(--on-ink);}
+      .seg.is-on .seg-kind{color:var(--on-ink);opacity:.7;}
+      .seg-kind{font-size:11px;line-height:14px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);}
+      .seg-name{font-size:14px;line-height:20px;font-weight:500;}
+      .back{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--line-strong);color:var(--ink);}
+      .back:hover{background:var(--surface-200);color:var(--ink);}
+      .col{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;}
+      .col-body{display:flex;flex-direction:column;gap:12px;overflow:auto;min-height:0;padding-bottom:8px;}
+      .col-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--line-strong);}
+      .col-title{font-family:var(--font-display);font-size:28px;line-height:32px;margin:0;font-weight:400;}
+      .count{font-family:var(--font-mono);font-size:12px;line-height:16px;color:var(--ink-muted);}
+      .lbl{font-size:12px;line-height:16px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);}
+      .kpi-link{text-decoration:none;color:var(--ink);border-radius:var(--radius-md);margin:-8px -12px -8px 0;padding:8px 12px 8px 24px !important;position:relative;}
+      .kpi-link:hover{background:var(--surface-200);color:var(--ink);}
+      .kpi-link .kpi-go{position:absolute;top:10px;right:12px;color:var(--ink-muted);transition:transform .2s ease;}
+      .kpi-link:hover .kpi-go{transform:translateX(3px);color:var(--ink);}
+      .row{appearance:none;background:none;border:0;border-bottom:1px solid var(--line-strong);color:var(--ink);cursor:pointer;text-align:left;font:inherit;transition:padding .2s ease;}
+      .row:hover{padding-left:12px;}
+      .row:hover .row-name{font-style:italic;}
+      .row .row-arrow{opacity:0;transform:translateX(-8px);transition:opacity .2s ease,transform .2s ease;}
+      .row:hover .row-arrow{opacity:1;transform:none;}
+      .cta-arrow{transition:transform .2s ease;}
+      .cta:hover .cta-arrow{transform:translateX(4px);}
+    </style>
+    <script type="module" crossorigin src="/assets/index-Ct0HGUHU.js"></script>
   </head>
   <body>
     <div
-      id="app"
+      id="v2-root"
       data-preview-width="1440"
       data-preview-height="900"
-      style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 16px; background: var(--surface-000); color: var(--ink); font-family: var(--font-sans); overflow: hidden; margin: 0 auto;"
+      style="width: 1440px; height: 900px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 24px; background: var(--surface-000); color: var(--ink); font-family: var(--font-sans); overflow: hidden; margin: 0 auto;"
     >
-      <!-- Header: scenario identity, health, viewer, switcher, KPIs -->
-      <header
-        data-theme="dark"
-        style="flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); position: relative; overflow: hidden;"
-      >
-        <div style="display: flex; align-items: center; gap: 12px; position: relative;">
-          <span style="font-family: var(--font-display); font-size: 32px; line-height: 36px;">Valte</span>
-          <span style="font-size: 12px; color: var(--ink-muted);">con HappyRobot · v2</span>
-          <a href="#" id="v2-back-to-list" style="margin-left: 16px; font-family: var(--font-mono); font-size: 12px; color: var(--ink-muted); text-decoration: none; border: 1px solid var(--line-strong); padding: 4px 8px; border-radius: 6px;">← Escenarios</a>
-          <div style="display: flex; flex-direction: column; margin-left: 16px;">
-            <span id="v2-run-name" style="font-family: var(--font-display); font-size: 16px; line-height: 20px;">—</span>
-            <span id="v2-scenario-now" style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">—</span>
-          </div>
-          <span id="v2-health" style="margin-left: 12px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); border: 1px solid var(--line-strong); padding: 2px 6px; border-radius: 999px;">offline</span>
-          <span id="v2-viewer" style="margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--ink);">—</span>
-          <label for="v2-role-switcher" style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">Ver como</label>
-          <select id="v2-role-switcher" aria-label="Cambiar entidad" style="font-family: var(--font-mono); font-size: 12px; padding: 6px 8px; border-radius: 6px; background: var(--surface-100); color: var(--ink); border: 1px solid var(--line-strong); min-width: 220px;">
-            <option value="">— seleccionar entidad —</option>
-          </select>
-          <span id="v2-status" style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); margin-left: 8px;">cargando…</span>
-        </div>
-        <div style="display: flex; gap: 16px; padding-top: 12px; border-top: 1px solid var(--line-strong);">
-          <div style="flex:1; display:flex; flex-direction:column; gap:2px;"><span style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">Zonas</span><span id="kpi-zones" data-testid="kpi-zones" style="font-family: var(--font-mono); font-size: 22px; line-height: 24px;">0</span></div>
-          <div style="flex:1; display:flex; flex-direction:column; gap:2px; border-left:1px solid var(--line-strong); padding-left:16px;"><span style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">Incidentes</span><span id="kpi-incidents" data-testid="kpi-incidents" style="font-family: var(--font-mono); font-size: 22px;">0</span></div>
-          <div style="flex:1; display:flex; flex-direction:column; gap:2px; border-left:1px solid var(--line-strong); padding-left:16px;"><span style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">Acciones</span><span id="kpi-actions" data-testid="kpi-actions" style="font-family: var(--font-mono); font-size: 22px;">0</span></div>
-          <div style="flex:1; display:flex; flex-direction:column; gap:2px; border-left:1px solid var(--line-strong); padding-left:16px;"><span style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">Recursos</span><span id="kpi-resources" data-testid="kpi-resources" style="font-family: var(--font-mono); font-size: 22px;">0</span></div>
-          <div style="flex:1; display:flex; flex-direction:column; gap:2px; border-left:1px solid var(--line-strong); padding-left:16px;"><span style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">Contactos</span><span id="kpi-contacts" data-testid="kpi-contacts" style="font-family: var(--font-mono); font-size: 22px;">0</span></div>
-        </div>
-      </header>
-      <div id="v2-realtime-bar" data-testid="realtime-bar" style="display:none; align-items:center; gap:8px; padding:6px 12px; background:var(--surface-100, #fff); border-radius:var(--radius-md); font-family:var(--font-mono); font-size:11px; color:var(--ink-muted);">
-        <span style="width:8px; height:8px; border-radius:50%; background:currentColor; display:inline-block;" aria-hidden="true"></span>
-        <span>tiempo real:</span>
-        <span id="v2-realtime-status" data-testid="realtime-status" data-health="offline" style="font-weight:600; color:var(--ink-muted);">offline</span>
-        <span style="margin-left:8px; opacity:.7;">· polling fallback si Realtime no disponible (spec §14)</span>
-      </div>
-
-      <div style="flex:1; display:flex; gap:16px; min-height:0;">
-        <!-- Main column -->
-        <main style="flex:1; display:flex; flex-direction:column; gap:12px; min-width:0; overflow:hidden;">
-          <!-- List screen -->
-          <section id="v2-list-screen" style="flex:1; display:flex; flex-direction:column; padding:16px 20px; background: var(--surface-100, #fff); border-radius: var(--radius-lg); overflow:auto;">
-            <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:8px;">
-              <h2 style="margin:0; font-family: var(--font-display); font-size:22px;">Escenarios</h2>
-              <span style="font-family: var(--font-mono); font-size:12px; color:var(--ink-muted);">GET /api/runs · seleccionar para abrir como Coordinación</span>
+      <!-- List screen: Pantallas Main template -->
+      <div id="v2-list-screen" style="flex: 1; display: flex; gap: 16px; min-height: 0; width: 100%;">
+        <main style="flex-grow: 1; box-sizing: border-box; padding: 24px 48px 48px; display: flex; flex-direction: column; justify-content: space-between; min-width: 0;">
+          <header style="position: relative; display: flex; align-items: baseline; gap: 12px;">
+            <span style="font-family: var(--font-display); font-size: 32px; line-height: 36px;">Valte</span>
+            <span style="font-size: 13px; line-height: 20px; color: var(--ink-muted);">con HappyRobot</span>
+            <span id="v2-status" style="margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">cargando…</span>
+          </header>
+          <div style="display: flex; flex-direction: column; gap: 8px; flex-grow: 1; justify-content: center;">
+            <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px;">
+              <h2 style="margin: 0; font-family: var(--font-display); font-size: 22px;">Escenarios</h2>
+              <span style="font-family: var(--font-mono); font-size: 12px; color: var(--ink-muted);">GET /api/runs · seleccionar para abrir como Coordinación</span>
             </div>
-            <div id="v2-content" style="flex:1; display:flex; flex-direction:column;">
-              <p style="font-family: var(--font-display); font-size: 16px; color: var(--ink-muted);">Cargando escenarios…</p>
-            </div>
-          </section>
-
-          <!-- Dashboard (hidden until run selected) -->
-          <section id="v2-dashboard" style="flex:1; display:none; flex-direction:column; gap:12px; overflow:auto; padding-right:4px;">
-            <nav style="display:flex; gap:8px; font-family:var(--font-mono); font-size:12px; color:var(--ink-muted);">
-              <span>Zonas</span> · <span>Incidentes</span> · <span>Plan</span> · <span>Acciones</span> · <span>Recursos</span> · <span>Contactos</span>
+            <nav style="display: flex; flex-direction: column; border-top: 1px solid var(--line-strong);">
+              <div id="v2-content" style="flex: 1; display: flex; flex-direction: column;">
+                <p style="font-family: var(--font-display); font-size: 16px; color: var(--ink-muted);">Cargando escenarios…</p>
+              </div>
             </nav>
-            <div style="display:flex; gap:16px;">
-              <section style="flex:1; background:var(--surface-100, #fff); border-radius:var(--radius-lg); padding:12px;">
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><h3 style="margin:0; font-size:14px;">Zonas</h3><span id="v2-zones-count" style="font-family:var(--font-mono); font-size:12px; color:var(--ink-muted);">0</span></div>
-                <div id="v2-zones"></div>
-              </section>
-              <section style="flex:1; background:var(--surface-100, #fff); border-radius:var(--radius-lg); padding:12px;">
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><h3 style="margin:0; font-size:14px;">Incidentes</h3><span id="v2-incidents-count" style="font-family:var(--font-mono); font-size:12px; color:var(--ink-muted);">0</span></div>
-                <div id="v2-incidents"></div>
-                <div style="margin-top:12px;"><h4 style="margin:0 0 8px; font-size:13px;">Plan activo</h4><div id="v2-plan"></div></div>
-              </section>
-            </div>
-            <div style="display:flex; gap:16px;">
-              <section style="flex:1; background:var(--surface-100, #fff); border-radius:var(--radius-lg); padding:12px;">
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><h3 style="margin:0; font-size:14px;">Acciones</h3><span id="v2-actions-count" style="font-family:var(--font-mono); font-size:12px; color:var(--ink-muted);">0</span></div>
-                <div id="v2-actions"></div>
-              </section>
-              <section style="flex:1; background:var(--surface-100, #fff); border-radius:var(--radius-lg); padding:12px;">
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><h3 style="margin:0; font-size:14px;">Recursos</h3><span id="v2-resources-count" style="font-family:var(--font-mono); font-size:12px; color:var(--ink-muted);">0</span></div>
-                <div id="v2-resources"></div>
-                <div style="margin-top:12px;"><h4 style="margin:0 0 8px; font-size:13px;">Contactos</h4><div id="v2-contacts"></div></div>
-              </section>
-            </div>
-          </section>
+          </div>
         </main>
-
-        <aside
-          data-theme="dark"
-          style="width: 380px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 24px; padding: 24px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden; position: relative;"
-        >
-          <p style="font-family: var(--font-display); font-size: 16px; line-height: 20px; position: relative;">
-            Valte v2 · Supabase Gateway como fuente única
-          </p>
-          <p style="font-size: 12px; line-height: 18px; color: var(--ink-muted); position: relative;">
-            Dashboard v2: GET /api/runs → GET /api/snapshot → proyección por jurisdicción. Header switcher filtra role != source. Zonas con display.x/y.
-          </p>
-          <footer style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">
-            Canvas fijo 1440×900 · tokens Valte v2 · build vite
-          </footer>
+        <aside data-theme="dark" style="width: 496px; flex-shrink: 0; position: relative; box-sizing: border-box; padding: 40px; display: flex; flex-direction: column; justify-content: flex-end; gap: 40px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden;">
+          <svg width="720" height="720" viewBox="0 0 720 720" aria-hidden="true" style="position: absolute; right: -360px; top: -360px;"><circle class="wave" cx="360" cy="360" r="48"></circle><circle class="wave" cx="360" cy="360" r="88"></circle><circle class="wave" cx="360" cy="360" r="128"></circle><circle class="wave" cx="360" cy="360" r="168"></circle><circle class="wave" cx="360" cy="360" r="208"></circle><circle class="wave" cx="360" cy="360" r="248"></circle><circle class="wave" cx="360" cy="360" r="288"></circle><circle class="wave" cx="360" cy="360" r="328"></circle></svg>
+          <div style="position: relative;">
+            <ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; border-top: 1px solid var(--line-strong);">
+              <li style="display: flex; align-items: baseline; gap: 24px; padding: 20px 0; border-bottom: 1px solid var(--line-strong);"><span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted); width: 24px;">01</span><span style="font-family: var(--font-display); font-size: 36px; line-height: 40px; letter-spacing: -0.01em;">Escenario</span></li>
+              <li style="display: flex; align-items: baseline; gap: 24px; padding: 20px 0; border-bottom: 1px solid var(--line-strong);"><span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted); width: 24px;">02</span><span style="font-family: var(--font-display); font-size: 36px; line-height: 40px; letter-spacing: -0.01em;">Zonas</span></li>
+              <li style="display: flex; align-items: baseline; gap: 24px; padding: 20px 0; border-bottom: 1px solid var(--line-strong);"><span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted); width: 24px;">03</span><span style="font-family: var(--font-display); font-size: 36px; line-height: 40px; letter-spacing: -0.01em;">Fuentes de datos</span></li>
+              <li style="display: flex; align-items: baseline; gap: 24px; padding: 20px 0; border-bottom: 1px solid var(--line-strong);"><span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted); width: 24px;">04</span><span style="font-family: var(--font-display); font-size: 36px; line-height: 40px; letter-spacing: -0.01em;">Recursos disponibles</span></li>
+            </ol>
+          </div>
+          <div style="position: relative; display: flex;">
+            <a href="#" class="vt-btn vt-btn--primary cta" style="width: 100%; height: 64px; padding: 0 24px; justify-content: space-between; font-size: 16px; line-height: 24px; border-radius: var(--radius-md); text-decoration: none; box-sizing: border-box;">Iniciar catástrofe<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="cta-arrow"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></a>
+          </div>
         </aside>
       </div>
+
+      <!-- Dashboard: Pantallas PanelCoordinacion template -->
+      <div id="v2-dashboard" style="flex: 1; display: none; flex-direction: column; gap: 24px; min-height: 0;">
+        <header data-theme="dark" style="position: relative; flex-shrink: 0; box-sizing: border-box; padding: 20px 28px 24px; display: flex; flex-direction: column; gap: 20px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden;">
+          <svg width="640" height="640" viewBox="0 0 640 640" aria-hidden="true" style="position: absolute; right: -120px; top: -420px;"><circle class="wave" cx="320" cy="320" r="40"></circle><circle class="wave" cx="320" cy="320" r="80"></circle><circle class="wave" cx="320" cy="320" r="120"></circle><circle class="wave" cx="320" cy="320" r="160"></circle><circle class="wave" cx="320" cy="320" r="200"></circle><circle class="wave" cx="320" cy="320" r="240"></circle><circle class="wave" cx="320" cy="320" r="280"></circle><circle class="wave" cx="320" cy="320" r="320"></circle></svg>
+          <div style="position: relative; display: flex; align-items: center; gap: 20px;">
+            <a href="#" id="v2-back-to-list" class="back" aria-label="Volver al inicio"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="M11 6l-6 6 6 6"></path></svg></a>
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <h1 id="v2-run-name" style="margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 44px; letter-spacing: -0.01em;">—</h1>
+              <span id="v2-scenario-now" style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted);">—</span>
+            </div>
+            <div style="margin-left: 16px;" id="v2-severity"></div>
+            <span id="v2-health" style="display: none; font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); border: 1px solid var(--line-strong); padding: 2px 6px; border-radius: 999px;">offline</span>
+            <span id="v2-viewer" style="display: none; font-family: var(--font-mono); font-size: 12px; color: var(--ink);">—</span>
+            <div style="flex-grow: 1;"></div>
+            <nav aria-label="Entidad" style="display: flex; gap: 8px;" id="v2-seg-nav">
+              <a href="#" data-seg="coordination" data-role="coordination" class="seg is-on" id="v2-seg-coordination"><span class="seg-kind">Coordinación</span><span class="seg-name" id="v2-seg-coord-name">CECOPI</span></a>
+              <a href="#" data-seg="authority" data-role="authority" class="seg" id="v2-seg-authority"><span class="seg-kind">Autoridad</span><span class="seg-name" id="v2-seg-auth-name">—</span></a>
+              <a href="#" data-seg="respuesta" data-role="responder" class="seg" id="v2-seg-responder"><span class="seg-kind">Respuesta</span><span class="seg-name" id="v2-seg-resp-name">—</span></a>
+            </nav>
+            <select id="v2-role-switcher" aria-label="Cambiar entidad" style="position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px;">
+              <option value="">— seleccionar entidad —</option>
+            </select>
+          </div>
+          <div style="position: relative; display: flex; gap: 24px; padding-top: 16px; border-top: 1px solid var(--line-strong);">
+            <a href="#" class="kpi-link" style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;"><span class="lbl">Zonas</span><span style="font-family: var(--font-mono); font-size: 28px; line-height: 32px; letter-spacing: -0.02em; color: var(--critical);"><span id="kpi-zones" data-testid="kpi-zones">0</span><span style="font-size: 14px; color: var(--ink-muted);"> % en riesgo · <span id="kpi-zones-detail">—</span></span></span><svg class="kpi-go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg></a>
+            <a href="#" class="kpi-link" style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px; border-left: 1px solid var(--line-strong); padding-left: 24px;"><span class="lbl">Acciones</span><span style="font-family: var(--font-mono); font-size: 28px; line-height: 32px; letter-spacing: -0.02em; color: var(--warning-text);"><span id="kpi-actions" data-testid="kpi-actions">0</span><span style="font-size: 14px; color: var(--ink-muted);"> por aprobar · <span id="kpi-actions-detail">—</span> en total</span></span><svg class="kpi-go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg></a>
+            <a href="#" class="kpi-link" style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px; border-left: 1px solid var(--line-strong); padding-left: 24px;"><span class="lbl">Recursos</span><span style="font-family: var(--font-mono); font-size: 28px; line-height: 32px; letter-spacing: -0.02em; color: var(--ink);"><span id="kpi-resources" data-testid="kpi-resources">0</span><span style="font-size: 14px; color: var(--ink-muted);"> / <span id="kpi-resources-detail">—</span> libres</span></span><svg class="kpi-go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg></a>
+            <a href="#" class="kpi-link" style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px; border-left: 1px solid var(--line-strong); padding-left: 24px;"><span class="lbl">Contactos</span><span style="font-family: var(--font-mono); font-size: 28px; line-height: 32px; letter-spacing: -0.02em; color: var(--ink);"><span id="kpi-contacts" data-testid="kpi-contacts">0</span><span style="font-size: 14px; color: var(--ink-muted);"> · <span id="kpi-contacts-detail">—</span></span></span><svg class="kpi-go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg></a>
+            <a href="#" class="kpi-link" style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px; border-left: 1px solid var(--line-strong); padding-left: 24px;"><span class="lbl">Incidentes</span><span style="font-family: var(--font-mono); font-size: 28px; line-height: 32px; letter-spacing: -0.02em; color: var(--ink);"><span id="kpi-incidents" data-testid="kpi-incidents">0</span><span style="font-size: 14px; color: var(--ink-muted);"> activos</span></span><svg class="kpi-go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg></a>
+          </div>
+          <div id="v2-run-controls" data-testid="run-controls" style="display: none; position: relative; gap: 8px; align-items: center;"></div>
+          <div id="v2-realtime-bar" data-testid="realtime-bar" style="display: none; position: relative; align-items: center; gap: 8px; padding: 6px 12px; background: var(--surface-100, #fff); border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block;" aria-hidden="true"></span>
+            <span>tiempo real:</span>
+            <span id="v2-realtime-status" data-testid="realtime-status" data-health="offline" style="font-weight: 600; color: var(--ink-muted);">offline</span>
+            <span style="margin-left: 8px; opacity: 0.7;">· polling fallback si Realtime no disponible (spec §14)</span>
+          </div>
+        </header>
+        <div style="flex-grow: 1; min-height: 0; display: flex; gap: 32px; padding: 0 12px;">
+          <section class="col" style="width: 360px; flex-shrink: 0;"><div class="col-head"><h2 class="col-title">Zonas</h2><span class="count" id="v2-zones-count">—</span></div><div class="col-body" id="v2-zones"></div></section>
+          <section class="col" style="flex-grow: 1;"><div class="col-head"><h2 class="col-title">Acciones</h2><span class="count" id="v2-actions-count">—</span></div><div class="col-body" id="v2-actions"></div><div style="margin-top: 12px;"><h4 style="margin: 0 0 8px; font-size: 13px; display: none;">Incidentes</h4><div id="v2-incidents"></div><div id="v2-plan" style="margin-top: 12px;"></div></div></section>
+          <section class="col" style="width: 400px; flex-shrink: 0;"><div class="col-head"><h2 class="col-title">Contactos</h2><span class="count" id="v2-contacts-count">—</span></div><div class="col-body" id="v2-contacts"></div><div style="margin-top: 12px;"><h4 style="margin: 0 0 8px; font-size: 13px; display: none;">Recursos</h4><div id="v2-resources"></div></div></section>
+        </div>
+      </div>
     </div>
+    <!-- legacy app wrapper for backwards compat tests -->
+    <div id="app" style="display: none;"></div>
   </body>
 </html>
