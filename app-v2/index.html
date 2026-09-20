@@ -50,6 +50,12 @@
           <div style="flex:1; display:flex; flex-direction:column; gap:2px; border-left:1px solid var(--line-strong); padding-left:16px;"><span style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">Contactos</span><span id="kpi-contacts" data-testid="kpi-contacts" style="font-family: var(--font-mono); font-size: 22px;">0</span></div>
         </div>
       </header>
+      <div id="v2-realtime-bar" data-testid="realtime-bar" style="display:none; align-items:center; gap:8px; padding:6px 12px; background:var(--surface-100, #fff); border-radius:var(--radius-md); font-family:var(--font-mono); font-size:11px; color:var(--ink-muted);">
+        <span style="width:8px; height:8px; border-radius:50%; background:currentColor; display:inline-block;" aria-hidden="true"></span>
+        <span>tiempo real:</span>
+        <span id="v2-realtime-status" data-testid="realtime-status" data-health="offline" style="font-weight:600; color:var(--ink-muted);">offline</span>
+        <span style="margin-left:8px; opacity:.7;">· polling fallback si Realtime no disponible (spec §14)</span>
+      </div>
 
       <div style="flex:1; display:flex; gap:16px; min-height:0;">
         <!-- Main column -->
