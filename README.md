@@ -12,8 +12,8 @@ live.
 
 ## Where to find it
 
-- Dashboard (live system): `https://kernel-production-c1a9.up.railway.app/dashboard?key=<WORLD_API_TOKEN>`.
-  The token is `WORLD_API_TOKEN` in the team `.env`.
+- Dashboard (live system):
+  <https://kernel-production-c1a9.up.railway.app/dashboard?key=GC7SLyuvi01oePmrSKcaJ17VSYTrQy70>
 - The kernel API runs at the same host. Health check: `/healthz`.
 - The AI workflows run on the HappyRobot platform (EU):
   `ingest-calls`, `ingest-social`, `ingest-news`, `coordinator`.
