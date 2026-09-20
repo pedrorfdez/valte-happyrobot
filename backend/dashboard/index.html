@@ -200,10 +200,6 @@ button:focus-visible { outline:2px solid var(--sev-3); outline-offset:2px; }
       <h2>Decisions &amp; actions <span class="spark" id="actcount"></span></h2>
       <div id="actions"></div>
     </div>
-    <div class="card">
-      <h2>Blocked by safety rules <span class="spark" id="rejcount"></span></h2>
-      <div id="rejected" class="small muted">none</div>
-    </div>
   </div>
 
   <div class="col">
@@ -445,14 +441,6 @@ function render(d){
       </div></details>`;
   }).join("");
 
-  document.getElementById("rejcount").textContent = `${d.counts.rejected_total} total`;
-  document.getElementById("rejected").innerHTML = d.rejected.length ? d.rejected.slice(0,5).map(r=>{
-    const at = r.attempted || {};
-    const title = verbTitle(at);
-    return `<div class="row"><span class="badge b-rej">blocked</span>
-     <span style="flex:1">${esc(title)}
-     <span class="muted">— ${esc(String(r.reason)).slice(0,140)}</span></span></div>`;
-  }).join("") : `<div class="small muted">none — every request stayed within the safety rules</div>`;
 
   document.getElementById("situation").textContent = d.situation.notes || "no assessment yet";
   document.getElementById("sithist").innerHTML = d.situation_history.slice(1,6).map(s=>

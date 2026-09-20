@@ -51,7 +51,7 @@ def dashboard_state(key: str = "", run_id: str = ""):
                        where run_id=%s order by pk desc limit 12""", (rid,))
     tripwires = q("select id, status, set_by, doc from tripwires where run_id=%s", (rid,))
     actions = q("""select doc, hr_run_id, created_at from actions
-                   where run_id=%s order by created_at desc limit 40""", (rid,))
+                   where run_id=%s order by t desc, created_at desc limit 40""", (rid,))
     pending = [r["doc"] for r in q(
         "select doc from actions where run_id=%s and status='pending_approval' order by created_at desc", (rid,))]
     signals = q("""select doc, confidence from signals where run_id=%s
