@@ -544,7 +544,7 @@ async function pollSim(){
     else clockBase = null;
     const btn = document.getElementById("simbtn");
     btn.textContent = simRunning ? "Scenario running"
-      : simCompleted ? "Restart" : "Start scenario";
+      : simCompleted ? "Restart scenario" : "Start scenario";
     btn.className = simRunning ? "" : simCompleted ? "again" : "ok";
     btn.disabled = simRunning;
     document.getElementById("simspeed").disabled = simRunning;
