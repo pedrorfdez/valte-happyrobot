@@ -192,13 +192,20 @@ def submit_action(rid: str, action: dict, idempotency_key: str | None) -> dict:
     # recently for conditions to have changed. Operations are repeatable:
     # a finished rescue does not block a new one later.
     zones_key = json.dumps(sorted(action.get("target_zones") or []))
-    dup = q("""select id, status, t from actions
+    # escalating to a DIFFERENT emergency level is never a duplicate
+    level_clause = ""
+    level_params: tuple = ()
+    if verb == "activate_emergency_level":
+        level_clause = " and coalesce(doc->'params'->>'level','') = %s"
+        level_params = (str(action.get("params", {}).get("level", "")),)
+    dup = q(f"""select id, status, t from actions
                where run_id=%s and actor=%s and verb=%s
                  and status in ('pending_approval','approved','in_progress','executed')
                  and coalesce((select json_agg(z order by z)::text
                                from jsonb_array_elements_text(doc->'target_zones') z), '[]') = %s
+                 {level_clause}
                order by created_at desc limit 1""",
-            (rid, actor_id, verb, zones_key), one=True)
+            (rid, actor_id, verb, zones_key) + level_params, one=True)
     if dup:
         blocked = dup["status"] != "executed"
         if not blocked:

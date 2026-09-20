@@ -40,6 +40,25 @@ def execute_approved():
                                    "stubbed": True}
         q("update actions set status=%s, doc=%s where run_id=%s and id=%s",
           (new_status, js(doc), rid, r["id"]))
+        _apply_level(rid, r["verb"], doc)
+
+
+def _apply_level(rid: str, verb: str, doc: dict):
+    """An EXECUTED level declaration is the authoritative emergency level:
+    the header chip and the agent's next state read must match the action
+    log, not the agent's self-report."""
+    if verb != "activate_emergency_level":
+        return
+    level = (doc.get("params") or {}).get("level")
+    if level is None:
+        return
+    row = q("select doc from situation where run_id=%s", (rid,), one=True)
+    sit = row["doc"] if row else {}
+    try:
+        sit["emergency_level"] = int(level)
+    except (TypeError, ValueError):
+        return
+    q("update situation set doc=%s, updated_at=now() where run_id=%s", (js(sit), rid))
 
 
 def complete_operations():

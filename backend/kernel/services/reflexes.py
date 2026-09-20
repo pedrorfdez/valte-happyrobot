@@ -41,6 +41,8 @@ def _fire(run_id: str, tw: dict, evidence_id: str, detail: str):
         }
         q("insert into actions (run_id,id,t,actor,verb,status,doc) values (%s,%s,%s,%s,%s,%s,%s)",
           (run_id, action_id, doc["t"], doc["actor"], doc["verb"], "executed", js(doc)))
+        from .executor import _apply_level
+        _apply_level(run_id, doc["verb"], doc)
     tw["doc"]["last_fired_t"] = now_t
     q("update tripwires set doc=%s where run_id=%s and id=%s",
       (js(tw["doc"]), run_id, tw["id"]))
