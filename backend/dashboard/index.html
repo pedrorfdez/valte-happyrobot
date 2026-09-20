@@ -80,17 +80,20 @@ tr + tr td { border-top:1px solid var(--border-soft); }
 .row:hover { background:var(--surface-2); }
 .dot { width:9px; height:9px; border-radius:50%; flex:none; position:relative; top:1px; }
 
-/* one chip system: quiet fill, color only at the edge and the word */
-.badge { font-size:10.5px; font-weight:650; border-radius:4px; padding:1.5px 7px;
-  letter-spacing:.3px; flex:none; background:var(--surface-2);
-  border-left:2px solid var(--text-muted); color:var(--text-secondary); border-top:none; border-right:none; border-bottom:none; }
-.b-exec { border-left-color:var(--good); color:var(--good); }
-.b-pend { border-left-color:var(--warning); color:var(--warning); background:color-mix(in oklab, var(--warning) 12%, var(--surface-2)); }
-.b-prog { border-left-color:var(--text-muted); }
-.b-rej  { border-left-color:var(--critical); color:var(--critical); }
-.b-stub { border-left-color:var(--text-muted); color:var(--text-muted); border-left-style:dashed; }
-.b-reflex { border-left-color:var(--sev-3); color:var(--sev-3); }
+/* one chip system: soft tinted pill, the word carries the color */
+.badge { font-size:10.5px; font-weight:650; border-radius:999px; padding:2px 9px;
+  letter-spacing:.3px; flex:none; border:none;
+  background:var(--surface-3); color:var(--text-secondary); }
+.b-exec { color:var(--good); background:color-mix(in oklab, var(--good) 14%, var(--surface-2)); }
+.b-pend { color:var(--warning); background:color-mix(in oklab, var(--warning) 16%, var(--surface-2)); }
+.b-prog { color:var(--text-secondary); }
+.b-rej  { color:var(--critical); background:color-mix(in oklab, var(--critical) 14%, var(--surface-2)); }
+.b-stub { color:var(--text-muted); background:transparent; outline:1px dashed var(--border); }
+.b-reflex { color:var(--sev-3); background:color-mix(in oklab, var(--sev-3) 13%, var(--surface-2)); }
 
+#actions { min-height:340px; max-height:58vh; overflow-y:auto;
+  overscroll-behavior:contain; scrollbar-width:thin;
+  scrollbar-color:var(--surface-3) transparent; }
 details.act { border-top:1px solid var(--border-soft); padding:7px 4px; border-radius:5px; }
 details.act summary { display:flex; gap:9px; align-items:baseline; cursor:pointer; list-style:none; }
 details.act summary::-webkit-details-marker{ display:none; }
@@ -448,7 +451,10 @@ function render(d){
      <span class="small muted" style="flex:1">${esc((s.notes||"").slice(0,110))}</span></div>`).join("");
 
   // signal feed with channel filters
-  const kindsPresent = [...new Set(Object.values(srcKind))];
+  const KIND_ORDER = ["call", "social", "news", "sensor"];
+  const present = new Set(Object.values(srcKind));
+  const kindsPresent = KIND_ORDER.filter(k => present.has(k))
+    .concat([...present].filter(k => !KIND_ORDER.includes(k)).sort());
   const groups = [["all","all"], ...kindsPresent.map(k=>[k, KIND_LABEL[k]||k])];
   document.getElementById("sigfilters").innerHTML = groups.map(([k,lab])=>{
     const swatch = k==="all" ? "" :
