@@ -29,7 +29,22 @@
       "Por dios que alguien venga a {zone}, un senor se ha agarrado a una farola y no aguanta, el agua lo tapa!",
       "Estamos atrapados en el ascensor en {zone}, se ha parado con el agua, somos dos y una nina, entra agua por abajo!",
       "En la calle del mercado de {zone} el agua arrastra contenedores contra las puertas, no podemos salir de la tienda.",
-      "Mi bajo en {zone} esta lleno hasta el techo, mi perro estaba dentro. Hay vecinos en los balcones pidiendo ayuda a gritos."
+      "Mi bajo en {zone} esta lleno hasta el techo, mi perro estaba dentro. Hay vecinos en los balcones pidiendo ayuda a gritos.",
+      "El agua ha reventado la puerta del garaje en {zone}, mi vecino esta dentro con el coche, no sale!",
+      "Estamos en la azotea del bloque en {zone}, somos doce, hay una embarazada, cuanto tardan?",
+      "En {zone} un repartidor se ha quedado en su furgoneta en medio de la avenida, el agua le llega a la ventanilla!",
+      "La farmacia de {zone} tiene a la farmaceutica y dos clientes subidos al mostrador, el agua entra a chorros.",
+      "Mi abuela vive sola en un bajo de {zone} y no coge el telefono desde hace una hora, por favor que alguien vaya!",
+      "Hay tres chavales subidos a la marquesina del bus en {zone}, el agua les llega por las rodillas y estan helados.",
+      "En el tanatorio de {zone} hay una familia entera atrapada en la sala, el agua bloquea la unica salida.",
+      "El ascensor del edificio de {zone} se ha parado en el sotano con el agua entrando, se oye a alguien golpear!",
+      "Somos los del bar de {zone}, tenemos a quince clientes subidos a la barra y las mesas, esto no baja.",
+      "Un tractor ha volcado intentando cruzar la riada en {zone}, el conductor esta encima de la cabina.",
+      "En {zone} el agua ha tirado la tapia del colegio, hay un conserje aislado en la porteria.",
+      "Mi marido salio a mover el coche en {zone} hace veinte minutos y su movil da apagado, por dios ayudenme.",
+      "La gasolinera de {zone} tiene al empleado subido al techo de la tienda, dice que huele a combustible.",
+      "En la planta baja del hostal de {zone} quedan cuatro huespedes extranjeros que no entienden los avisos.",
+      "Se ha hundido parte del techo del mercado de {zone} con el peso del agua, hay heridos leves y gente atrapada."
     ],
     "call.warned.severe_warned": [
       "He recibido la alerta en el movil, estamos en {zone}. Ya estamos en el segundo piso, cuanto durara esto?",
@@ -41,7 +56,12 @@
       "El aviso dice no coger el coche, pero mi hija esta en el instituto de {zone}, la dejo alli? Contestenme por favor.",
       "En {zone} la gente ha hecho caso, la calle esta vacia. Solo queda un senor mayor en el portal 12 que no quiere subir.",
       "Aviso recibido en {zone}. En el club de jubilados eran veinte, los hemos llevado al primer piso del ayuntamiento.",
-      "Llamo de {zone}: la alerta ha llegado bien pero en valenciano y mi madre no lo entiende, pueden reenviarla en castellano?"
+      "Llamo de {zone}: la alerta ha llegado bien pero en valenciano y mi madre no lo entiende, pueden reenviarla en castellano?",
+      "Recibimos el aviso en {zone} y estamos todos arriba. Llamo porque mi vecino del bajo es sordo, alguien tiene que avisarle en persona.",
+      "Desde el aviso estamos en la primera planta en {zone}. Se oye un golpeteo raro en el garaje, puede ser el coche contra el techo?",
+      "Aviso recibido en {zone}, el edificio organizado. Necesitamos insulina para un vecino diabetico en unas horas.",
+      "Gracias al aviso no bajamos al garaje en {zone}. Los coches se han perdido pero estamos todos.",
+      "En {zone} seguimos arriba como dijo el aviso. Cuando pase el agua, por donde salimos? Hay un punto seguro?"
     ],
     "call.noise": [
       "Llamo porque mi vecino tiene la tele muy alta otra vez, es cada noche igual.",
@@ -85,7 +105,17 @@
       "quien tenga barca de verdad en {zone} que la saque, hay gente en los tejados YA",
       "sin luz en {zone}, el agua sigue subiendo, los moviles se apagan, si no contesto es eso",
       "acabamos de sacar a dos criaturas por la ventana del bajo en {zone}, la madre sigue dentro AYUDA",
-      "esto en {zone} es una catastrofe, no llega ni una sirena, estamos solos"
+      "esto en {zone} es una catastrofe, no llega ni una sirena, estamos solos",
+      "en {zone} los contenedores flotan calle abajo como barcos, no os asomeis a los garajes",
+      "acabo de ver a los bomberos sacar a una familia por la ventana en {zone}, aplausos desde los balcones",
+      "el agua en {zone} arrastra un coche CON GENTE DENTRO no puedo creer lo que estoy viendo",
+      "quien tenga cuerdas en {zone} que las baje a la calle, los vecinos estan haciendo cadena humana",
+      "les motos d'aigua dels veins traient gent a {zone}, aixo es de pel-licula de terror",
+      "la corriente en {zone} ha tirado el muro del huerto, cuidado los que esteis cerca del barranco",
+      "SOS en {zone} un chico se ha metido a ayudar y ahora no sale, esta agarrado a una reja",
+      "no queda luz en media {zone}, solo se ven las linternas de los moviles en los balcones",
+      "el bajo de mi cunada en {zone} perdido entero, ella esta bien, subio a tiempo gracias al aviso",
+      "los del primero en {zone} estan metiendo a los del bajo por la ventana con una escalera, heroes"
     ],
     "social.warned.severe_warned": [
       "ha sonado la alerta en {zone}, todos arriba, hacedle caso NO ES BROMA",
@@ -109,7 +139,12 @@
       "ALERTA maxima en {zone} segun me pasan: {original}, dicen que viene otra ola peor",
       "confirmado por un amigo de alli: {original}. en {zone} el agua llega a los primeros pisos (no verificado)",
       "que alguien confirme lo de {zone} porfa: {original}",
-      "se dice que los bomberos no entran en {zone} porque es zona catastrofica ya: {original}"
+      "se dice que los bomberos no entran en {zone} porque es zona catastrofica ya: {original}",
+      "dicen que en {zone} hay saqueos en los comercios inundados: {original}",
+      "me llega que el agua de {zone} viene contaminada con gasoil, NO la toqueis: {original}",
+      "un amigo bombero dice que en {zone} la cosa es peor de lo que sale en la tele: {original}",
+      "estan diciendo que van a evacuar TODO {zone} en helicoptero: {original}",
+      "corre por los grupos que en {zone} ha habido un derrumbe: {original}"
     ],
     "social.noise": [
       "alguien sabe si mañana hay clase en valencia capital?",
@@ -146,7 +181,11 @@
       "Las autoridades confirman rescates en curso en {zone}. Se recomienda a la poblacion permanecer en pisos altos y no bajar a garajes bajo ningun concepto.",
       "Crecida historica a su paso por {zone}: el caudal supera registros conocidos segun fuentes de la confederacion. La comarca de l'Horta Sud, en alerta maxima.",
       "Cortes de luz y de telefonia afectan a parte de {zone}, lo que dificulta las comunicaciones de emergencia. Las llamadas al 112 se han multiplicado en la ultima hora.",
-      "Los accesos por carretera a {zone} permanecen impracticables. La Guardia Civil pide evitar cualquier desplazamiento en la zona sur del area metropolitana."
+      "Los accesos por carretera a {zone} permanecen impracticables. La Guardia Civil pide evitar cualquier desplazamiento en la zona sur del area metropolitana.",
+      "Los servicios de emergencia contabilizan decenas de rescates simultaneos en {zone}. Los accesos permanecen cortados y se pide encarecidamente no salir.",
+      "La crecida mantiene aislado el casco urbano de {zone}. Vecinos organizan cadenas humanas mientras llegan los equipos de rescate.",
+      "Bomberos de varios parques convergen en {zone}, donde persisten llamadas de personas atrapadas en garajes y plantas bajas.",
+      "Las autoridades piden a los vecinos de {zone} que senalicen su posicion con linternas desde balcones y azoteas."
     ],
     "news.noise": [
       "El pleno municipal aprueba la nueva ordenanza de terrazas tras meses de negociacion.",

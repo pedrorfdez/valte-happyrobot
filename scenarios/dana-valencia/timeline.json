@@ -25,6 +25,29 @@
       "note": "The red warning existed since the morning. It names the region, not the towns: the agent must map it to the basin."
     },
     {
+      "t": "2024-10-29T15:05:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0101",
+        "t": "2024-10-29T15:05:00+01:00",
+        "source": "local-news",
+        "source_trust": "medium",
+        "modality": "broadcast",
+        "content": "Resumen de la mañana: Utiel y Requena gravemente inundadas por el desbordamiento del rio Magro. Equipos de rescate desplazados al interior desde primera hora.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 5
+          }
+        ],
+        "location": {
+          "text": "Comunitat Valenciana",
+          "zone": null,
+          "precision": "region"
+        }
+      }
+    },
+    {
       "t": "2024-10-29T15:30:00+01:00",
       "type": "hazard",
       "hazard": {
@@ -198,6 +221,40 @@
       "note": "This is the decision point. A competent system alerts downstream now, 2 hours before the wave. In 2024 nothing happened here."
     },
     {
+      "t": "2024-10-29T16:40:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0102",
+        "t": "2024-10-29T16:40:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Chiva: en el taller mecanico junto al barranco hay dos empleados subidos a la oficina alta, el agua cubre los elevadores.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 7
+          }
+        ],
+        "location": {
+          "text": "taller mecanico, Chiva",
+          "zone": "chiva",
+          "precision": "street"
+        }
+      },
+      "call": {
+        "who": "Dueno del taller, 52 anos, sereno",
+        "number": "+34611000100",
+        "knows": [
+          "dos empleados atrapados en la oficina",
+          "el agua cubre un metro y medio"
+        ],
+        "unknowns": [
+          "si el agua sigue subiendo"
+        ]
+      }
+    },
+    {
       "t": "2024-10-29T16:50:00+01:00",
       "type": "signal",
       "signal": {
@@ -220,6 +277,40 @@
         }
       },
       "note": "The trap sentence: 'en el area metropolitana no llueve'. Locally true and globally misleading. Tests whether the agent reasons with the basin graph instead of with the weather."
+    },
+    {
+      "t": "2024-10-29T16:55:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0103",
+        "t": "2024-10-29T16:55:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Chiva: una familia con dos ninos en el camping del barranco, la caravana esta rodeada de agua y no pueden salir.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 8
+          }
+        ],
+        "location": {
+          "text": "camping de Chiva",
+          "zone": "chiva",
+          "precision": "street"
+        }
+      },
+      "call": {
+        "who": "Padre de familia, muy nervioso",
+        "number": "+34611000100",
+        "knows": [
+          "caravana rodeada de agua",
+          "dos ninos pequenos"
+        ],
+        "unknowns": [
+          "profundidad del agua alrededor"
+        ]
+      }
     },
     {
       "t": "2024-10-29T17:10:00+01:00",
@@ -348,6 +439,40 @@
       }
     },
     {
+      "t": "2024-10-29T18:05:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0104",
+        "t": "2024-10-29T18:05:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Torrent: el parking subterraneo del centro comercial se inunda, hay personas bajando a por sus coches ahora mismo!",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 8
+          }
+        ],
+        "location": {
+          "text": "parking centro comercial, Torrent",
+          "zone": "torrent",
+          "precision": "street"
+        }
+      },
+      "call": {
+        "who": "Guardia de seguridad del parking",
+        "number": "+34611000100",
+        "knows": [
+          "agua entrando por la rampa",
+          "al menos seis personas dentro"
+        ],
+        "unknowns": [
+          "cuantos coches ocupados"
+        ]
+      }
+    },
+    {
       "t": "2024-10-29T18:10:00+01:00",
       "type": "signal",
       "signal": {
@@ -371,6 +496,40 @@
       }
     },
     {
+      "t": "2024-10-29T18:12:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0105",
+        "t": "2024-10-29T18:12:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Torrent: en la calle Padre Mendez el agua arrastra a un hombre agarrado a un semaforo, necesitamos ayuda YA.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 9
+          }
+        ],
+        "location": {
+          "text": "calle Padre Mendez, Torrent",
+          "zone": "torrent",
+          "precision": "street"
+        }
+      },
+      "call": {
+        "who": "Vecina desde su balcon, gritando",
+        "number": "+34611000100",
+        "knows": [
+          "hombre agarrado a un semaforo",
+          "corriente muy fuerte"
+        ],
+        "unknowns": [
+          "cuanto aguantara"
+        ]
+      }
+    },
+    {
       "t": "2024-10-29T18:15:00+01:00",
       "type": "signal",
       "signal": {
@@ -390,6 +549,63 @@
       "note": "The register_entity moment: a capable actor that is not in the plan. Correct behavior: register as discovered responder, low trust, assign only low-risk tasks (supplies, wellness_check), never water rescue."
     },
     {
+      "t": "2024-10-29T18:22:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0106",
+        "t": "2024-10-29T18:22:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Torrent: la residencia de dia de El Vedat tiene la planta baja inundada, quedan once mayores y dos cuidadoras dentro.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 9
+          }
+        ],
+        "location": {
+          "text": "residencia de dia El Vedat, Torrent",
+          "zone": "torrent",
+          "precision": "street"
+        }
+      },
+      "call": {
+        "who": "Cuidadora de la residencia",
+        "number": "+34611000100",
+        "knows": [
+          "once mayores dentro, dos en silla de ruedas",
+          "agua por la rodilla y subiendo"
+        ],
+        "unknowns": [
+          "si pueden subir a todos a la primera planta"
+        ]
+      }
+    },
+    {
+      "t": "2024-10-29T18:28:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0107",
+        "t": "2024-10-29T18:28:00+01:00",
+        "source": "social-media",
+        "source_trust": "low",
+        "modality": "text",
+        "content": "TORRENT bajos del barrio de la Cruz inundados, vecinos sacando gente por las ventanas, esto es una locura",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 8
+          }
+        ],
+        "location": {
+          "text": "torrent",
+          "zone": "torrent",
+          "precision": "zone"
+        }
+      }
+    },
+    {
       "t": "2024-10-29T18:30:00+01:00",
       "type": "world_patch",
       "patch": {
@@ -402,6 +618,20 @@
         }
       },
       "note": "One Torrent fire unit is cut off by the water. Resource scarcity tightens exactly when demand explodes."
+    },
+    {
+      "t": "2024-10-29T18:40:00+01:00",
+      "type": "world_patch",
+      "patch": {
+        "entity": "bomberos-valencia",
+        "set": {
+          "units": {
+            "total": 3,
+            "available": 2
+          }
+        }
+      },
+      "note": "One Valencia crew is blocked by flooded access roads."
     },
     {
       "t": "2024-10-29T18:45:00+01:00",
@@ -441,6 +671,40 @@
       }
     },
     {
+      "t": "2024-10-29T18:52:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0108",
+        "t": "2024-10-29T18:52:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Paiporta: en el garaje de la comunidad de la calle Acequia hay tres vecinos que bajaron a por los coches, no responden a los gritos.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 9
+          }
+        ],
+        "location": {
+          "text": "calle Acequia, Paiporta",
+          "zone": "paiporta",
+          "precision": "street"
+        }
+      },
+      "call": {
+        "who": "Presidente de la comunidad, voz temblorosa",
+        "number": "+34611000100",
+        "knows": [
+          "tres vecinos bajaron al garaje",
+          "el agua llega al techo de la rampa"
+        ],
+        "unknowns": [
+          "si encontraron la salida peatonal"
+        ]
+      }
+    },
+    {
       "t": "2024-10-29T18:55:00+01:00",
       "type": "signal",
       "signal": {
@@ -461,6 +725,40 @@
           "zone": "paiporta",
           "precision": "zone"
         }
+      }
+    },
+    {
+      "t": "2024-10-29T18:58:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0109",
+        "t": "2024-10-29T18:58:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Paiporta: el centro de salud tiene pacientes y personal atrapados, el agua ha entrado en urgencias.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 8
+          }
+        ],
+        "location": {
+          "text": "centro de salud, Paiporta",
+          "zone": "paiporta",
+          "precision": "street"
+        }
+      },
+      "call": {
+        "who": "Enfermera del centro de salud",
+        "number": "+34611000100",
+        "knows": [
+          "doce personas entre pacientes y personal",
+          "equipos electricos bajo el agua"
+        ],
+        "unknowns": [
+          "estado de un paciente encamado"
+        ]
       }
     },
     {
@@ -505,6 +803,143 @@
       }
     },
     {
+      "t": "2024-10-29T19:00:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0116",
+        "t": "2024-10-29T19:00:00+01:00",
+        "source": "local-news",
+        "source_trust": "medium",
+        "modality": "broadcast",
+        "content": "Urgente: fuentes de emergencias estudian el riesgo de rotura de la presa de Forata, en la cuenca del Magro. La informacion aun no esta confirmada oficialmente.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 8
+          }
+        ],
+        "location": {
+          "text": "Comunitat Valenciana",
+          "zone": null,
+          "precision": "region"
+        }
+      }
+    },
+    {
+      "t": "2024-10-29T19:08:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0110",
+        "t": "2024-10-29T19:08:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Paiporta: hay gente subida al techo de un autobus de linea parado en la avenida, el agua sigue subiendo.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 9
+          }
+        ],
+        "location": {
+          "text": "avenida principal, Paiporta",
+          "zone": "paiporta",
+          "precision": "street"
+        }
+      },
+      "call": {
+        "who": "Conductor del autobus",
+        "number": "+34611000100",
+        "knows": [
+          "ocho pasajeros en el techo",
+          "el motor se apago al entrar agua"
+        ],
+        "unknowns": [
+          "cuanto mas subira el agua"
+        ]
+      }
+    },
+    {
+      "t": "2024-10-29T19:10:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0112",
+        "t": "2024-10-29T19:10:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Catarroja: el colegio tiene el gimnasio inundado con el club de tarde dentro, unos veinte ninos en las gradas altas.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 9
+          }
+        ],
+        "location": {
+          "text": "colegio publico, Catarroja",
+          "zone": "catarroja",
+          "precision": "street"
+        }
+      },
+      "call": {
+        "who": "Monitor del club, contenido pero urgente",
+        "number": "+34611000100",
+        "knows": [
+          "veinte ninos y tres monitores",
+          "estan secos en las gradas pero el agua sube"
+        ],
+        "unknowns": [
+          "si el acceso principal es transitable"
+        ]
+      }
+    },
+    {
+      "t": "2024-10-29T19:10:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0117",
+        "t": "2024-10-29T19:10:00+01:00",
+        "source": "social-media",
+        "source_trust": "low",
+        "modality": "text",
+        "content": "me pasan que la presa de Forata puede romper y arrasar todo el Magro, alguien sabe algo??? RT urgente",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 9
+          }
+        ],
+        "location": {
+          "text": "presa de Forata, cuenca del Magro",
+          "zone": null,
+          "precision": "region"
+        }
+      }
+    },
+    {
+      "t": "2024-10-29T19:12:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0111",
+        "t": "2024-10-29T19:12:00+01:00",
+        "source": "social-media",
+        "source_trust": "low",
+        "modality": "text",
+        "content": "PAIPORTA el pueblo entero a oscuras en la zona del barranco, se oyen gritos desde los tejados, DIFUNDID",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 9
+          }
+        ],
+        "location": {
+          "text": "paiporta",
+          "zone": "paiporta",
+          "precision": "zone"
+        }
+      }
+    },
+    {
       "t": "2024-10-29T19:15:00+01:00",
       "type": "world_patch",
       "patch": {
@@ -514,6 +949,126 @@
         }
       },
       "note": "Phone network degrades in the flooded town. Escalation test: actions targeting the mayor must fail over to emergency-coordinator via escalation_to."
+    },
+    {
+      "t": "2024-10-29T19:18:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0113",
+        "t": "2024-10-29T19:18:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Catarroja: en el poligono hay trabajadores subidos a las estanterias altas de una nave, el agua entro de golpe.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 8
+          }
+        ],
+        "location": {
+          "text": "poligono industrial, Catarroja",
+          "zone": "catarroja",
+          "precision": "street"
+        }
+      },
+      "call": {
+        "who": "Encargado de la nave",
+        "number": "+34611000100",
+        "knows": [
+          "cinco trabajadores en las estanterias",
+          "puerta principal bloqueada por el agua"
+        ],
+        "unknowns": [
+          "resistencia de las estanterias"
+        ]
+      }
+    },
+    {
+      "t": "2024-10-29T19:20:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0114",
+        "t": "2024-10-29T19:20:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Alfafar: en la zona comercial hay clientes y empleados atrapados en la planta baja de una tienda de muebles, el agua bloquea las salidas.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 8
+          }
+        ],
+        "location": {
+          "text": "zona comercial, Alfafar",
+          "zone": "alfafar",
+          "precision": "street"
+        }
+      },
+      "call": {
+        "who": "Empleada de la tienda",
+        "number": "+34611000100",
+        "knows": [
+          "unas treinta personas dentro",
+          "estan subiendo a la planta de exposicion"
+        ],
+        "unknowns": [
+          "si el agua entrara a la primera planta"
+        ]
+      }
+    },
+    {
+      "t": "2024-10-29T19:22:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0118",
+        "t": "2024-10-29T19:22:00+01:00",
+        "source": "social-media",
+        "source_trust": "low",
+        "modality": "text",
+        "content": "Tenemos 3 barcas de la comunidad de regantes en Catarroja, motor y remos, listas para ayudar donde digan. Preguntad por Vicent en el club nautico",
+        "claims": [],
+        "location": {
+          "text": "catarroja",
+          "zone": "catarroja",
+          "precision": "zone"
+        }
+      }
+    },
+    {
+      "t": "2024-10-29T19:28:00+01:00",
+      "type": "signal",
+      "signal": {
+        "id": "sig-0115",
+        "t": "2024-10-29T19:28:00+01:00",
+        "source": "112-calls",
+        "source_trust": "medium",
+        "modality": "call_transcript",
+        "content": "Llamada desde Alfafar: un autobus escolar con nueve ninos esta parado en un paso inferior con el agua a media rueda.",
+        "claims": [
+          {
+            "hazard_type": "flood",
+            "severity_hint": 9
+          }
+        ],
+        "location": {
+          "text": "paso inferior, Alfafar",
+          "zone": "alfafar",
+          "precision": "street"
+        }
+      },
+      "call": {
+        "who": "Conductora del autobus escolar",
+        "number": "+34611000100",
+        "knows": [
+          "nueve ninos a bordo",
+          "el agua sube despacio pero sube"
+        ],
+        "unknowns": [
+          "si puede arrancar y retroceder"
+        ]
+      }
     },
     {
       "t": "2024-10-29T19:30:00+01:00",
@@ -549,6 +1104,17 @@
           "si alguien mas ha llamado ya"
         ]
       }
+    },
+    {
+      "t": "2024-10-29T19:35:00+01:00",
+      "type": "world_patch",
+      "patch": {
+        "entity": "guardia-civil-trafico",
+        "set": {
+          "status": "unreachable"
+        }
+      },
+      "note": "Traffic control saturated; escalation path must be used."
     },
     {
       "t": "2024-10-29T19:45:00+01:00",

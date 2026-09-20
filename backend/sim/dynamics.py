@@ -92,14 +92,14 @@ class Dynamics:
             call_bucket, social_bucket = PHASE_BUCKETS[phase]
 
             # 112 volume scales with severity; warned zones call less
-            call_rate = h["severity"] * (0.01 if phase == "severe_warned" else 0.02)
+            call_rate = h["severity"] * (0.02 if phase == "severe_warned" else 0.05)
             if self.rng.random() < call_rate * dt_minutes:
                 signals.append(self._mk_signal(
                     "112-calls", "medium", "call_transcript",
                     self._pick(call_bucket, zone_id), zone_id, t, h["severity"], h["type"]))
 
             # social chatter, a bit denser than calls
-            if self.rng.random() < h["severity"] * 0.025 * dt_minutes:
+            if self.rng.random() < h["severity"] * 0.05 * dt_minutes:
                 signals.append(self._mk_signal(
                     "social-media", "low", "text",
                     self._pick(social_bucket, zone_id), zone_id, t, h["severity"], h["type"]))

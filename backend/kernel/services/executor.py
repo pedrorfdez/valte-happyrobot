@@ -15,8 +15,8 @@ UNIT_VERBS = {"rescue", "pump_water", "shelter", "supplies", "wellness_check", "
 EXECUTE_DELAY_S = 5
 
 # scenario minutes an operation runs before its units come back
-DEFAULT_DURATION_MIN = {"rescue": 45, "pump_water": 60, "shelter": 120,
-                        "supplies": 60, "wellness_check": 30, "heavy_equipment": 90}
+DEFAULT_DURATION_MIN = {"rescue": 120, "pump_water": 180, "shelter": 180,
+                        "supplies": 90, "wellness_check": 45, "heavy_equipment": 150}
 
 
 def execute_approved():
