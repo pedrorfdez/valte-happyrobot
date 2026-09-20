@@ -6,7 +6,7 @@ kernel with the same key."""
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 from ..config import settings
 from ..db import current_run_id, q
@@ -23,6 +23,11 @@ def dashboard(key: str = ""):
         raise HTTPException(401, "add ?key=<WORLD_API_TOKEN> to the URL")
     html = PAGE.read_text().replace("__API_KEY__", settings.world_api_token)
     return HTMLResponse(html)
+
+
+@router.get("/dashboard/basin.jpg")
+def basin_image():
+    return FileResponse(PAGE.parent / "basin.jpg", media_type="image/jpeg")
 
 
 @router.get("/dashboard-state")
