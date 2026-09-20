@@ -62,10 +62,11 @@ h2 { font-size:13px; font-weight:650; color:var(--text-secondary);
 
 /* map card sits on the exact validated chart surface */
 #mapcard { margin-bottom:14px; flex:none; }
-#mapcard svg { display:block; width:100%; height:34vh; min-height:230px; }
+#mapcard svg { display:block; width:100%; height:46vh; min-height:300px; }
 svg { background:var(--surface-1); border-radius:6px; }
 svg text { font:11px ui-sans-serif, system-ui; fill:var(--text-secondary); }
-svg .zname { fill:var(--text-primary); font-weight:600; font-size:11.5px; }
+svg .zname { fill:var(--text-primary); font-weight:650; font-size:12px; }
+svg text { paint-order:stroke; stroke:rgba(10,10,10,.75); stroke-width:2.5px; }
 .flow { stroke:var(--border); stroke-width:2; fill:none; }
 .flow.hot { stroke:var(--sev-3); stroke-dasharray:6 5; animation:flow 1.2s linear infinite; }
 @keyframes flow { to { stroke-dashoffset:-11; } }
@@ -279,6 +280,8 @@ function project(lat, lng){
   return [x, y];
 }
 
+// stitched satellite underlay (ships in the container; tile-aligned bounds)
+const IMG = { href:"/dashboard/basin.jpg", lngW:-0.87891, lngE:-0.26367, latN:39.57182, latS:39.3003 };
 function renderMap(d){
   const svg = document.getElementById("map");
   const hz = {}; d.hazards.forEach(h => { if(!hz[h.zone] || h.severity > hz[h.zone].severity) hz[h.zone]=h; });
@@ -288,6 +291,12 @@ function renderMap(d){
   computeBbox(zs.length ? zs : d.zones.filter(z=>z.centroid));
   const byId = Object.fromEntries(zs.map(z=>[z.id,z]));
   let out = "";
+  { // satellite underlay, positioned by its geographic corners
+    const [ix, iy] = project(IMG.latN, IMG.lngW);
+    const [ix2, iy2] = project(IMG.latS, IMG.lngE);
+    out += `<image href="${IMG.href}" x="${ix}" y="${iy}" width="${ix2-ix}" height="${iy2-iy}"
+      preserveAspectRatio="none" opacity="0.55" style="filter:saturate(.75) brightness(.75)"/>`;
+  }
   for (const z of zs)
     for (const up of (z.downstream_of||[])) {
       if (!byId[up]) continue;
