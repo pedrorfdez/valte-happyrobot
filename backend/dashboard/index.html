@@ -113,6 +113,7 @@ button { font:600 12.5px ui-sans-serif, system-ui; border-radius:6px;
   background:var(--surface-3); color:var(--text-primary); }
 button.ok { border-color:var(--good); color:var(--good); }
 button.no { border-color:var(--critical); color:var(--critical); }
+button.again { border-color:var(--sev-3); color:var(--sev-3); }
 button:hover { filter:brightness(1.3); }
 button:disabled { opacity:.55; cursor:default; filter:none; }
 select { font:600 12.5px ui-sans-serif, system-ui; border-radius:6px;
@@ -515,7 +516,7 @@ async function gate(id, verb){
   tick();
 }
 
-let simRunning = false, simStarted = false;
+let simRunning = false, simStarted = false, simCompleted = false;
 async function simToggle(){
   if (simRunning) return;          // once started, you watch
   const btn = document.getElementById("simbtn");
@@ -536,13 +537,15 @@ let clockBase = null;   // {t: scenario Date, wall: ms, speed}
 async function pollSim(){
   try {
     const s = await (await fetch("/sim/status", { headers:H })).json();
+    if (simRunning && !s.running) simCompleted = true;   // observed a run finish
     simRunning = s.running;
     if (s.running && s.scenario_t)
       clockBase = { t: new Date(s.scenario_t), wall: Date.now(), speed: s.speed || 30 };
     else clockBase = null;
     const btn = document.getElementById("simbtn");
-    btn.textContent = simRunning ? "Scenario running" : "Start scenario";
-    btn.className = simRunning ? "" : "ok";
+    btn.textContent = simRunning ? "Scenario running"
+      : simCompleted ? "Restart" : "Start scenario";
+    btn.className = simRunning ? "" : simCompleted ? "again" : "ok";
     btn.disabled = simRunning;
     document.getElementById("simspeed").disabled = simRunning;
     document.getElementById("simstate").textContent =
