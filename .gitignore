@@ -3,9 +3,6 @@
 .env.*
 !.env.example
 .public_url
-*.db
-*.db-shm
-*.db-wal
 *.log
 
 # tooling
