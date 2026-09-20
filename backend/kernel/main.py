@@ -66,6 +66,9 @@ for r in (runs, state, entities, signals, perceptions, actions, situation,
 @app.get("/healthz")
 def healthz():
     db_ok = bool(q("select 1 as ok", one=True))
-    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
-                            capture_output=True, text=True).stdout.strip()
-    return {"ok": db_ok, "commit": commit or "unknown"}
+    try:
+        commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                                capture_output=True, text=True).stdout.strip()
+    except FileNotFoundError:  # no git in the container
+        commit = ""
+    return {"ok": db_ok, "commit": commit or "deployed"}
