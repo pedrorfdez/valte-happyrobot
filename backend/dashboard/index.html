@@ -339,7 +339,7 @@ function render(d){
   document.getElementById("zsev").textContent = hazardNoun + " severity";
   document.getElementById("runline").textContent =
     `run ${d.run.id.slice(0,8)} — ${d.counts.signals_total} signals received, ${d.counts.noise} filtered as noise`;
-  document.getElementById("clock").textContent = hm(d.scenario_t);
+  if (!clockBase) document.getElementById("clock").textContent = hm(d.scenario_t);
   const lvl = d.situation.emergency_level;
   const lc = document.getElementById("level");
   lc.textContent = "LEVEL " + (lvl ?? "–");
@@ -492,10 +492,14 @@ async function simToggle(){
   } finally { btn.disabled = false; }
   pollSim();
 }
+let clockBase = null;   // {t: scenario Date, wall: ms, speed}
 async function pollSim(){
   try {
     const s = await (await fetch("/sim/status", { headers:H })).json();
     simRunning = s.running;
+    if (s.running && s.scenario_t)
+      clockBase = { t: new Date(s.scenario_t), wall: Date.now(), speed: s.speed || 30 };
+    else clockBase = null;
     const btn = document.getElementById("simbtn");
     btn.textContent = simRunning ? "Stop scenario" : "Start scenario";
     btn.className = simRunning ? "no" : "ok";
@@ -505,6 +509,13 @@ async function pollSim(){
   } catch(e) {}
 }
 setInterval(pollSim, 3000); pollSim();
+// smooth ticking clock while the sim runs: interpolate between status polls
+setInterval(() => {
+  if (!clockBase) return;
+  const t = new Date(clockBase.t.getTime() + (Date.now() - clockBase.wall) * clockBase.speed);
+  document.getElementById("clock").textContent =
+    t.toLocaleTimeString("es-ES", {hour:"2-digit", minute:"2-digit", second:"2-digit", timeZone:"Europe/Madrid"});
+}, 1000);
 
 let pinnedRun = new URLSearchParams(location.search).get("run_id") || "";
 function switchRun(id){ pinnedRun = id; document.getElementById("newrun").hidden = true; tick(); }

@@ -74,6 +74,7 @@ def sim_status():
     if eng is not None:
         try:
             out["scenario_t"] = eng.clock.now().isoformat()
+            out["speed"] = eng.clock.speed
             out["emitted"] = eng.emitted
         except Exception:
             pass

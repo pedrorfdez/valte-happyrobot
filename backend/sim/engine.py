@@ -123,12 +123,15 @@ class Engine:
 
                 time.sleep(self.tick_wall_s)
             # final drain: release anything scheduled inside the window that
-            # the last tick jumped over (matters at high compression)
-            end = self.clock.end
-            for entry in self.player.due(end):
-                self._apply_entry(entry, end)
-            for _, echo in [e for e in self._pending_echoes if e[0] <= end]:
-                self._emit(echo)
+            # the last tick jumped over (matters at high compression).
+            # NEVER on manual stop: that would dump the whole remaining
+            # timeline into the kernel at once.
+            if not self.stop_requested:
+                end = self.clock.end
+                for entry in self.player.due(end):
+                    self._apply_entry(entry, end)
+                for _, echo in [e for e in self._pending_echoes if e[0] <= end]:
+                    self._emit(echo)
         finally:
             if self._truth:
                 self._truth.close()
