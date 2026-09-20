@@ -14,6 +14,7 @@
   --text-primary:#f2f1ec; --text-secondary:#c3c2b7; --text-muted:#85847c;
   --ch-call:#3987e5; --ch-social:#d95926; --ch-news:#199e70; --ch-sensor:#c98500;
   --sev-1:#184f95; --sev-2:#2a78d6; --sev-3:#6da7ec; --sev-4:#b7d3f6;
+  --hz-low:#fab219; --hz-mid:#ec835a; --hz-high:#d03b3b;
   --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 }
@@ -60,6 +61,8 @@ h2 { font-size:13px; font-weight:650; color:var(--text-secondary);
   scrollbar-color:var(--surface-3) transparent; }
 
 /* map card sits on the exact validated chart surface */
+#mapcard { margin-bottom:14px; flex:none; }
+#mapcard svg { display:block; width:100%; height:34vh; min-height:230px; }
 svg { background:var(--surface-1); border-radius:6px; }
 svg text { font:11px ui-sans-serif, system-ui; fill:var(--text-secondary); }
 svg .zname { fill:var(--text-primary); font-weight:600; font-size:11.5px; }
@@ -165,19 +168,19 @@ button:focus-visible { outline:2px solid var(--sev-3); outline-offset:2px; }
   <button style="margin-left:10px">Switch to newest run</button>
 </div>
 
+<div class="card" id="mapcard">
+  <h2>Basin — ground truth</h2>
+  <svg id="map" viewBox="0 0 400 280" role="img" aria-label="Basin map"></svg>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--hz-low)"></i><span id="sevword">hazard</span> sev 1–3</span>
+    <span><i class="dot" style="background:var(--hz-mid)"></i>4–6</span>
+    <span><i class="dot" style="background:var(--hz-high)"></i>7–10</span>
+    <span><i class="dot" style="background:transparent;border:2px solid var(--good);width:7px;height:7px"></i>alerted</span>
+  </div>
+</div>
+
 <div class="grid">
   <div class="col">
-    <div class="card">
-      <h2>Basin — ground truth</h2>
-      <svg id="map" viewBox="0 0 400 280" width="100%" role="img" aria-label="Basin map"></svg>
-      <div class="legend">
-        <span><i class="dot" style="background:var(--sev-1)"></i><span id="sevword">hazard</span> sev 1–3</span>
-        <span><i class="dot" style="background:var(--sev-2)"></i>4–6</span>
-        <span><i class="dot" style="background:var(--sev-3)"></i>7–8</span>
-        <span><i class="dot" style="background:var(--sev-4)"></i>9–10</span>
-        <span><i class="dot" style="background:transparent;border:2px solid var(--good);width:7px;height:7px"></i>alerted</span>
-      </div>
-    </div>
     <div class="card">
       <h2>Zones</h2>
       <table id="ztable"><thead><tr>
@@ -253,7 +256,7 @@ const verbTitle = a => (VERB[a.verb] || (x => {
 }))(a);
 let hazardNoun = "hazard";
 const esc = s => (s ?? "").toString().replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const sevColor = s => s>=9 ? "var(--sev-4)" : s>=7 ? "var(--sev-3)" : s>=4 ? "var(--sev-2)" : "var(--sev-1)";
+const sevColor = s => s>=7 ? "var(--hz-high)" : s>=4 ? "var(--hz-mid)" : "var(--hz-low)";
 const hm = t => {
   if (!t) return "–";
   const d = new Date(t);
