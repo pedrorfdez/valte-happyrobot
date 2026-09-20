@@ -98,7 +98,7 @@ tr + tr td { border-top:1px solid var(--border-soft); }
 .b-stub { color:var(--text-muted); background:transparent; outline:1px dashed var(--border); }
 .b-reflex { color:var(--sev-3); background:color-mix(in oklab, var(--sev-3) 13%, var(--surface-2)); }
 
-#actions { min-height:520px; max-height:76vh; overflow-y:auto;
+#actions { min-height:1040px; max-height:1040px; overflow-y:auto;
   overscroll-behavior:contain; scrollbar-width:thin;
   scrollbar-color:var(--surface-3) transparent; }
 details.act { border-top:1px solid var(--border-soft); padding:7px 4px; border-radius:5px; }
@@ -128,6 +128,8 @@ select { font:600 12.5px ui-sans-serif, system-ui; border-radius:6px;
 select:disabled { opacity:.55; cursor:default; }
 button:focus-visible { outline:2px solid var(--sev-3); outline-offset:2px; }
 
+#tripwires { max-height:240px; overflow-y:auto; overscroll-behavior:contain;
+  scrollbar-width:thin; scrollbar-color:var(--surface-3) transparent; }
 .twire { padding:7px 4px; border-top:1px solid var(--border-soft); font-size:12.5px; }
 .twire:first-of-type { border-top:none; }
 #err { color:var(--critical); font-size:12px; }

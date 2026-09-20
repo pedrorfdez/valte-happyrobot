@@ -54,7 +54,7 @@ def dashboard_state(key: str = "", run_id: str = ""):
     situation = q("select doc, updated_at from situation where run_id=%s", (rid,), one=True)
     sit_history = q("""select doc, written_at from situation_history
                        where run_id=%s order by pk desc limit 12""", (rid,))
-    tripwires = q("select id, status, set_by, doc from tripwires where run_id=%s", (rid,))
+    tripwires = q("select id, status, set_by, doc from tripwires where run_id=%s order by created_at, id", (rid,))
     actions = q("""select doc, hr_run_id, created_at from actions
                    where run_id=%s order by t desc, created_at desc limit 40""", (rid,))
     pending = [r["doc"] for r in q(
