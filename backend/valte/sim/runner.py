@@ -22,30 +22,35 @@ def _timeline(pack_id: str) -> tuple[dict[str, Any], ...]:
     return tuple(sorted(load_pack(pack_id).get("timeline") or [], key=lambda i: i["at_min"]))
 
 
-def timeline_for(db: Session, c: Crisis) -> list[dict[str, Any]]:
-    """The hand-written pack script when it fits this crisis; otherwise one generated from its own zones."""
+def timeline_for(db: Session, c: Crisis, hazard: str | None = None) -> list[dict[str, Any]]:
+    """The hand-written pack script when it fits this crisis; otherwise one generated from its own zones.
+    `hazard` = what the outside world is asked to simulate (the feeder app picks flood or fire); by default, the crisis's own."""
     from valte.core.world import entities_of, resources_of, zones_of
     from valte.sim import generator
 
+    hazard = hazard or c.hazard_type
     zones = zones_of(db, c.id)
     zone_ids = {z.id for z in zones}
     if c.pack_id:
         pack = load_pack(c.pack_id)
         script = _timeline(c.pack_id)
         used = {i["zone"] for i in script if i.get("zone")} | {i["fallback"]["zone"] for i in script if (i.get("fallback") or {}).get("zone")}
-        if pack.get("hazard_type") == c.hazard_type and used and len(used & zone_ids) >= len(used) / 2:
+        if pack.get("hazard_type") == hazard and used and len(used & zone_ids) >= len(used) / 2:
             return [i for i in script if (i.get("zone") or (i.get("fallback") or {}).get("zone") or "") in zone_ids | {""}]
-    cached = (c.config or {}).get("generated_timeline")
+    own = hazard == c.hazard_type
+    cached = (c.config or {}).get("generated_timeline") if own else ((c.config or {}).get("generated_timelines") or {}).get(hazard)
     if cached:
         return cached
     ensure_sources(db, c)
     ents = entities_of(db, c.id)
     script = generator.generate(
-        hazard=c.hazard_type, region=c.region,
+        hazard=hazard, region=c.region,
         zones=[{"id": z.id, "name": z.name, "population": z.population, "is_origin": z.is_origin, "downstream": z.downstream} for z in zones],
         responders=[{"id": e.id, "name": e.name, "escalation_to": e.escalation_to, "channel": e.channel} for e in ents if e.kind == "responder"],
-        resources=[{"id": r.id, "name": r.name, "total": r.total} for r in resources_of(db, c.id)], seed=c.id)
-    c.config = {**(c.config or {}), "generated_timeline": script}  # stable for the whole run (and for a re-attached feeder)
+        resources=[{"id": r.id, "name": r.name, "total": r.total} for r in resources_of(db, c.id)], seed=f"{c.id}:{hazard}" if not own else c.id)
+    # stable for the whole run (and for a re-attached feeder), one script per simulated hazard
+    c.config = {**(c.config or {}), **({"generated_timeline": script} if own else
+                                       {"generated_timelines": {**((c.config or {}).get("generated_timelines") or {}), hazard: script}})}
     return script
 
 

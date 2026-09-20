@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     # API answers only to this machine; HappyRobot callbacks and email approval links stay reachable.
     valte_dashboard_token: str = ""
 
+    # Dictation (POST /stt) runs a Whisper model on this machine: tiny | base | small | medium. Bigger = better names, slower.
+    valte_stt_model: str = "small"
+
     # Look up wizard-typed zone names on OpenStreetMap to place them on the map (off in tests / offline).
     valte_geocode: bool = True
 

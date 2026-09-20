@@ -51,24 +51,34 @@ def suggested_verb(sig: Signal) -> str:
 
 
 def open_needs(db: Session, c: Crisis, *, limit: int = 12) -> list[dict[str, Any]]:
-    """Reports that ask for help and that no live action covers. A need is
-    covered when an action that puts resources on it cites its signal id."""
+    """Incidents that ask for help and that no live action covers. Five calls about the same care home are ONE
+    need. It is covered when an action that puts resources on it cites any of its signals (or the incident id).
+    `signal_id` is the report to cite: the most precise and most believable of the incident."""
+    from valte.core import incidents
+
     now_s = scenario_now(c)
-    covered: set[str] = set()
-    for act in db.scalars(select(Action).where(Action.crisis_id == c.id, Action.verb.in_(tuple(COVER_VERBS)),
-                                               Action.status.not_in(("rejected", "failed")))):
-        covered.update(act.evidence or [])
-    rows = db.scalars(select(Signal).where(
-        Signal.crisis_id == c.id, Signal.is_noise.is_(False), Signal.zone_id.is_not(None),
-        Signal.severity_hint >= NEED_MIN_SEVERITY, Signal.channel != "sensor", Signal.t >= now_s - NEED_WINDOW))
-    needs = [s for s in rows if s.id not in covered]
-    needs.sort(key=lambda s: (-s.severity_hint, CONF_RANK.get(s.confidence, 3), s.t))
-    return [{
-        "signal_id": s.id, "zone": s.zone_id, "severity": s.severity_hint, "confidence": s.confidence,
-        "precision": (s.location or {}).get("precision"), "where": (s.location or {}).get("text", ""),
-        "waiting_min": max(0, int((now_s - s.t).total_seconds() // 60)),
-        "what": (s.content or s.summary)[:200], "suggested_verb": suggested_verb(s),
-    } for s in needs[:limit]]
+    out = []
+    for inc in incidents.open_incidents(db, c):
+        if inc.state not in ("candidate", "active") or (inc.severity or 0) < NEED_MIN_SEVERITY or not inc.zone_id:
+            continue
+        sigs = [s for s in incidents.signals_of(db, inc) if not s.is_noise and s.channel != "sensor"]
+        if not sigs or (inc.last_t and inc.last_t < now_s - NEED_WINDOW):
+            continue
+        best = sorted(sigs, key=lambda s: ((s.location or {}).get("precision") not in ("street", "exact"),
+                                           CONF_RANK.get(s.confidence, 3), -s.severity_hint, s.t))[0]
+        out.append({
+            "incident_id": inc.id, "signal_id": best.id, "signal_ids": inc.signal_ids, "sources": len(inc.origins or []),
+            "state": inc.state, "zone": inc.zone_id, "severity": inc.severity, "confidence": inc.confidence, "people": inc.people,
+            "precision": (best.location or {}).get("precision"), "where": inc.place or (best.location or {}).get("text", ""),
+            "waiting_min": max(0, int((now_s - (inc.first_t or best.t)).total_seconds() // 60)),
+            "what": inc.summary[:200],
+            # one unverified voice: check it or prepare, do not commit scarce units to it yet
+            "suggested_verb": "wellness_check" if inc.state == "candidate" else (
+                "rescue" if incidents.verified(db, inc) and suggested_verb(best) == "wellness_check" else suggested_verb(best)),
+            "verified": incidents.verified(db, inc),
+        })
+    out.sort(key=lambda n: (-n["severity"], CONF_RANK.get(n["confidence"], 3), -n["waiting_min"]))
+    return out[:limit]
 
 
 def pick_responder(db: Session, c: Crisis, verb: str, zone: str | None, units: int = 1, *,

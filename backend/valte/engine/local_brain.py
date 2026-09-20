@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from valte.core import actions, plan
+from valte.core.playbook import alert_copy
 from valte.core.world import active_plan, entities_of, zones_of
 from valte.models import Crisis, Signal, Zone
 
@@ -49,16 +50,22 @@ def decide(db: Session, c: Crisis) -> dict[str, Any]:
             continue
         targets = [t for t in [z.id, *_downstream(zones, z.id)] if not zones[t].warned]
         if targets and "send_es_alert" in coord.capabilities:
+            reasoning = f"Severidad {z.severity_est} en {z.name}: aviso a la zona y a todo lo que tiene aguas abajo antes de que llegue."
+            if c.hazard_type == "fire":
+                reasoning = f"Severidad {z.severity_est} en {z.name}: aviso a la zona y a lo que el fuego tiene a sotavento."
+            elif c.hazard_type == "blackout":
+                reasoning = f"Severidad {z.severity_est} en {z.name}: aviso a la zona y a lo que se quedará sin luz a continuación."
             proposals.append({"actor": coord.id, "verb": "send_es_alert", "target_zones": targets,
-                              "params": {"message": "Riada inminente. No baje a garajes ni sótanos, suba a plantas altas y no coja el coche. / Riuada imminent. No baixeu a garatges ni soterranis."},
-                              "evidence": evidence(z.id),
-                              "reasoning": f"Severidad {z.severity_est} en {z.name}: aviso a la zona y a todo lo que tiene aguas abajo antes de que llegue."})
+                              "params": {"message": alert_copy(c.hazard_type)},
+                              "evidence": evidence(z.id), "reasoning": reasoning})
         if "request_ume" in coord.capabilities:
             proposals.append({"actor": coord.id, "verb": "request_ume", "target_zones": [], "params": {},
                               "evidence": evidence(z.id),
                               "reasoning": "La UME tarda 180 minutos en estar operativa: se pide ya."})
 
     for z in zones.values():
+        if c.hazard_type in ("blackout", "mci"):
+            continue  # playbook: do not evacuate a whole town for an outage or a crash
         imminent = z.eta_min is not None and z.eta_min <= 40 and z.base_at_risk_pct >= 25
         if (imminent or z.severity_est >= 7) and not z.evacuating:
             auth = next((e for e in ents if e.kind == "authority" and e.role != "coordination"
@@ -105,17 +112,14 @@ def make_plan(db: Session, c: Crisis) -> None:
         prio = "P0" if z.severity_est >= 7 else "P1" if (z.severity_est >= 4 or (z.eta_min or 99) <= 40) else "P2"
         ev = [s.id for s in db.scalars(select(Signal).where(Signal.crisis_id == c.id, Signal.zone_id == z.id,
                                                           Signal.is_noise.is_(False)).order_by(Signal.seq.desc()).limit(3))]
-        incidents.append({"incident_id": f"inc-{z.id}", "state": "active", "priority": prio,
-                          "confidence": "medium", "title": f"{HAZARD_ES.get(c.hazard_type, 'Incidente')} en {z.name}", "zone_ids": [z.id],
-                          "hazard_types": [c.hazard_type], "evidence": [{"kind": "signal", "signal_id": i} for i in ev],
-                          "summary": f"Severidad {z.severity_est}, llegada en {z.eta_min} min." if z.eta_min else f"Severidad {z.severity_est}."})
+        incidents.append(z.id)
         objectives.append({"priority": prio, "zone_ids": [z.id],
                            "objective": ("Rescatar y contener" if z.severity_est >= 7 else "Avisar y evacuar antes del pico"),
                            "suggested_verb": "rescue" if z.severity_est >= 7 else "send_es_alert"})
     if not incidents:
         return
     old = active_plan(db, c.id)
-    plan.replace_plan(db, c, {"incidents": incidents, "plan": {
+    plan.replace_plan(db, c, {"plan": {
         "summary": ("Replanificación: " + old.invalidated_reason + ". " if old and old.invalidated_reason else "")
         + "Prioridad a las zonas con agua ya dentro; aguas abajo, avisar antes de que llegue.",
         "objectives": objectives}}, origin="local-brain")

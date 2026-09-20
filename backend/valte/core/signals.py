@@ -89,12 +89,17 @@ def compute_confidence(db: Session, c: Crisis, sig: Signal) -> tuple[str | None,
             Signal.id != sig.id, Signal.t >= sig.t - CORROBORATION_WINDOW, Signal.t <= sig.t + CORROBORATION_WINDOW)):
             if not hazards or hazards & {cl["hazard_type"] for cl in other.claims}:
                 corroborating.append(other)
+    from valte.core.incidents import origin_key
+
     other_channels = sorted({o.channel for o in corroborating if o.channel != sig.channel})
+    # Independent witnesses, not messages: twenty reposts of one rumour corroborate nothing.
+    origins = {origin_key(db, o) for o in corroborating} - {origin_key(db, sig)}
     inputs["corroborating_signals"] = [o.id for o in corroborating][:6]
     inputs["corroborating_channels"] = other_channels
+    inputs["independent_origins"] = len(origins)
     if other_channels:
         level += 1
-    if len(corroborating) >= 3 and len({o.channel for o in corroborating} | {sig.channel}) >= 2:
+    if len(origins) >= 3 and len({o.channel for o in corroborating} | {sig.channel}) >= 2:
         level += 1
 
     precision = (sig.location or {}).get("precision", "unknown")
@@ -127,7 +132,7 @@ def upsert_signal(
     modality: str | None = None,
 ) -> tuple[Signal, bool]:
     """Returns (signal, created). Same id again = a revision, not a copy."""
-    from valte.core import tripwires
+    from valte.core import incidents, tripwires
 
     now_s = scenario_now(c)
     sig_id = sig_id or next_id(c, "sig")
@@ -178,13 +183,20 @@ def upsert_signal(
     if raw:
         raw.state = "fallback" if perceived_by == "fallback" else "perceived"
 
-    material = (not sig.is_noise) and (sig.confidence in ("medium", "high") or sig.severity_hint >= 6)
+    # One or several signals make an incident. A report that only repeats what its incident already says is
+    # evidence, not news: it does not wake a brain (and does not cost a run).
+    inc, news = incidents.attach_signal(db, c, sig)
+    worth = sig.confidence in ("medium", "high") or sig.severity_hint >= 6 \
+        or (inc is not None and inc.state != "candidate" and (inc.severity or 0) >= 6)  # a weak voice that confirms a serious incident
+    material = (not sig.is_noise) and worth and (news or inc is None)
     place = sig.zone_id or "unresolved location"
     append_event(
         db, c, "signal.created" if not existing else "signal.updated", signal_dict(sig), material=material,
         digest=None if sig.is_noise else
         f"[{sig.id}] {sig.source} ({sig.modality}, confidence {sig.confidence}) in {place}: "
-        f"severity {sig.severity_hint} — {(sig.summary or sig.content)[:160]}",
+        f"severity {sig.severity_hint} — {(sig.summary or sig.content)[:160]}"
+        + (f" → {inc.id} [{inc.priority}, {inc.state}, {len(inc.signal_ids or [])} signal(s) / "
+           f"{len(inc.origins or [])} independent source(s)] {inc.title}" if inc else ""),
     )
 
     if not sig.is_noise:

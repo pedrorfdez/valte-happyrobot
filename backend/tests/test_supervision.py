@@ -84,3 +84,27 @@ def test_reinforcements_exist_for_any_crisis_and_arrive_after_their_delay():
         c.anchor_scenario += timedelta(minutes=181)
         actions.tick_world(db, c, 1)
         assert ume.status == "available" and ume.units_available == ume.units_total
+
+
+def test_a_declared_crisis_gets_a_playbook_for_its_hazard_not_a_flood_by_default():
+    with session_scope() as db:
+        fire = world.create_crisis(db, {"name": "Incendio Calderona", "hazard_type": "fire", "region": "Camp de Túria",
+                                        "zones": [{"name": "Serra", "is_origin": True, "to": ["Náquera · 40 min"]},
+                                                  {"name": "Náquera"}]})
+        card = world.environment_of(db, fire)
+        assert fire.config["doctrine"] and "upstairs" in " ".join(fire.config["doctrine"]).lower()
+        assert "NEVER send people upstairs" in card and "hazard=fire" in card
+        assert "garages" not in card.lower() or "NEVER" in card
+        assert "serra" in card and "naquera" in card
+        state = world.build_state(db, fire)
+        assert state["environment"].startswith("THIS CRISIS")
+        assert state["doctrine"] == fire.config["doctrine"]
+
+        outage = world.create_crisis(db, {"name": "Apagón", "hazard_type": "blackout",
+                                          "zones": [{"name": "Ruzafa", "is_origin": True}]})
+        assert "town-wide evacuation" in " ".join(outage.config["doctrine"])
+        assert "blackout" in world.environment_of(db, outage)
+
+        pack = world.create_crisis(db, {"pack": "riada-paiporta"})
+        assert pack.config["doctrine"][0].startswith("Decide on the propagation graph")
+        assert "flood" in world.environment_of(db, pack)

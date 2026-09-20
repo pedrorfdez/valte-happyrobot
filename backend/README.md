@@ -63,6 +63,8 @@ reinicia y abre `https://<túnel>/app/?key=<token>`; el front lo recuerda.
 | `PedroD-ingest-calls` / `-social` / `-news` | webhook → Extract → POST | `POST /perceptions` |
 | `PedroD-coordinator` | webhook → Extract → POST | `POST /decisions` |
 | `PedroD-proactive` | webhook → Extract → POST | `POST /hr/proactive` |
+| `PedroD-crisis-parse` | webhook → Extract | ninguno: `POST /crises/draft` espera y lee la salida del run |
+| `PedroD-crisis-review` | webhook → Extract | ninguno: tras `POST /crises/{id}/close` el kernel lee la salida y guarda las lecciones con evidencia real |
 | `PedroD-crisis-intake` | webhook → Extract → POST | `POST /api/commands` `upsert_signal` |
 | `PedroD-crisis-command` | webhook → Extract → POST | `POST /api/commands` `replace_plan` |
 | `PedroD-crisis-response-coordination` | webhook → Extract → POST | `POST /api/commands` `record_outcome` |
@@ -106,7 +108,7 @@ Ambos aceptan query string, cuerpo JSON o mezcla, y tipos laxos (`"false"`, arra
 | Pantalla | Endpoint |
 |---|---|
 | Inicio | `GET /crises?status=active` |
-| Alta (wizard) | `GET /packs`, `GET /packs/{id}` (prefill), `POST /crises` `{pack?, name, region, scenario, zones[], sources[], resources[]}` |
+| Alta (texto libre + dictado) | `POST /crises/draft` `{text}` → `{spec{…, reports[]}, risk[], missing[], assumptions[], blocking, parsed_by}` (no crea nada; `reports` = lo que el texto dice que ya pasa, `risk` = severidad y llegada por zona que se deduce), `POST /crises` acepta `reports[]` y los siembra como primeros avisos del CECOPI (`core/declare.py::seed`), `POST /crises` `{pack?, name, region, scenario, zones[], sources[], resources[], transcript, source:"text"}`, `GET /stt?warm=1`, `POST /stt?lang=es&hint=` (cuerpo = la grabación) → `{text}` |
 | Cabecera + KPIs + roles | `GET /crises/{id}` |
 | Panel Coordinación / Autoridad / Respuesta | `GET /crises/{id}/overview?role=coordination\|authority\|responder&entity_id=` |
 | Zonas (grafo + detalle) | `GET /crises/{id}/zones`, `/zones/{zona}` |
@@ -147,7 +149,7 @@ Cada crisis tiene **su propio guion** (`GET /crises/{id}/timeline`): «Riada en 
 (`valte/sim/packs/riada-paiporta.json`, se regenera con `scripts/build_pack_riada.py`: 6 zonas con retardos, 28 entidades,
 suministros y 150 min con ruido, un aforo que enmudece, una entidad que deja de contestar, un puente hundido, una residencia con
 50 personas y pérdida de bombas). Cualquier otra —incendio, apagón, fallo de infraestructura, víctimas múltiples, sobre las zonas
-que dibuje el wizard— recibe uno generado por `valte/sim/generator.py` a partir de su grafo de zonas y sus retardos, estable por
+que se describa al declararla— recibe uno generado por `valte/sim/generator.py` a partir de su grafo de zonas y sus retardos, estable por
 crisis. A esas crisis se les añaden las fuentes mínimas (112, sensores, medios, redes), un reflejo de silencio de sensores y una
 entidad de refuerzo (`ume`).
 
@@ -165,6 +167,48 @@ Al cerrar una crisis se guardan lecciones en castellano (fiabilidad real de cada
 aprobaciones, minutos hasta avisar aguas abajo) que ajustan los priors y se inyectan en el estado de la siguiente crisis del mismo
 tipo. Lo que ve el supervisor: `overview.changes` («últimos cambios», una línea por cosa que altera el cuadro) y `GET /plan`
 (objetivos, incidentes, por qué murió cada plan — con los motivos ya traducidos).
+
+## Incidencias: una o varias señales son una incidencia
+
+Lo que ve el supervisor, lo que priorizan los cerebros y lo que atienden los reflejos ya no son señales sueltas sino
+**incidencias** (`valte/core/incidents.py`, sin LLM ni créditos): al llegar cada señal el kernel la archiva en la incidencia de la
+que habla o abre una. Misma zona, mismo tipo de problema (personas en peligro, vía cortada, sin suministro, daños en edificio,
+albergue, ofrecimiento de ayuda o la amenaza general de la zona) y, donde el punto concreto distingue dos trabajos, el mismo
+punto (coincidencia de palabras del lugar; un aviso con precisión de calle pero sin lugar nunca se fusiona: un rescate doblado
+cuesta menos que uno perdido). Cinco llamadas sobre la misma residencia = una incidencia, un reflejo, una necesidad.
+
+- **Cuánto creerla**: cuenta **fuentes independientes**, no mensajes (cada llamante del 112 es una; todas las redes sociales son
+  una: un reenvío no es un testigo). Una sola voz sin verificar es `candidate` («sin confirmar», nunca P0): se verifica o se
+  prepara algo reversible, no se le comprometen unidades escasas. La confianza de cada señal usa la misma regla.
+- **Estados**: `candidate` → `active` (creíble, nadie encima) → `attended` (una acción *en su zona* la cita: sus señales o su
+  `inc-…`) → `resolved` (las acciones terminaron, o la amenaza remitió) · `dismissed` (una persona dice que es falsa: se retiran
+  las aprobaciones pendientes y sus fuentes quedan apuntadas) · `merged`. Si quien la atendía falla o es rechazado, vuelve a ser de nadie.
+- **Menos despertares**: un aviso que solo repite lo que su incidencia ya dice es evidencia, no noticia: no despierta a ningún cerebro.
+- `state.situation.incidents` / `snapshot.incidents` y `open_needs` van por incidencia. `crisis-command` ya no inventa
+  incidencias: las re-prioriza por id, dice por qué importan, fija `revisit_at`, cierra las que han pasado y puede **fusionar**
+  dos que son el mismo suceso (`{"merge": [["inc-0003","inc-0007"]]}`); las que omite siguen como están.
+- API: `GET /crises/{id}/incidents?state=&zone=&entity_id=` → `{counts, incidents[], noise[]}` · `GET …/incidents/{iid}` (con sus
+  señales y acciones) · `POST …/incidents/{iid}/dismiss {by, reason}` · `POST …/incidents/{iid}/merge {into, by}`. `overview` trae
+  `incidents[]` y los KPIs `incidents{open, unattended, candidate…}`. Eventos `incident.opened|updated|dismissed|merged`.
+  Las crisis anteriores al modelo reciben sus incidencias de sus señales en el primer tick.
+
+## Lecciones: dentro de una crisis y de una a la siguiente
+
+`valte/core/learning.py`. Dos reglas: una lección **cita evidencia** (ids reales de acciones, contactos, incidencias o señales) o
+no se guarda, y toda decisión que se apoya en una lección **lo dice** (`lesson_uses`; los cerebros añaden `"lessons": ["L-12"]` a
+la acción o al plan, el kernel descarta los ids inventados).
+
+- **Dentro** (`learn_now`, cada 5 ticks): lo que las propias decisiones se han encontrado se aplica *ya*. Quién no contesta (≥2
+  contactos sin respuesta → la siguiente firma se pide a su escalado sin esperar al timbre) · cuánto tarda cada autoridad en
+  firmar, en minutos de escenario · lo que una persona rechazó (la misma orden en la misma zona sin una señal posterior al
+  rechazo la rechaza el kernel citando la lección) · fuentes que dieron falsas alarmas (≥2 incidencias descartadas → su
+  fiabilidad baja en el acto) o que avisaron primero y acertaron · cuánto esperan las incidencias graves. Más lo que diga una
+  persona: `POST /crises/{id}/lessons {text, by}`. Entran en `state.lessons` con id, `learned: in_this_crisis` y su evidencia.
+- **Entre crisis** (`close_crisis` → `carry_forward`): lo aprendido pasa a `scope: global` para las siguientes del mismo tipo.
+  Vista otra vez gana peso («vista en 2 crisis»); desmentida por los hechos lo pierde y se retira. Al abrir, `apply_lessons`
+  mueve los priors y lo deja anotado. Tras el cierre, `PedroD-crisis-review` (webhook → Extract, en segundo plano) propone hasta
+  4 lecciones cualitativas; solo se guardan las que citan evidencia que existe.
+- `GET /crises/{id}/lessons` → `{now[], before[], applied}` con evidencia y usos de cada una.
 
 ## Canal de incidencias
 
@@ -186,17 +230,33 @@ actor (la ven las necesidades abiertas, los reflejos y los dos cerebros) y aplic
 | `shelter_full` | Plazas de albergue de la zona a cero. |
 | `power_out`, `other` | Zona marcada / aviso fiable para el agente. |
 
+Por el **mismo canal y con los mismos dos campos** se cuenta lo que ha **cambiado**, no solo lo que se ha roto (`core/changes.py`).
+El plan siempre va por detrás de la calle; esto es la calle corrigiéndolo. Solo autoridades y unidades de respuesta —un vecino da
+pistas, no hechos— y nada se salta las reglas del kernel:
+
+| `kind` | Qué escribe quien reporta | Qué hace el kernel |
+|---|---|---|
+| `zone_new` | «se ha roto la mota y ahora se inunda Sedaví, 10.500 habitantes, llega en 25 min» | La zona entra en el mapa aguas abajo de la de quien avisa (el retardo del texto, o 20 min supuestos y dicho), con su ayuntamiento y sus vecinos; quien ya cubría toda la crisis la cubre también; se geocodifica en segundo plano y entra como aviso localizado, así que arranca con severidad, cuenta atrás e incidencia. |
+| `resource_new` | «nos llegan 200 mantas y 4 bombas de achique» · «solo quedan 3 bombas» | Suma al inventario de quien avisa (el CECOPI puede sobre el de cualquiera) o **corrige** la cuenta si el texto dice «solo quedan / en realidad / corrijo». Lo que no existe se crea. |
+| `entity_new` | «se suma Cruz Roja Valencia con 12 voluntarios para rescate y 2 embarcaciones» | Alta como unidad de respuesta con sus unidades, su material a su nombre y las capacidades que digan sus palabras (rescate, achique, albergue, suministros; por defecto solo comprobar). Fiabilidad media: la avala una persona del dispositivo, no es un organismo oficial. |
+| `action_done` | «ya hemos cortado el puente de la CV-36 por nuestra cuenta» | Queda como acción **suya ya ejecutada** (`origin: human`), con el mismo control de capacidades, jurisdicción y duplicados que si la propusiera el agente: si no puede hacerlo, se le dice; si ya estaba, se le dice. El agente deja de pedirla y cuenta con ella. |
+
+De estos cuatro, solo `zone_new` genera señal e incidencia: la logística no es una incidencia, cambia el mundo y se cuenta en el
+digest. Todo lo que hubo que suponer (la zona de la que cuelga, el retardo, el dueño del material) se devuelve escrito en `effects`.
+
 El coordinador despierta con un resumen de lo ya aplicado. En el dashboard: botón **⚑ Reportar incidencia** en los tres paneles de rol
 (Coordinación, Autoridad y Respuesta; `?report=1` lo abre directamente) con un formulario de dos campos, nombre y tipo, línea propia en «Últimos cambios» y aviso en Señales firmado por la entidad.
 
 ## Probar
 
 ```bash
-uv run pytest                                        # núcleo, API, asignación y supervisión, sin red (37 tests)
+uv run pytest                                        # núcleo, API, incidencias, lecciones, cambios de mundo y supervisión, sin red (81 tests)
 VALTE_BRAIN=local VALTE_OUTREACH_MODE=dry VALTE_DB_URL=sqlite:////tmp/valte-smoke.db scripts/dev_server.sh 8011
 scripts/smoke.sh localhost:8011                      # API de punta a punta, sin gastar créditos
+scripts/reset_demo.sh                                # borra las catástrofes y reinicia kernel + mundo para ensayar otra vez
 uv run python scripts/reset_db.py                    # limpia el mundo, conserva el registro de workflows
 uv run python scripts/delete_crisis.py VLC-1234      # borra una crisis (un ensayo) y las lecciones que dejó
+uv run python scripts/delete_crisis.py --all         # todas las catástrofes; las lecciones globales se quedan
 nohup scripts/tunnel_watch.sh 8010 > /tmp/valte-tunnel-watch.log 2>&1 &   # reabre el túnel cuando caduca
 ```
 

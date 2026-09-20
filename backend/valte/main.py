@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from valte import bus, manuals
 from valte.api.gate import ExternalGate
-from valte.api import dashboard, gateway, hr_callbacks, kernel, voice
+from valte.api import dashboard, gateway, hr_callbacks, kernel, stt, voice
 from valte.db import init_db, session_scope
 from valte.engine import loop
 from valte.hr.client import hr
@@ -46,13 +46,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(ExternalGate)  # added last = outermost: nothing from outside gets past it unchecked
-for r in (kernel.router, gateway.router, dashboard.router, voice.router, hr_callbacks.router):
+for r in (kernel.router, gateway.router, dashboard.router, voice.router, stt.router, hr_callbacks.router):
     app.include_router(r)
+
+
+class FreshStaticFiles(StaticFiles):
+    """The front is rebuilt all the time. Without this a browser may keep yesterday's valte-live.js under today's page
+    (heuristic caching on Last-Modified), which breaks the page. no-cache = always revalidate; the ETag keeps it a 304."""
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
 
 
 FRONT_DIR = ROOT_DIR / "frontend" / "dist"
 if FRONT_DIR.exists():
-    app.mount("/app", StaticFiles(directory=str(FRONT_DIR), html=True), name="front")
+    app.mount("/app", FreshStaticFiles(directory=str(FRONT_DIR), html=True), name="front")
 
 
 @app.get("/", include_in_schema=False)
@@ -73,7 +83,8 @@ def meta() -> dict[str, Any]:
     return {"public_base_url": public_base_url(), "brain": settings.valte_brain,
             "outreach_mode": settings.valte_outreach_mode, "email_configured": bool(settings.demo_email_to),
             "callbacks_authenticated": bool(settings.happyrobot_webhook_secret),
-            "hr_api_key": bool(settings.happyrobot_api_key), "workflows": workflows}
+            "hr_api_key": bool(settings.happyrobot_api_key), "workflows": workflows,
+            "dictation": stt.available()}
 
 
 @app.post("/crises/{crisis_id}/manuals/lookup", tags=["dashboard"])

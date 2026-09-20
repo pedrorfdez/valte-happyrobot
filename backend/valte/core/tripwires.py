@@ -63,6 +63,13 @@ def evaluate_on_signal(db: Session, c: Crisis, sig: Signal) -> list[str]:
             continue
         if tw.repeat and sig.revision > 1:
             continue  # a re-scored report is the same report: a standing reflex serves it once
+        if tw.repeat and sig.incident_id:
+            from valte.core import incidents
+            from valte.models import Incident
+
+            inc = db.get(Incident, (c.id, sig.incident_id))
+            if inc is not None and incidents.covering_actions(db, inc):
+                continue  # a second call about the same incident: somebody is already on it
         # Read verbatim by the human supervisor (it becomes the action's reasoning), hence Spanish and real names.
         src, zone = db.get(Entity, (c.id, sig.source)), db.get(Zone, (c.id, sig.zone_id or ""))
         _fire(db, c, tw, f"{src.name if src else sig.source} avisa de severidad {sig.severity_hint} en "

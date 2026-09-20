@@ -4,8 +4,8 @@ class Component extends DCLogic {
     if (z) this.setState({ sel: z });
     const self = this, saved = localStorage.getItem('valte.zonesView');
     this.setState({ view: new URLSearchParams(location.search).get('view') || saved || 'map' });
-    ValteLive.bind(this, cid => Promise.all([ValteLive.crisis(cid), ValteLive.get(`/crises/${cid}/zones`),
-      ValteLive.get(`/crises/${cid}/signals?precise=true&noise=false&limit=30`)])
+    ValteLive.bind(this, cid => Promise.all([ValteLive.crisis(cid), ValteLive.get(ValteLive.asViewer(`/crises/${cid}/zones`)),
+      ValteLive.get(ValteLive.asViewer(`/crises/${cid}/signals?precise=true&noise=false&limit=30`))])
       .then(([header, zones, signals]) => {
         // Zones typed into the wizard have no coordinates yet: ask the kernel to look them up (once); they arrive as events.
         if (!self.__located && zones.zones.some(z => !z.centroid)) { self.__located = true; ValteLive.post(`/crises/${cid}/locate`).catch(() => {}); }
@@ -70,7 +70,7 @@ class Component extends DCLogic {
     const view = z => Object.assign({}, z, {
       sev: z.severity, evac: z.evacuated_pct, peak: z.eta_min == null ? '—' : z.eta_min,
       origin: z.is_origin, noTo: !z.hasTo,
-      actionsHref: 'Acciones.dc.html?zone=' + z.id, signalsHref: 'Senales.dc.html?zone=' + z.id,
+      actionsHref: 'Acciones.dc.html?zone=' + z.id, signalsHref: 'Incidencias.dc.html?zone=' + z.id,
       pos: `left: ${lay.pos[z.id].x}px; top: ${lay.pos[z.id].y}px;`,
       cls: 'zn' + (z.is_origin ? ' is-origin' : '') + (z.id === st.sel ? ' is-on' : ''),
       open: () => self.setState({ sel: z.id })

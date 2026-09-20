@@ -12,7 +12,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from valte.core import logistics
+from valte.core import incidents, logistics
 from valte.core.events import append_event
 from valte.core.world import (
     DEFAULT_APPROVAL_VERBS,
@@ -29,7 +29,7 @@ from valte.core.world import (
     tripwire_dict,
     zone_dict,
 )
-from valte.models import Action, Crisis, Entity, Resource, ScheduledCheck, Signal, Tripwire, Zone, utcnow
+from valte.models import Action, Crisis, Entity, Incident, Resource, ScheduledCheck, Signal, Tripwire, Zone, utcnow
 from valte.settings import settings
 
 REPEATABLE = {"rescue", "pump_water", "supplies", "shelter", "wellness_check"}
@@ -89,9 +89,17 @@ def validate_action(db: Session, c: Crisis, a: dict[str, Any], origin: str) -> N
         if not a["evidence"]:
             raise Rejected("evidence is mandatory: cite signal ids from state.recent_signals or the digest.")
         # pat-* are the findings of a proactive round (engine/patrol.py): state nobody reported, but still checkable.
-        real = [e for e in a["evidence"] if db.get(Signal, (c.id, e)) or str(e).startswith(("tw-", "act-", "evt-", "plan-", "pat-"))]
+        real = [e for e in a["evidence"] if db.get(Signal, (c.id, e)) or db.get(Incident, (c.id, e))
+                or str(e).startswith(("tw-", "act-", "evt-", "plan-", "pat-"))]
         if not real:
             raise Rejected(f"none of the evidence ids {a['evidence']} exist. Cite real signal ids.")
+
+    if origin in BRAINS:
+        from valte.core import learning
+
+        learned = learning.blocked_by_rejection(db, c, a["verb"], a["target_zones"], a["evidence"])
+        if learned:
+            raise Rejected(learned)
 
     key = _dedup_key(a["actor"], a["verb"], a["target_zones"], a["params"], a["evidence"])
     since = scenario_now(c) - DEDUP_WINDOW
@@ -191,8 +199,14 @@ def propose_action(db: Session, c: Crisis, raw: dict[str, Any] | str, *, origin:
         incident_id=raw.get("incident_id"), escalated_from=raw.get("escalated_from"),
     )
     db.add(act)
+    incidents.link_action(db, c, act)
+    from valte.core import learning
+
+    act.lessons = learning.cite(db, c, raw.get("lessons") or raw.get("applied_lesson_ids"), by=origin, ref=act.id)
 
     approver = find_approver(db, c, actor, zones) if _needs_approval(c, actor, a["verb"]) else None
+    if approver is not None and not (origin == "human" and by == approver.id):
+        approver = learning.reroute_approver(db, c, approver, ref=act.id)  # learned in this crisis: who does not pick up
     human_signs = origin == "human" and approver is not None and by == approver.id
     if approver is not None and not human_signs:
         floor = timedelta(seconds=settings.valte_approval_floor_s)
@@ -248,7 +262,7 @@ def approve_action(db: Session, c: Crisis, act: Action, *, by: str, via: str = "
     if act.status != "pending_approval":
         return act
     act.approval = {**(act.approval or {}), "decided_by": by, "decision": "approved", "via": via,
-                    "note": note, "decided_at": utcnow().isoformat()}
+                    "note": note, "decided_at": utcnow().isoformat(), "decided_t": scenario_now(c).isoformat()}
     act.status = "approved"
     act.updated_at = utcnow()
     append_event(db, c, "approval.decided", {"action_id": act.id, "decision": "approved", "by": by, "via": via},
@@ -262,7 +276,7 @@ def reject_action(db: Session, c: Crisis, act: Action, *, by: str, via: str = "d
     if act.status != "pending_approval":
         return act
     act.approval = {**(act.approval or {}), "decided_by": by, "decision": "rejected", "via": via,
-                    "note": reason, "decided_at": utcnow().isoformat()}
+                    "note": reason, "decided_at": utcnow().isoformat(), "decided_t": scenario_now(c).isoformat()}
     act.status = "rejected"
     act.error = reason or None
     act.updated_at = utcnow()

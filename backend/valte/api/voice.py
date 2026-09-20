@@ -19,6 +19,12 @@ from valte.models import Contact, Entity
 
 router = APIRouter(tags=["voice"])
 
+# Why a call cannot be picked up, for whoever is looking at a card that went stale on screen.
+RING_ES = {"queued": "todavía no suena: la entidad tiene otra llamada en curso",
+           "sending": "todavía no suena", "in_progress": "ya está descolgada",
+           "no_answer": "ya ha dejado de sonar: nadie descolgó a tiempo y el agente ha seguido por su cuenta",
+           "delivered": "ya ha terminado", "failed": "no se llegó a establecer", "cancelled": "se canceló"}
+
 
 def _workflow_id(name: str) -> str:
     with session_scope() as db:
@@ -41,8 +47,10 @@ async def answer(crisis_id: str, contact_id: str) -> dict[str, Any]:
             k = db.get(Contact, contact_id)
             if k is None or k.crisis_id != c.id:
                 raise HTTPException(status_code=404, detail="contact not found")
-            if k.channel != "voice" or k.status != "ringing":
-                raise HTTPException(status_code=409, detail=f"contact is {k.channel}/{k.status}, cannot be answered")
+            if k.channel != "voice":
+                raise HTTPException(status_code=409, detail="ese contacto no es una llamada")
+            if k.status != "ringing":
+                raise HTTPException(status_code=409, detail=f"esa llamada {RING_ES.get(k.status, 'ya no está sonando (' + k.status + ')')}")
             ent = db.get(Entity, (c.id, k.entity_id))
             if ent is not None and (ent.extra or {}).get("sim_unreachable"):
                 raise HTTPException(status_code=409, detail="esta entidad no contesta (no se puede descolgar)")

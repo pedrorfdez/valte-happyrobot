@@ -34,6 +34,11 @@ button:hover{background:var(--panel2)}button:disabled{opacity:.4;cursor:not-allo
 .feed.on{border-color:var(--ink);background:var(--panel2)}.feed b{font:400 22px/1.15 var(--display)}
 .feed .bar{grid-column:1/3;margin-top:8px}.feed .st{font:11px var(--mono);align-self:center}
 .st.run{color:var(--ok)}.st.pau{color:var(--warn)}.st.off{color:var(--muted)}.st.end{color:var(--critical)}
+#code{height:56px;font:400 26px/1 var(--mono);letter-spacing:.04em;text-transform:uppercase}#code::placeholder{color:#6E695F;text-transform:none}
+.hint{min-height:20px;margin-top:8px;font-size:13px;color:var(--muted)}.hint.ok{color:var(--ok)}.hint.bad{color:var(--critical)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}.seg button{height:auto;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;padding:12px 16px;text-align:left}
+.seg button b{font:400 24px/1 var(--display)}.seg button small{color:var(--muted);font-size:12px}
+.seg button.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}.seg button.on small{color:#5C5850}
 </style></head><body>
 <div class="wrap">
   <div class="stack">
@@ -43,12 +48,19 @@ button:hover{background:var(--panel2)}button:disabled{opacity:.4;cursor:not-allo
     </div>
     <div class="card">
       <div><span id="bdot" class="dot"></span><span id="bstate" class="muted">conectando con el backend…</span></div>
-      <label for="target">Añadir a la pila</label>
-      <select id="target"></select>
+      <label for="code">Código de la crisis</label>
+      <input id="code" list="codes" autocomplete="off" spellcheck="false" placeholder="VLC-7691">
+      <datalist id="codes"></datalist>
+      <div class="hint" id="hint">El que aparece en la cabecera del dashboard. Sin código, declara una crisis nueva.</div>
+      <label>Qué mundo simular</label>
+      <div class="seg" role="group" aria-label="Tipo de simulación">
+        <button type="button" id="hz-flood" data-hz="flood" class="on" aria-pressed="true"><b>Riada</b><small>crecida, aforos, garajes</small></button>
+        <button type="button" id="hz-fire" data-hz="fire" aria-pressed="false"><b>Incendio</b><small>frente, humo, desalojos</small></button>
+      </div>
       <label for="speed">Velocidad del escenario</label>
       <select id="speed"><option value="10">10× · pausado, para explicar</option><option value="20" selected>20× · demo (≈7 min)</option><option value="40">40× · rápido</option><option value="1">1× · tiempo real</option></select>
       <button id="start">Start</button>
-      <div class="sub" style="margin-top:14px">Cada Start <b>añade</b> una crisis: las que ya están en marcha siguen su curso. Panel del sistema: <a id="dash" target="_blank" href="#">abrir dashboard ↗</a></div>
+      <div class="sub" style="margin-top:14px">Cada Start <b>añade</b> una crisis: las que ya están en marcha siguen su curso. Repetir Start sobre una que ya alimentas con el otro tipo cambia su mundo desde ese momento. Panel del sistema: <a id="dash" target="_blank" href="#">abrir dashboard ↗</a></div>
     </div>
     <div class="card">
       <h2>Crisis en marcha <span class="muted mono" id="nfeeds" style="font-size:13px"></span></h2>
@@ -59,7 +71,7 @@ button:hover{background:var(--panel2)}button:disabled{opacity:.4;cursor:not-allo
     </div>
     <div class="card">
       <h2>¿Y si…?</h2><!-- applies to the selected crisis -->
-      <div class="sub" style="margin:-6px 0 12px">Cambia el mundo a mitad de ejecución. El sistema no lo sabe hasta que lo percibe.</div>
+      <div class="sub" style="margin:-6px 0 12px">Cambia el mundo a mitad de ejecución. El texto libre es un hecho: siempre tiene consecuencia.</div>
       <div class="inj">
         <button data-inj='{"kind":"road_cut","zone":"picanya","note":"Pont vell de Picanya hundido: acceso norte cortado."}'>Se corta un puente<small>Picanya</small></button>
         <button data-inj='{"kind":"entity_unreachable","entity":"bomberos-vlc","note":"Bomberos Consorcio deja de contestar"}'>Deja de contestar<small>Bomberos Consorcio</small></button>
@@ -68,7 +80,7 @@ button:hover{background:var(--panel2)}button:disabled{opacity:.4;cursor:not-allo
         <button data-inj='{"kind":"signal","channel":"call","content":"Llamo desde el colegio de Massanassa, hay cincuenta personas refugiadas en el gimnasio y el agua ya entra por la puerta."}'>Aparecen 50 personas<small>llamada al 112 · Massanassa</small></button>
         <button data-inj='{"kind":"hazard_jump","zone":"torrent","severity":9,"note":"El barranc de l’Horteta revienta el muro en Torrent."}'>Empeora de golpe<small>Torrent, severidad 9</small></button>
       </div>
-      <label for="custom">Mensaje libre (entra como llamada al 112)</label>
+      <label for="custom">Situación nueva (siempre cambia el mundo)</label>
       <div class="row" style="margin-top:0"><input id="custom" placeholder="Hay gente atrapada en…" style="flex:3"><button id="sendc" style="flex:1">Enviar</button></div>
     </div>
   </div>
@@ -90,7 +102,22 @@ const $ = id => document.getElementById(id);
 const post = (path, body) => fetch(path, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body || {})})
   .then(async r => { if (!r.ok) throw new Error((await r.json()).detail || r.statusText); return r.json(); })
   .catch(e => alert(e.message));
-let lastTargets = '', selected = null;
+let lastCodes = '', selected = null, hazard = 'flood', picked = false, codes = [];
+const KIND = {flood: 'riada', fire: 'incendio'};
+function setHazard(h, byHand) {
+  hazard = h; if (byHand) picked = true;
+  document.querySelectorAll('[data-hz]').forEach(b => { const on = b.dataset.hz === h; b.className = on ? 'on' : ''; b.setAttribute('aria-pressed', on); });
+}
+/* What the typed code points at. A crisis that is a flood or a fire proposes its own kind, until the person chooses by hand. */
+function hint() {
+  const v = $('code').value.trim().toUpperCase(), el = $('hint');
+  if (!v) { el.className = 'hint'; el.textContent = 'El que aparece en la cabecera del dashboard. Sin código, declara una crisis nueva de ese tipo.'; return; }
+  const hit = codes.filter(c => c.code.toUpperCase() === v)[0] || (codes.filter(c => c.code.toUpperCase().split('-').pop() === v.split('-').pop()).length === 1
+    ? codes.filter(c => c.code.toUpperCase().split('-').pop() === v.split('-').pop())[0] : null);
+  if (!hit) { el.className = 'hint bad'; el.textContent = 'No hay ninguna crisis activa con ese código.' + (codes.length ? ' Activas: ' + codes.map(c => c.code).join(', ') : ''); return; }
+  if (!picked && KIND[hit.hazard]) setHazard(hit.hazard);
+  el.className = 'hint ok'; el.textContent = '→ ' + hit.name + ' (' + hit.code + ')' + (hit.fed ? ' · ya la estás alimentando' : '');
+}
 const q = extra => { const p = new URLSearchParams(extra || {}); if (selected) p.set('crisis_id', selected); const t = p.toString(); return t ? '?' + t : ''; };
 async function refresh() {
   let s; try { s = await (await fetch('/api/status' + q())).json(); } catch (e) { return; }
@@ -98,17 +125,17 @@ async function refresh() {
   $('bdot').className = 'dot' + (s.backend_ok ? ' ok' : '');
   $('bstate').textContent = s.backend_ok ? 'backend conectado · ' + s.backend : 'sin conexión con ' + s.backend;
   $('dash').href = s.dashboard;
-  const targets = JSON.stringify([s.packs.map(p => p.id), s.crises.map(c => c.id)]);
-  if (targets !== lastTargets) {
-    lastTargets = targets;
-    $('target').innerHTML = s.packs.map(p => `<option value="pack:${p.id}">Nueva · ${p.name}</option>`).join('') +
-      s.crises.map(c => `<option value="crisis:${c.id}">Alimentar · ${c.name} (${c.code})</option>`).join('');
+  codes = s.codes || [];
+  if (JSON.stringify(codes) !== lastCodes) {
+    lastCodes = JSON.stringify(codes);
+    $('codes').innerHTML = codes.map(c => `<option value="${esc(c.code)}">${esc(c.name)}</option>`).join('');
+    hint();
   }
   $('nfeeds').textContent = s.feeds.length ? '· ' + s.feeds.length : '';
   if (s.feeds.length) $('feeds').innerHTML = s.feeds.map(f => {
     const st = f.status !== 'active' ? ['end', 'cerrada'] : f.clock.paused ? ['pau', 'en pausa'] : f.running ? ['run', 'enviando'] : ['off', 'parada'];
     return `<button class="feed${f.id === selected ? ' on' : ''}" data-feed="${f.id}"><b>${esc(f.name)}</b><span class="st ${st[0]}">● ${st[1]}</span>` +
-      `<span class="muted mono">${f.code} · ${f.clock.clock} · ${f.clock.elapsed} · ${f.clock.speed}× · sev ${f.severity}/10</span><span class="muted mono">${f.sent}/${f.total}</span>` +
+      `<span class="muted mono">${f.code} · ${f.kind} · ${f.clock.clock} · ${f.clock.elapsed} · ${f.clock.speed}× · sev ${f.severity}/10</span><span class="muted mono">${f.sent}/${f.total}</span>` +
       `<span class="bar"><i style="width:${f.total ? 100 * f.sent / f.total : 0}%"></i></span></button>`;
   }).join('');
   else $('feeds').innerHTML = '<div class="muted">Ninguna todavía. Pulsa Start.</div>';
@@ -128,9 +155,11 @@ async function refresh() {
   $('log').innerHTML = s.log.map(l => `<div class="${l.kind}">${l.t} · ${esc(l.text)}</div>`).join('');
 }
 const esc = t => String(t).replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
-$('start').onclick = () => { const [kind, id] = $('target').value.split(':'); const speed = +$('speed').value;
-  post('/api/start', kind === 'crisis' ? {crisis_id: id, speed, pack: 'riada-paiporta'} : {pack: id, speed})
-    .then(r => { if (r && r.crisis_id) selected = r.crisis_id; refresh(); }); };
+$('start').onclick = () => post('/api/start', {code: $('code').value.trim() || null, hazard, speed: +$('speed').value})
+  .then(r => { if (r && r.crisis_id) { selected = r.crisis_id; $('code').value = ''; picked = false; hint(); } refresh(); });
+$('code').oninput = () => { picked = false; hint(); };
+$('code').onkeydown = e => { if (e.key === 'Enter') $('start').click(); };
+document.querySelectorAll('[data-hz]').forEach(b => b.onclick = () => setHazard(b.dataset.hz, true));
 $('pause').onclick = () => post('/api/pause' + q()).then(refresh);
 $('resume').onclick = () => post('/api/resume' + q()).then(refresh);
 $('stop').onclick = () => post('/api/stop' + q()).then(refresh);
@@ -138,6 +167,6 @@ $('close').onclick = () => confirm('¿Cerrar SOLO esta crisis? El sistema guarda
 $('remove').onclick = () => post('/api/remove' + q()).then(() => { selected = null; refresh(); });
 $('speed').onchange = () => selected && post('/api/speed', {speed: +$('speed').value, crisis_id: selected});
 document.querySelectorAll('[data-inj]').forEach(b => b.onclick = () => post('/api/inject', Object.assign({crisis_id: selected}, JSON.parse(b.dataset.inj))).then(refresh));
-$('sendc').onclick = () => $('custom').value.trim() && post('/api/inject', {crisis_id: selected, kind: 'signal', channel: 'call', content: $('custom').value.trim()}).then(() => { $('custom').value = ''; refresh(); });
+$('sendc').onclick = () => $('custom').value.trim() && post('/api/inject', {crisis_id: selected, kind: 'situation', content: $('custom').value.trim()}).then(() => { $('custom').value = ''; refresh(); });
 refresh(); setInterval(refresh, 1000);
 </script></body></html>

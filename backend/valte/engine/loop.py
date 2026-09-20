@@ -8,7 +8,7 @@ from datetime import datetime
 from sqlalchemy import select
 
 from valte import bus
-from valte.core import actions, logistics, outreach, tripwires
+from valte.core import actions, incidents, learning, logistics, outreach, tripwires
 from valte.core.events import append_event
 from valte.core.world import clock_dict, scenario_now
 from valte.db import crisis_lock, session_scope
@@ -29,6 +29,12 @@ def tick(crisis_id: str) -> None:
         c = db.get(Crisis, crisis_id)
         if c is None or c.status != "active":
             return
+        if not (c.wake or {}).get("inc_backfill"):  # crises older than the incident model get theirs from their signals
+            incidents.backfill(db, c)
+            c.wake = {**(c.wake or {}), "inc_backfill": True}
+        if not (c.wake or {}).get("inc_regroup"):  # once: untangle what the first grouping rules lumped together
+            incidents.regroup(db, c)
+            c.wake = {**(c.wake or {}), "inc_regroup": True}
         # People keep answering (or not) even while the scenario is paused.
         outreach.expire_rings(db, c)
         actions.expire_approvals(db, c)
@@ -64,6 +70,11 @@ def tick(crisis_id: str) -> None:
                              material=True, digest=f"{freed} unit(s) are free again and {len(waiting)} need(s) still wait: "
                                                    + ", ".join(n["signal_id"] for n in waiting[:6]) + ". Reassign now.")
         actions.tick_world(db, c, max(0.0, (now_s - last).total_seconds() / 60.0))
+        incidents.sync(db, c)  # attended / resolved follow the actions and the hazard
+        n = int(w.get("learn_n", 0)) + 1
+        c.wake = {**(c.wake or {}), "learn_n": n}
+        if n % 5 == 0:
+            learning.learn_now(db, c)  # what this crisis has taught so far applies from now on
         logistics.deliver_due(db, c, now_s)
         wake.maybe_wake_command(db, c)
         wake.maybe_wake_coordinator(db, c)

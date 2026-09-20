@@ -190,6 +190,8 @@ class Signal(Base):
     perceived_by: Mapped[str] = mapped_column(String, default="hr")  # hr|fallback|direct|operator
     hr_run_id: Mapped[str | None] = mapped_column(String, nullable=True)
     received_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
+    # The incident this report is evidence of (core/incidents.py). Noise belongs to none.
+    incident_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
 
 
 class Action(Base):
@@ -216,6 +218,7 @@ class Action(Base):
     plan_version: Mapped[int] = mapped_column(Integer, default=0)
     incident_id: Mapped[str | None] = mapped_column(String, nullable=True)
     escalated_from: Mapped[str | None] = mapped_column(String, nullable=True)
+    lessons: Mapped[list[str]] = mapped_column(Json, default=list)  # "L-12": lessons this decision leaned on
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
@@ -263,6 +266,23 @@ class Incident(Base):
     revisit_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
     plan_version: Mapped[int] = mapped_column(Integer, default=0)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
+    # kernel = formed from signals by core/incidents.py (state: candidate|active|attended|resolved|dismissed|merged);
+    # command = a strategic grouping written by crisis-command through replace_plan.
+    origin: Mapped[str] = mapped_column(String, default="command")
+    seq: Mapped[int] = mapped_column(Integer, default=0)
+    kind: Mapped[str] = mapped_column(String, default="")
+    zone_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    place: Mapped[str] = mapped_column(String, default="")
+    severity: Mapped[int] = mapped_column(Integer, default=0)
+    people: Mapped[int] = mapped_column(Integer, default=0)
+    signal_ids: Mapped[list[str]] = mapped_column(Json, default=list)
+    origins: Mapped[list[str]] = mapped_column(Json, default=list)   # independent sources: reposts count once
+    channels: Mapped[list[str]] = mapped_column(Json, default=list)
+    first_t: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
+    last_t: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
+    canonical_id: Mapped[str | None] = mapped_column(String, nullable=True)  # merged into
+    closed_reason: Mapped[str] = mapped_column(Text, default="")
+    note: Mapped[str] = mapped_column(Text, default="")  # what the strategist added
 
 
 class Plan(Base):
@@ -278,6 +298,7 @@ class Plan(Base):
     origin: Mapped[str] = mapped_column(String, default="command")
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     invalidated_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lessons: Mapped[list[str]] = mapped_column(Json, default=list)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
 
 
@@ -439,6 +460,33 @@ class Lesson(Base):
     text: Mapped[str] = mapped_column(Text)
     stats: Mapped[dict[str, Any]] = mapped_column(Json, default=dict)
     source_crisis_id: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
+    # crisis = learned while this crisis runs and applied to it at once; global = carried to the next crises of its kind.
+    scope: Mapped[str] = mapped_column(String, default="global", index=True)
+    key: Mapped[str] = mapped_column(String, default="", index=True)  # kind:subject — one lesson per thing learned
+    # What proves it: ids of this crisis's actions, contacts, incidents or signals. A lesson without evidence is an opinion.
+    evidence: Mapped[list[str]] = mapped_column(Json, default=list)
+    # What the kernel itself does about it (route_around | avoid | trust | lead_time | reserve), if anything.
+    rule: Mapped[dict[str, Any]] = mapped_column(Json, default=dict)
+    weight: Mapped[int] = mapped_column(Integer, default=1)  # crises (or observations) that back it; 0 = retired
+    status: Mapped[str] = mapped_column(String, default="active")
+    origin: Mapped[str] = mapped_column(String, default="kernel")  # kernel | review (LLM post-mortem) | human
+    applied: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
+
+
+class LessonUse(Base):
+    """Which decision leaned on which lesson: the trace that says the system really learned."""
+
+    __tablename__ = "lesson_uses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    lesson_id: Mapped[int] = mapped_column(Integer, index=True)
+    crisis_id: Mapped[str] = mapped_column(String, index=True)
+    t: Mapped[datetime] = mapped_column(UtcDateTime())
+    by: Mapped[str] = mapped_column(String, default="kernel")  # kernel | coordinator | proactive | command | local-brain
+    ref: Mapped[str] = mapped_column(String, default="")       # the action, plan or entity it shaped
+    note: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
 
 

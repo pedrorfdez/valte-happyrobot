@@ -9,7 +9,7 @@ class Component extends DCLogic {
   componentWillUnmount() { ValteLive.unbind(this); }
   renderVals() {
     const d = (this.state || {}).data || {}, cid = ValteLive.crisisId(), me = d.entity || {}, k = d.kpis;
-    const units = me.units || { available: 0, total: 0 }, acts = d.actions || [], sigs = d.signals || [];
+    const units = me.units || { available: 0, total: 0 }, acts = d.actions || [], incs = d.incidents || [];
     const names = Object.fromEntries((d.zones || []).map(z => [z.id, z.name]));
     const deployed = Object.entries(me.deployed || {}).map(([zone, n]) => ({ zone: names[zone] || zone, units: n }));
     const active = acts.filter(a => ['pending_approval', 'waiting', 'in_progress'].includes(a.action.state)).length;
@@ -20,7 +20,8 @@ class Component extends DCLogic {
       res: (d.supplies || []).map(r => ({ label: r.name, available: r.available, total: r.total, unit: r.unit })),
       acts: ValteLive.actionRows(this, cid, acts, me.id), noActs: !!d.header && !acts.length,
       actsCount: `${active} activas · ${acts.length} en total`,
-      sigs, sigsCount: 'con ubicación precisa'
+      incs: ValteLive.incidentRows(incs), noIncs: !!d.header && !incs.length,
+      incCount: k ? `${k.incidents.open} abiertas · ${k.incidents.unattended} sin atender` : ''
     });
   }
 }

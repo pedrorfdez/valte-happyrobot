@@ -166,13 +166,14 @@ def _update_call(call: dict[str, Any], lines: list[dict[str, Any]], session_id: 
 
 def _queue_outcome(db, c: Crisis, k: Contact) -> None:
     """Let HappyRobot read the call and record what it achieved."""
-    from valte.core.world import build_snapshot
+    from valte.core.world import build_snapshot, environment_of
     from valte.settings import public_base_url
 
     if not registry.usable(db, registry.OUTCOME) or not k.transcript:
         return
     db.add(Outbox(crisis_id=c.id, kind="hr_run", workflow=registry.OUTCOME, purpose="outcome", ref_id=k.id, payload={
         "dispatch_id": k.id, "run_id": c.id, "callback_base": public_base_url(), "interaction_mode": k.channel,
+        "environment": environment_of(db, c),
         "event": {"event_id": k.id, "type": "contact.completed", "action_id": k.action_id, "purpose": k.purpose,
                   "entity": k.entity_name, "brief": k.brief,
                   "transcript": "\n".join(f"{ln['who']}: {ln['text']}" for ln in k.transcript)},

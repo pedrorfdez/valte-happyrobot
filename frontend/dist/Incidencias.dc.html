@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Incidencias · Valte</title>
+<script src="assets/react.production.min.js?v=aa77ae4c49"></script>
+<script src="assets/react-dom.production.min.js?v=feb8ddc9d0"></script>
+<script src="assets/dc-runtime.js?v=456daad1f0"></script>
+<link rel="stylesheet" href="assets/valte-tokens.css?v=697650bac1">
+<link rel="stylesheet" href="assets/valte-ds.css?v=a5589c0d7c">
+<script src="assets/valte-ds.js?v=7d7a8f99df"></script>
+<script src="assets/valte-live.js?v=62c5a53b0a"></script>
+</head>
+<body>
+<x-dc><helmet>
+<style>
+body{margin:0;background:var(--surface-000);color:var(--ink);font-family:var(--font-sans);}
+a{color:var(--info);}a:hover{color:var(--ink);}
+.wave{fill:none;stroke:var(--line-strong);stroke-width:1;opacity:.5;}
+.seg{display:flex;flex-direction:column;gap:2px;padding:8px 14px;border-radius:var(--radius-md);border:1px solid var(--line-strong);color:var(--ink);text-decoration:none;min-width:150px;}
+.seg:hover{background:var(--surface-200);color:var(--ink);}
+.seg.is-on{background:var(--ink);border-color:var(--ink);color:var(--on-ink);}
+.seg.is-on .seg-kind{color:var(--on-ink);opacity:.7;}
+.seg-kind{font-size:11px;line-height:14px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);}
+.seg-name{font-size:14px;line-height:20px;font-weight:500;}
+.back{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--line-strong);color:var(--ink);}
+.back:hover{background:var(--surface-200);color:var(--ink);}
+.seg:focus-visible,.back:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;}
+.col-body{display:flex;flex-direction:column;gap:12px;overflow:auto;min-height:0;padding-bottom:8px;}
+.col-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--line-strong);}
+.col-title{font-family:var(--font-display);font-size:28px;line-height:32px;margin:0;font-weight:400;}
+.count{font-family:var(--font-mono);font-size:12px;line-height:16px;color:var(--ink-muted);}
+.lbl{font-size:12px;line-height:16px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);}
+.kpi-link{text-decoration:none;color:var(--ink);border-radius:var(--radius-md);margin:-8px -12px -8px 0;padding:8px 12px 8px 24px !important;position:relative;}
+.kpi-link:hover{background:var(--surface-200);color:var(--ink);}
+.kpi-link.is-on{background:var(--surface-200);box-shadow:inset 0 -2px 0 var(--ink);}
+.kpi-link:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.kpi-link .kpi-go{position:absolute;top:10px;right:12px;color:var(--ink-muted);transition:transform .2s ease;}
+.kpi-link:hover .kpi-go{transform:translateX(3px);color:var(--ink);}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;}
+.tab{font-size:13px;line-height:20px;padding:6px 12px;border-radius:var(--radius-pill);border:1px solid var(--line-strong);color:var(--ink);background:none;cursor:pointer;font-family:inherit;}
+.tab:hover{background:var(--surface-200);}
+.tab.is-on{background:var(--ink);color:var(--on-ink);border-color:var(--ink);}
+.tab:focus-visible,.trow:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.thead{display:grid;column-gap:14px;padding:8px 12px;font-size:11px;line-height:14px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--line-strong);}
+.trow{display:grid;column-gap:14px;align-items:center;padding:10px 12px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--ink);font:inherit;font-size:14px;line-height:20px;text-align:left;width:100%;cursor:pointer;}
+.trow:hover{background:var(--surface-200);}
+.trow.is-on{background:var(--willow);}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mono{font-family:var(--font-mono);font-size:12px;line-height:16px;}
+.muted{color:var(--ink-muted);}
+.bar{height:6px;border-radius:var(--radius-pill);background:var(--surface-200);overflow:hidden;}
+.bar>span{display:block;height:100%;border-radius:var(--radius-pill);background:var(--ink);}
+.bar.low>span{background:var(--critical);}
+.panel{display:flex;flex-direction:column;gap:16px;padding:20px;background:var(--surface-100);border:1px solid var(--line);border-radius:var(--radius-lg);}
+.tline{display:flex;flex-direction:column;gap:2px;padding:10px 14px;border-radius:var(--radius-md);}
+.tline.agent{background:var(--agent-soft);}
+.tline .who{font-size:12px;line-height:16px;font-weight:500;}
+.tline.agent .who{color:var(--agent);}
+.tline.person .who{color:var(--ink-muted);}
+.pnode{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:6px;padding:14px 16px;background:var(--surface-100);border:1px solid var(--line);border-radius:var(--radius-lg);}
+.pnode.is-on{background:var(--willow);border-color:var(--ink);}
+.plink{flex:0 0 72px;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--info);}
+
+/* Additions for the live app (everything else is the design's own CSS). */
+html{background:var(--surface-000);}
+.vt-sev__num{display:none;} /* severity reads from the bars alone: no number beside them */
+.kpi-link.is-on .kpi-go,.kpi-link.is-on:hover .kpi-go{transform:rotate(180deg);} /* the open submenu's arrow points back: pressing it again leaves */
+/* entity dropdown in the panel header: the selected entity, opening onto every entity by role */
+.vl-ent{position:relative;}
+.vl-ent__btn{flex-direction:row;align-items:center;gap:14px;min-width:220px;cursor:pointer;list-style:none;user-select:none;}
+.vl-ent__btn::-webkit-details-marker{display:none;}
+.vl-ent__btn.seg.is-on:hover{background:var(--ink);color:var(--on-ink);opacity:.92;}
+.vl-ent__txt{display:flex;flex-direction:column;gap:2px;flex-grow:1;min-width:0;}
+.vl-ent__chev{flex-shrink:0;transition:transform .15s ease;}
+.vl-ent[open] .vl-ent__chev{transform:rotate(180deg);}
+.vl-ent:not([open]) .vl-ent__menu{display:none;}
+.vl-ent__menu{position:absolute;right:0;top:calc(100% + 8px);z-index:50;display:flex;gap:8px;padding:12px;max-height:640px;overflow:auto;
+  background:var(--surface-100);border:1px solid var(--line-strong);border-radius:var(--radius-md);box-shadow:var(--shadow-pop);}
+.vl-ent__group{display:flex;flex-direction:column;gap:2px;min-width:200px;}
+.vl-ent__group>.seg-kind{padding:4px 10px 6px;}
+.vl-ent__opt{display:block;padding:7px 10px;border-radius:var(--radius-sm);font-size:14px;line-height:20px;font-weight:500;color:var(--ink);text-decoration:none;white-space:nowrap;}
+.vl-ent__opt:hover{background:var(--surface-200);color:var(--ink);}
+.vl-ent__opt.is-on,.vl-ent__opt.is-on:hover{background:var(--ink);color:var(--on-ink);}
+.vl-ent__opt:focus-visible{outline:2px solid var(--focus);outline-offset:1px;}
+.vl-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:9999;background:var(--ink);color:var(--on-ink);
+  font:500 14px/20px var(--font-sans);padding:10px 18px;border-radius:var(--radius-md);box-shadow:var(--shadow-pop);max-width:720px;}
+.vl-toast.is-ok{background:var(--success);color:#fff}.vl-toast.is-warn{background:var(--warning);color:var(--on-warning)}
+.vl-toast.is-bad{background:var(--critical);color:var(--on-critical)}
+.ringbar{position:relative;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:var(--radius-md);
+  background:var(--agent-soft);color:var(--ink);font-size:14px;line-height:20px;border:1px solid var(--agent);}
+.ringdot{width:10px;height:10px;border-radius:50%;background:var(--agent);animation:vl-pulse 1s ease-in-out infinite;flex-shrink:0;}
+@keyframes vl-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.5)}}
+.vl-empty{padding:24px 0;color:var(--ink-muted);font-size:14px;line-height:20px;}
+.vl-tab{appearance:none;cursor:pointer;}
+.vl-origin-tag{font-family:var(--font-mono);font-size:11px;color:var(--ink-muted);}
+.vl-change{display:grid;grid-template-columns:38px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:4px 0;font-size:13px;line-height:18px;color:var(--ink);text-decoration:none;}
+.vl-change:hover{color:var(--ink);background:var(--surface-200);}
+.vl-g{font-size:12px;text-align:center;}.vl-g.is-critical{color:var(--critical);}.vl-g.is-warning{color:var(--warning-text);}
+.vl-g.is-agent{color:var(--agent);}.vl-g.is-success{color:var(--success);}.vl-g.is-info{color:var(--info);}.vl-g.is-neutral{color:var(--ink-muted);}
+.tab.vl-zonechip{background:var(--info-soft);border-color:var(--info);color:var(--info);}
+.vl-change .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.vl-scrim{position:absolute;inset:0;border:0;padding:0;margin:0;background:rgba(14,13,12,.45);cursor:pointer;}
+.vl-dlg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:860px;max-height:840px;overflow:auto;box-sizing:border-box;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--surface-100);color:var(--ink);border-radius:var(--radius-lg);box-shadow:var(--shadow-pop);}
+.vl-x{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--line-strong);background:none;color:var(--ink);cursor:pointer;font-size:18px;}
+.vl-x:hover{background:var(--surface-200);}
+.vl-row{display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:20px;}
+.vl-prio{font-family:var(--font-mono);font-size:12px;font-weight:500;}
+.vl-prio.p0{color:var(--critical);}.vl-prio.p1{color:var(--warning-text);}.vl-prio.p2{color:var(--info);}.vl-prio.p3{color:var(--ink-muted);}
+.vl-sub{color:var(--ink-muted);font-size:12px;line-height:16px;}
+.vl-more{appearance:none;border:0;background:none;padding:6px 0 0;font:500 13px/18px var(--font-sans);color:var(--agent);cursor:pointer;text-align:left;}
+.vl-more:hover{text-decoration:underline;}
+.vl-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;}
+.vl-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.vl-chipbtn{appearance:none;font:500 13px/20px var(--font-sans);padding:6px 12px;border-radius:var(--radius-pill);border:1px solid var(--line-strong);background:none;color:var(--ink);cursor:pointer;}
+.vl-chipbtn:hover{background:var(--surface-200);}.vl-chipbtn.is-on{background:var(--ink);border-color:var(--ink);color:var(--on-ink);}
+.vl-fl{display:flex;flex-direction:column;gap:6px;}
+.vl-in{font:400 15px/22px var(--font-sans);color:var(--ink);background:var(--surface-100);border:1px solid var(--line-strong);border-radius:var(--radius-md);padding:9px 12px;width:100%;box-sizing:border-box;resize:none;}
+.vl-in:focus{outline:2px solid var(--focus);outline-offset:1px;}
+/* what the population gets: a note on how much its word weighs */
+.vl-note{padding:12px 14px;border-radius:var(--radius-md);background:var(--info-soft);border:1px solid var(--info);color:var(--ink);font-size:13px;line-height:20px;}
+
+/* lessons in the "plan, reflejos y lo aprendido" dialog */
+.vl-used{color:var(--agent);}
+.vl-teach{border:0;background:none;padding:0;color:var(--agent);font:inherit;font-size:12px;letter-spacing:0;text-transform:none;cursor:pointer;}
+.vl-teach:hover{text-decoration:underline;}
+
+/* with a single zone there is no Zonas screen: its tile (and the zone row that would open it) is not a button */
+.kpi-link.is-off{pointer-events:none;cursor:default;}
+.kpi-link.is-off .kpi-go{display:none;}
+.is-still{pointer-events:none;cursor:default;}
+
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 24px; background: var(--surface-000); color: var(--ink); font-family: var(--font-sans); overflow: hidden;">
+<header data-theme="dark" style="position: relative; flex-shrink: 0; box-sizing: border-box; padding: 20px 28px 24px; display: flex; flex-direction: column; gap: 20px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg);">
+<div aria-hidden="true" style="position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none;"><svg width="640" height="640" sc-camel-view-box="0 0 640 640" aria-hidden="true" style="position: absolute; right: -120px; top: -420px;"><circle class="wave" cx="320" cy="320" r="40"></circle><circle class="wave" cx="320" cy="320" r="80"></circle><circle class="wave" cx="320" cy="320" r="120"></circle><circle class="wave" cx="320" cy="320" r="160"></circle><circle class="wave" cx="320" cy="320" r="200"></circle><circle class="wave" cx="320" cy="320" r="240"></circle><circle class="wave" cx="320" cy="320" r="280"></circle><circle class="wave" cx="320" cy="320" r="320"></circle></svg></div>
+<div style="position: relative; display: flex; align-items: center; gap: 20px;">
+<a href="{{hd.backHref}}" class="back" aria-label="Volver"><svg width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="M11 6l-6 6 6 6"></path></svg></a>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<h1 style="margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 44px; letter-spacing: -0.01em;">{{hd.title}}</h1>
+<span style="font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-muted);">{{hd.sub}}</span>
+</div>
+<div style="margin-left: 16px;"><x-import component-from-global-scope="Valte.SeverityMeter" value="{{hd.sev}}" trend="{{hd.trend}}"></x-import></div>
+<sc-if value="{{hd.level}}" hint-placeholder-val="{{false}}"><x-import component-from-global-scope="Valte.StatusBadge" tone="critical" glyph="▲" label="{{hd.levelLabel}}"></x-import></sc-if>
+<div style="flex-grow: 1;"></div>
+<sc-for list="{{hd.ents}}" as="n" hint-placeholder-count="1"><details class="vl-ent"><summary class="seg is-on vl-ent__btn"><span class="vl-ent__txt"><span class="seg-kind">{{n.kind}}</span><span class="seg-name">{{n.name}}</span></span><svg class="vl-ent__chev" width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></summary><nav class="vl-ent__menu" aria-label="Entidad"><sc-for list="{{n.groups}}" as="g" hint-placeholder-count="3"><div class="vl-ent__group"><span class="seg-kind">{{g.kind}}</span><sc-for list="{{g.items}}" as="o" hint-placeholder-count="4"><a href="{{o.href}}" class="{{o.cls}}" aria-current="{{o.cur}}">{{o.name}}</a></sc-for></div></sc-for></nav></details></sc-for>
+</div>
+<div style="position: relative; display: flex; gap: 24px; padding-top: 16px; border-top: 1px solid var(--line-strong);"><sc-for list="{{hd.kpis}}" as="k" hint-placeholder-count="5"><a href="{{k.href}}" class="{{k.cls}}" style="{{k.style}}" aria-disabled="{{k.off}}" tabindex="{{k.tab}}"><span class="lbl">{{k.label}}</span><span style="font-family: var(--font-mono); font-size: 28px; line-height: 32px; letter-spacing: -0.02em; color: {{k.color}};">{{k.num}}<span style="font-size: 14px; color: var(--ink-muted);"> {{k.rest}}</span></span><svg class="kpi-go" width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg></a></sc-for></div>
+<sc-for list="{{hd.ringing}}" as="r" hint-placeholder-count="0">
+<div class="ringbar"><span class="ringdot"></span><span style="flex-grow: 1;"><b>{{r.title}}</b> · {{r.ask}}</span><span class="count">{{r.meta}}</span>
+<sc-if value="{{r.canAnswer}}" hint-placeholder-val="{{false}}"><x-import component-from-global-scope="Valte.Button" size="sm" sc-camel-on-click="{{r.answer}}">Atender como {{r.entity}}</x-import></sc-if>
+<sc-if value="{{r.live}}" hint-placeholder-val="{{false}}"><x-import component-from-global-scope="Valte.Button" size="sm" variant="secondary" sc-camel-on-click="{{r.hangup}}">Colgar</x-import></sc-if>
+<a href="Contactos.dc.html" class="count" style="color: var(--ink);">ver ↗</a></div>
+</sc-for>
+</header>
+
+<div style="flex-grow: 1; min-height: 0; display: flex; gap: 32px; padding: 0 12px;">
+<section class="col" style="flex-grow: 1;"><div class="col-head"><h2 class="col-title">Incidencias</h2><span class="count">{{incCount}}</span></div><div class="col-body"><div class="tabs" role="tablist"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="5"><button type="button" role="tab" class="{{t.cls}}" aria-selected="{{t.sel}}" sc-camel-on-click="{{t.pick}}">{{t.label}}</button></sc-for></div>
+<div style="display: flex; flex-direction: column;"><div class="thead" style="grid-template-columns: 34px minmax(0,1fr) 118px 150px 96px 90px 170px;"><span>Prio.</span><span>Incidencia</span><span>Estado</span><span>Evidencia</span><span>Confianza</span><span>Personas</span><span>Atención</span></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="6"><button type="button" class="{{r.cls}}" style="grid-template-columns: 34px minmax(0,1fr) 118px 150px 96px 90px 170px;" sc-camel-on-click="{{r.open}}">
+<span class="{{r.prioCls}}">{{r.priority}}</span>
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span class="ell" style="font-weight: 500;">{{r.title}}</span><span class="ell muted" style="font-size: 12px;">{{r.timeRange}}</span></span>
+<span><x-import component-from-global-scope="Valte.StatusBadge" tone="{{r.tone}}" label="{{r.stateLabel}}"></x-import></span>
+<span class="ell" style="font-size: 13px;">{{r.evidenceLabel}}</span>
+<span class="ell" style="font-size: 13px;">{{r.confidenceLabel}}</span>
+<span class="mono">{{r.peopleLabel}}</span>
+<span class="ell" style="font-size: 13px; color: {{r.waitColor}};">{{r.attention}}</span>
+</button></sc-for>
+<sc-if value="{{noRows}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Sin incidencias todavía. Pulsa Start en «Mundo exterior».</div></sc-if>
+</div>
+<div style="padding-top: 8px; border-top: 1px solid var(--line);">
+<button type="button" class="vl-more" sc-camel-on-click="{{toggleNoise}}">{{noiseToggleLabel}}</button>
+<sc-if value="{{noiseOpen}}" hint-placeholder-val="{{false}}"><sc-for list="{{noise}}" as="n" hint-placeholder-count="0"><div style="display: flex; align-items: baseline; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line);"><span class="mono muted" style="flex-shrink: 0;">{{n.time}}</span><span class="muted" style="flex-shrink: 0;">{{n.sourceName}}</span><span class="ell" style="text-decoration: line-through; color: var(--ink-muted);">{{n.text}}</span></div></sc-for></sc-if>
+</div>
+</div></section>
+</div>
+<sc-if value="{{hasSel}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10;">
+<button type="button" class="vl-scrim" aria-label="Cerrar" sc-camel-on-click="{{close}}"></button>
+<div class="vl-dlg" role="dialog" aria-modal="true" aria-labelledby="inc-title">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<span class="lbl">{{sel.kicker}}</span>
+<h2 id="inc-title" style="margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 34px; line-height: 38px;">{{sel.title}}</h2>
+</div>
+<button type="button" class="vl-x" aria-label="Cerrar" sc-camel-on-click="{{close}}">✕</button>
+</div>
+<div style="display: flex; align-items: center; gap: 12px;"><x-import component-from-global-scope="Valte.StatusBadge" tone="{{sel.tone}}" label="{{sel.stateLabel}}"></x-import><span class="{{sel.prioCls}}">{{sel.priority}}</span><span class="mono muted">{{sel.evidenceLabel}}</span><span class="mono muted">{{sel.confidenceLabel}}</span></div>
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink);">{{sel.summary}}</p>
+<sc-if value="{{sel.hasNote}}" hint-placeholder-val="{{false}}"><p class="vt-reason" style="margin: 0;"><span class="vt-reason__who">Estratega</span>{{sel.note}}</p></sc-if>
+<div class="vl-cols">
+<div style="display: flex; flex-direction: column;"><span class="lbl">Evidencia</span>
+<sc-for list="{{sel.signals}}" as="s" hint-placeholder-count="2"><div style="display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--line);"><span class="mono muted" style="font-size: 12px;">{{s.time}} · {{s.sourceName}} · {{s.confidence}}</span><span style="font-size: 13px; line-height: 18px; {{s.style}}">{{s.content}}</span></div></sc-for>
+<sc-if value="{{sel.noSignals}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Sin señales asociadas.</div></sc-if>
+</div>
+<div style="display: flex; flex-direction: column;"><span class="lbl">Quién está en ello</span>
+<sc-for list="{{sel.actions}}" as="a" hint-placeholder-count="2"><div style="display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--line);"><span style="font-size: 13px; line-height: 18px;">{{a.verbLabel}} · {{a.actorName}}</span><span class="mono muted" style="font-size: 12px;">{{a.deadline}}</span></div></sc-for>
+<sc-if value="{{sel.noActions}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Nadie atendiéndola todavía.</div></sc-if>
+</div>
+</div>
+<span class="muted" style="font-size: 13px;">{{sel.attendedByLine}}</span>
+<sc-if value="{{sel.canAct}}" hint-placeholder-val="{{false}}"><div style="display: flex; gap: 8px;">
+<x-import component-from-global-scope="Valte.Button" variant="secondary" sc-camel-on-click="{{sel.dismiss}}">Descartar (falsa alarma)</x-import>
+<x-import component-from-global-scope="Valte.Button" variant="secondary" sc-camel-on-click="{{sel.merge}}">Es la misma que…</x-import>
+</div></sc-if>
+</div>
+</div>
+</sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+const CONF_ES = { low: 'baja', medium: 'media', high: 'alta' };
+
+class Component extends DCLogic {
+  componentDidMount() {
+    const qs = new URLSearchParams(location.search), ZONE = qs.get('zone'), OPEN = qs.get('open'), ST = qs.get('state');
+    if (OPEN) this.setState({ sel: OPEN });
+    if (ST) this.setState({ filter: ST });
+    const self = this;
+    this.__esc = e => { if (e.key === 'Escape' && (self.state || {}).sel) self.setState({ sel: null }); };
+    document.addEventListener('keydown', this.__esc);
+    ValteLive.bind(this, cid => Promise.all([ValteLive.crisis(cid),
+      ValteLive.get(ValteLive.asViewer(`/crises/${cid}/incidents?limit=200` + (ZONE ? `&zone=${ZONE}` : '')))])
+      .then(([header, incidents]) => {
+        const sel = (self.state || {}).sel;
+        if (!sel) return { header, incidents };
+        return ValteLive.get(`/crises/${cid}/incidents/${sel}`).then(detail => ({ header, incidents, detail })).catch(() => ({ header, incidents }));
+      }));
+  }
+  componentWillUnmount() { ValteLive.unbind(this); document.removeEventListener('keydown', this.__esc); }
+
+  dialog(d, cid, st) {
+    const self = this, det = d.detail;
+    // The dialog follows the selection, not the last detail fetched: `detail` lives in `data` and only changes on the
+    // next load, so closing on it alone left the ✕ (and the scrim) doing nothing.
+    if (!det || !st.sel || det.id !== st.sel) return { hasSel: false, sel: {} };
+    const v = ValteLive.view(), by = v.entity_id || 'cecopi';
+    const all = (d.incidents && d.incidents.incidents) || [];
+    function act(path, body) {
+      return ValteLive.post(`/crises/${cid}/incidents/${det.id}/${path}`, body)
+        .then(() => { ValteLive.toast(path === 'dismiss' ? `${det.id} descartada` : `${det.id} fusionada`, 'ok'); self.setState({ sel: null }); ValteLive.reload(self); })
+        .catch(e => ValteLive.toast(e.message, 'bad'));
+    }
+    return {
+      hasSel: true, close: () => self.setState({ sel: null }),
+      sel: {
+        kicker: `${det.id} · ${det.kindLabel}` + (det.zone_name ? ' · ' + det.zone_name : ''),
+        title: det.title, tone: det.tone, stateLabel: det.state_label, priority: det.priority,
+        prioCls: 'vl-prio ' + det.priority.toLowerCase(), evidenceLabel: det.evidenceLabel, confidenceLabel: 'confianza ' + det.confidenceLabel,
+        summary: det.summary, hasNote: !!det.note, note: det.note,
+        signals: (det.signal_list || []).map(s => ({ time: s.time, sourceName: s.sourceName, confidence: CONF_ES[s.signal.confidence] || s.signal.confidence || '—',
+          content: s.signal.content, style: (s.noise || s.signal.is_noise) ? 'text-decoration: line-through; color: var(--ink-muted);' : '' })),
+        noSignals: !(det.signal_list || []).length,
+        actions: (det.action_list || []).map(a => ({ verbLabel: a.verbLabel, actorName: a.actorName, deadline: a.deadline ? 'escala en ' + a.deadline : (a.action.state || '') })),
+        noActions: !(det.action_list || []).length,
+        attendedByLine: det.attendedBy ? 'Atendida por ' + det.attendedBy : (det.open ? 'Nadie asignado todavía.' : (det.closed_reason || '')),
+        canAct: det.open,
+        dismiss: () => {
+          const reason = prompt('¿Por qué se descarta ' + det.id + '?', 'Falsa alarma');
+          if (reason == null) return;
+          act('dismiss', { by, reason });
+        },
+        merge: () => {
+          const cands = all.filter(i => i.open && i.id !== det.id && (!det.zone_id || i.zone_id === det.zone_id));
+          if (!cands.length) { ValteLive.toast('No hay otra incidencia abierta en esta zona.', 'warn'); return; }
+          const list = cands.map(i => `${i.id} — ${i.title}`).join('\n');
+          const into = prompt('¿Con qué incidencia es la misma? Escribe su id.\n\n' + list, cands[0].id);
+          if (!into) return;
+          if (!cands.some(i => i.id === into)) { ValteLive.toast('Id no encontrado entre las abiertas de la zona.', 'bad'); return; }
+          act('merge', { into, by });
+        }
+      }
+    };
+  }
+
+  renderVals() {
+    const self = this, st = this.state || {}, d = st.data || {}, cid = ValteLive.crisisId();
+    const qs = new URLSearchParams(location.search), ZONE = qs.get('zone');
+    const inc = d.incidents || { counts: {}, incidents: [], noise: [] }, c = inc.counts || {}, filter = st.filter || 'open';
+    const closedN = (c.resolved || 0) + (c.dismissed || 0);
+    const TABS = [['open', 'Abiertas', c.open], ['unattended', 'Sin atender', c.unattended], ['candidate', 'Sin confirmar', c.candidate],
+      ['attended', 'Atendidas', c.attended], ['closed', 'Cerradas', closedN]];
+    const inTab = (i) => filter === 'open' ? i.open : filter === 'unattended' ? (i.state === 'candidate' || i.state === 'active')
+      : filter === 'candidate' ? i.state === 'candidate' : filter === 'attended' ? i.state === 'attended'
+      : filter === 'closed' ? (i.state === 'resolved' || i.state === 'dismissed') : true;
+    const list = (inc.incidents || []).filter(inTab);
+    const rows = list.map(i => ({
+      cls: 'trow' + (st.sel === i.id ? ' is-on' : ''), open: () => { self.setState({ sel: i.id }); ValteLive.reload(self); },
+      priority: i.priority, prioCls: 'vl-prio ' + (i.priority || 'p3').toLowerCase(), title: i.title, timeRange: i.time === i.lastTime ? i.time : `${i.time} → ${i.lastTime}`,
+      tone: i.tone, stateLabel: i.state_label, evidenceLabel: i.evidenceLabel, confidenceLabel: i.confidenceLabel, peopleLabel: i.peopleLabel || '—',
+      attention: i.waitingLabel || i.attendedBy || '—', waitColor: i.waitingLabel ? 'var(--critical)' : 'var(--ink-muted)'
+    }));
+    return Object.assign(ValteLive.header(this, 'Incidencias'), this.dialog(d, cid, st), {
+      incCount: `${c.total || 0} · lo que nadie atiende, primero`,
+      tabs: ValteLive.zoneChip(ZONE, 'Incidencias').concat(TABS.map(([id, label, n]) => ({ label: `${label} · ${n || 0}`, cls: 'tab vl-tab' + (filter === id ? ' is-on' : ''),
+        sel: filter === id ? 'true' : 'false', pick: () => self.setState({ filter: id }) }))),
+      rows, noRows: !!d.header && !rows.length,
+      noise: (inc.noise || []).map(n => ({ time: n.time, sourceName: n.sourceName, text: n.signal.content })),
+      noiseOpen: !!st.noiseOpen, toggleNoise: () => self.setState({ noiseOpen: !st.noiseOpen }),
+      noiseToggleLabel: `${st.noiseOpen ? '▾' : '▸'} ${c.noise || 0} avisos descartados como ruido`
+    });
+  }
+}
+
+</script>
+</body></html>

@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 from valte.core import actions, logistics
 from valte.core.events import append_event
 from valte.core.needs import open_needs, pick_responder
-from valte.core.world import VERB_LABELS, build_state, entities_of, resources_of, scenario_now, zones_of
+from valte.core.world import VERB_LABELS, build_state, environment_of, entities_of, resources_of, scenario_now, zones_of
 from valte.hr import registry
 from valte.models import Action, Crisis, Entity, Outbox, Signal, Zone, utcnow
 from valte.settings import public_base_url, settings
@@ -289,6 +289,7 @@ def maybe_patrol(db: Session, c: Crisis) -> None:
         "instruction": (f"{len(fresh)} new finding(s), {len(found) - len(fresh)} already seen." if found else
                         "The sweep found nothing: look at the state yourself for what is about to be needed.")
                        + " Output only new actions.",
+        "environment": environment_of(db, c),
         "findings_json": json.dumps(found, ensure_ascii=False),
         "state_json": json.dumps(build_state(db, c), ensure_ascii=False)}))
 

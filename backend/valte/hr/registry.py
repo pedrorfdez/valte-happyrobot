@@ -16,6 +16,9 @@ OUTREACH = "PedroD-outreach"
 OUTREACH_CALL = "PedroD-outreach-call"
 EMERGENCY_CALL = "PedroD-emergency-call"
 CRISIS_START = "PedroD-crisis-start"
+CRISIS_PARSE = "PedroD-crisis-parse"
+CRISIS_REVIEW = "PedroD-crisis-review"
+WORLD_PARSE = "PedroD-world-parse"
 
 
 def get(db: Session, name: str) -> HrWorkflow | None:

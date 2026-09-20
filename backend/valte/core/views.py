@@ -32,6 +32,7 @@ from valte.core.world import (
     zones_of,
 )
 from valte.core.outreach import contactable
+from valte.core import incidents
 from valte.models import Action, Contact, Crisis, Entity, Incident, Plan, Signal, Zone, utcnow
 
 KIND_LABEL = {"information_source": "Fuente", "authority": "Autoridad", "responder": "Respuesta",
@@ -68,10 +69,116 @@ def signal_item(c: Crisis, s: Signal, names: dict[str, str]) -> dict[str, Any]:
             "noise": s.is_noise}
 
 
+CONF_ES = {"high": "alta", "medium": "media", "low": "baja", "unknown": "sin datos"}
+
+
+def _span(minutes: int) -> str:
+    """7487 min tells nobody anything."""
+    if minutes < 120:
+        return f"{minutes} min"
+    return f"{minutes // 60} h" if minutes < 48 * 60 else f"{minutes // 1440} d"
+CHANNEL_ES = {"call": "112", "social": "redes", "news": "medios", "sensor": "sensores", "operator": "operador", "report": "sobre el terreno"}
+
+
+def incident_item(db: Session, c: Crisis, inc: Incident, names: dict[str, str], *, detail: bool = False) -> dict[str, Any]:
+    """What the dashboard shows instead of loose signals: the incident, how far to believe it and who is on it."""
+    v = incidents.incident_view(db, c, inc)
+    n, m = v["signals"], v["sources"]
+    who = [f"{names.get(a['actor'], a['actor'])}" + (f" · {a['units']} ud." if a.get("units") else "") for a in v["actions"]]
+    item = {
+        **v, "time": hhmm(c, inc.first_t) if inc.first_t else "", "lastTime": hhmm(c, inc.last_t) if inc.last_t else "",
+        "kindLabel": next((lb for k, lb, *_ in incidents.KINDS if k == inc.kind), incidents.HAZARD_ES.get(c.hazard_type, "Emergencia")),
+        "confidenceLabel": CONF_ES.get(inc.confidence, inc.confidence),
+        "evidenceLabel": f"{n} {'aviso' if n == 1 else 'avisos'} · {m} {'fuente' if m == 1 else 'fuentes'}",
+        "channelsLabel": ", ".join(CHANNEL_ES.get(ch, ch) for ch in v["channels"]),
+        "peopleLabel": f"{inc.people} personas" if inc.people else "",
+        "waitingLabel": f"{_span(v['waiting_min'])} sin atender" if v["waiting_min"] and inc.state in ("candidate", "active") else "",
+        "attendedBy": ", ".join(dict.fromkeys(who)),
+        # critical = nobody is on something serious; warning = unverified or waiting; success = somebody is on it / done
+        "tone": ("neutral" if inc.state in ("dismissed", "merged") else "success" if inc.state in ("attended", "resolved", "closed")
+                 else "critical" if inc.priority == "P0" else "warning"),
+    }
+    if detail:
+        sigs = sorted(incidents.signals_of(db, inc), key=lambda s: s.t)
+        item["signal_list"] = [signal_item(c, s, names) for s in sigs]
+        item["action_list"] = [action_item(c, a, names) for a in incidents.covering_actions(db, inc)]
+    return item
+
+
+def incidents_screen(db: Session, c: Crisis, *, state: str | None = None, zone: str | None = None,
+                     zone_ids: list[str] | None = None, limit: int = 100) -> dict[str, Any]:
+    names = _names(db, c.id)
+    rows = list(db.scalars(select(Incident).where(Incident.crisis_id == c.id, Incident.origin == "kernel")))
+    if zone_ids is not None:
+        rows = [i for i in rows if i.zone_id in zone_ids]
+    by_state = {s: sum(1 for i in rows if i.state == s) for s in ("candidate", "active", "attended", "resolved", "dismissed", "merged")}
+    sig_q = select(func.count()).select_from(Signal).where(Signal.crisis_id == c.id)
+    counts = {**by_state, "open": sum(by_state[s] for s in incidents.OPEN), "unattended": by_state["candidate"] + by_state["active"],
+              "total": len(rows) - by_state["merged"], "signals": db.scalar(sig_q) or 0,
+              "noise": db.scalar(sig_q.where(Signal.is_noise.is_(True))) or 0}
+    if zone:
+        rows = [i for i in rows if i.zone_id == zone]
+    want = {"open": incidents.OPEN, "unattended": ("candidate", "active"), "closed": ("resolved", "dismissed", "closed"),
+            None: incidents.OPEN + ("resolved", "dismissed", "closed"), "all": None}.get(state, (state,))
+    if want is not None:
+        rows = [i for i in rows if i.state in want]
+    # what nobody is on first, worst first; what is over goes last
+    rows.sort(key=lambda i: (i.state not in incidents.OPEN, i.state == "attended", i.priority, -(i.severity or 0), -(i.seq or 0)))
+    noise = list(db.scalars(select(Signal).where(Signal.crisis_id == c.id, Signal.is_noise.is_(True)).order_by(Signal.seq.desc()).limit(12)))
+    return {"counts": counts, "incidents": [incident_item(db, c, i, names) for i in rows[:limit]],
+            "noise": [signal_item(c, s, names) for s in noise]}
+
+
 def sees_everything(viewer: Entity | None) -> bool:
     """Inventories belong to whoever owns them. Coordination (CECOPI) sees all of them; any other entity
     sees its own units and its own supplies, never a neighbour's."""
     return viewer is None or viewer.role == "coordination"
+
+
+SCREENS = ("zones", "actions", "signals", "resources", "contacts")
+
+
+def scope_of(viewer: Entity | None) -> list[str] | None:
+    """The zones an entity answers for. None = everywhere (coordination, or an entity with no jurisdiction of its own)."""
+    return None if sees_everything(viewer) else (viewer.jurisdiction or None)
+
+
+def concerns(a: Action, viewer: Entity | None) -> bool:
+    """Whose business an action is: a responder's own jobs; for an authority what it does, what it must sign
+    and whatever anybody does in its territory. Coordination sees all of it."""
+    if sees_everything(viewer):
+        return True
+    if a.actor == viewer.id or (a.approval or {}).get("approver") == viewer.id:
+        return True
+    return viewer.kind == "authority" and bool(set(a.target_zones or []) & set(viewer.jurisdiction or []))
+
+
+def is_civilian(viewer: Entity | None) -> bool:
+    return viewer is not None and viewer.kind == "population"
+
+
+def access(viewer: Entity | None) -> dict[str, Any]:
+    """What the dashboard offers depends on who is looking. Coordination, authorities and responders get every
+    screen (each scoped to what is theirs). A neighbour gets two things: the directory of who to turn to, and the
+    incident channel — and what they report comes in with low reliability until another source corroborates it."""
+    if viewer is None or viewer.role == "coordination":
+        role = "coordination"
+    elif viewer.kind in ("authority", "responder"):
+        role = viewer.kind
+    else:
+        return {"role": "civilian", "screens": ["contacts"], "can_report": is_civilian(viewer), "report_reliability": "low",
+                "can_contact": False, "can_decide": False}
+    return {"role": role, "screens": list(SCREENS), "can_report": True, "report_reliability": "high",
+            "can_contact": True, "can_decide": True}
+
+
+def visible_contacts(ents: list[Entity], viewer: Entity | None) -> list[Entity]:
+    """The directory as the viewer gets it: a neighbour sees who answers for their own town (and whoever answers for all)."""
+    rows = [e for e in ents if contactable(e)]
+    if is_civilian(viewer) and viewer.jurisdiction:
+        mine = set(viewer.jurisdiction)
+        rows = [e for e in rows if not e.jurisdiction or mine & set(e.jurisdiction)]
+    return rows
 
 
 def own_inventory_kpi(db: Session, c: Crisis, viewer: Entity | None) -> dict[str, Any]:
@@ -90,12 +197,15 @@ def own_inventory_kpi(db: Session, c: Crisis, viewer: Entity | None) -> dict[str
 def kpis(db: Session, c: Crisis, *, zone_ids: list[str] | None = None, entity: Entity | None = None,
          viewer: Entity | None = None) -> dict[str, Any]:
     cid = c.id
+    if zone_ids is None:  # the header of any screen counts what the panel of that entity counts
+        zone_ids = scope_of(viewer)
     zones = [z for z in zones_of(db, cid) if zone_ids is None or z.id in zone_ids]
     pop = sum(z.population for z in zones) or 1
-    act_q = select(Action.status, func.count()).where(Action.crisis_id == cid)
-    if entity is not None:
-        act_q = act_q.where(Action.actor == entity.id)
-    by_status = dict(db.execute(act_q.group_by(Action.status)).all())
+    who = entity or viewer
+    by_status: dict[str, int] = {}
+    for a in db.scalars(select(Action).where(Action.crisis_id == cid)):
+        if (a.actor == entity.id) if entity is not None else concerns(a, who):
+            by_status[a.status] = by_status.get(a.status, 0) + 1
     sig_q = select(func.count()).select_from(Signal).where(Signal.crisis_id == cid)
     if zone_ids is not None:
         sig_q = sig_q.where(Signal.zone_id.in_(zone_ids))
@@ -104,7 +214,7 @@ def kpis(db: Session, c: Crisis, *, zone_ids: list[str] | None = None, entity: E
     if entity is not None:
         con_q = con_q.where(Contact.entity_id == entity.id)
     contacts = dict(db.execute(con_q.group_by(Contact.status)).all())
-    directory = [e for e in entities_of(db, cid) if contactable(e)]
+    directory = visible_contacts(entities_of(db, cid), viewer)
     return {
         "zones": {"total": len(zones), "origins": sum(1 for z in zones if z.is_origin),
                   "warned": sum(1 for z in zones if z.warned),
@@ -114,6 +224,8 @@ def kpis(db: Session, c: Crisis, *, zone_ids: list[str] | None = None, entity: E
         "signals": {"total": db.scalar(sig_q) or 0,
                     "noise": db.scalar(sig_q.where(Signal.is_noise.is_(True))) or 0,
                     "per_min": round((db.scalar(sig_q.where(Signal.t >= window)) or 0) / 10, 1)},
+        # What the header shows now: incidents, not loose reports (`signals` stays for whoever still reads it).
+        "incidents": incidents_screen(db, c, limit=0, zone_ids=zone_ids)["counts"],
         "units": own_inventory_kpi(db, c, viewer or entity),
         # Contacts are the entities we can talk to; `total`/`unanswered` count the communications with them.
         "contacts": {"entities": sum(1 for e in directory if entity is None or e.id == entity.id),
@@ -135,13 +247,18 @@ def header(db: Session, c: Crisis, viewer: Entity | None = None) -> dict[str, An
     roles += [{"role": "authority", "entity_id": e.id, "label": e.name} for e in ents
               if e.kind == "authority" and e.role != "coordination"]
     roles += [{"role": "responder", "entity_id": e.id, "label": e.name} for e in ents if e.kind == "responder"]
+    roles += [{"role": "civilian", "entity_id": e.id, "label": e.name} for e in ents if e.kind == "population"]
+    acc = access(viewer)
     return {**crisis_card(db, c), "region": c.region, "hazard_type": c.hazard_type,
             "emergency_level": c.emergency_level, "situation_note": c.situation_note,
             "clock": clock_dict(c), "state_version": c.state_version, "plan_version": c.plan_version,
             "roles": roles, "kpis": kpis(db, c, viewer=viewer),
-            "viewer": {"entity_id": viewer.id, "name": viewer.name, "sees_everything": sees_everything(viewer)} if viewer else None,
+            "viewer": {"entity_id": viewer.id, "name": viewer.name, "kind": viewer.kind, "sees_everything": sees_everything(viewer)} if viewer else None,
+            "access": acc,
+            # a call the agent is making to an authority is not a neighbour's to see, let alone to pick up
             "ringing": [contact_row(c, k) for k in db.scalars(select(Contact).where(
-                Contact.crisis_id == c.id, Contact.status.in_(("ringing", "in_progress"))).order_by(Contact.seq))]}
+                Contact.crisis_id == c.id, Contact.status.in_(("ringing", "in_progress"))).order_by(Contact.seq))]
+            if acc["can_decide"] else []}
 
 
 def zone_view(db: Session, c: Crisis, z: Zone, all_zones: list[Zone], ents: list[Entity]) -> dict[str, Any]:
@@ -173,18 +290,21 @@ def zone_view(db: Session, c: Crisis, z: Zone, all_zones: list[Zone], ents: list
     }
 
 
-def zones_screen(db: Session, c: Crisis) -> dict[str, Any]:
-    zones, ents = zones_of(db, c.id), entities_of(db, c.id)
-    return {"zones": [zone_view(db, c, z, zones, ents) for z in zones]}
+def zones_screen(db: Session, c: Crisis, viewer: Entity | None = None) -> dict[str, Any]:
+    """An entity sees the zones it answers for; what comes from upstream stays visible in each zone's `from`."""
+    zones, ents, scope = zones_of(db, c.id), entities_of(db, c.id), scope_of(viewer)
+    return {"zones": [zone_view(db, c, z, zones, ents) for z in zones if scope is None or z.id in scope],
+            "scoped": scope is not None, "total": len(zones)}
 
 
 def actions_screen(db: Session, c: Crisis, *, status: str | None = None, actor: str | None = None,
-                   zone: str | None = None, limit: int = 200) -> dict[str, Any]:
+                   zone: str | None = None, limit: int = 200, viewer: Entity | None = None) -> dict[str, Any]:
     names = _names(db, c.id)
     q = select(Action).where(Action.crisis_id == c.id)
     if actor:
         q = q.where(Action.actor == actor)
-    scoped = [a for a in db.scalars(q.order_by(Action.seq.desc()).limit(limit)) if not zone or zone in (a.target_zones or [])]
+    scoped = [a for a in db.scalars(q.order_by(Action.seq.desc()).limit(limit if sees_everything(viewer) else 1000))
+              if (not zone or zone in (a.target_zones or [])) and concerns(a, viewer)][:limit]
     rows = [a for a in scoped if not status or status in (action_state(a), a.status)]
     every = [action_state(a) for a in scoped]  # the tab counts describe what the list can show (same actor/zone scope)
     return {"pending": [action_item(c, a, names) for a in rows if a.status == "pending_approval"],
@@ -193,9 +313,12 @@ def actions_screen(db: Session, c: Crisis, *, status: str | None = None, actor: 
 
 
 def signals_screen(db: Session, c: Crisis, *, modality: str | None = None, noise: bool | None = None,
-                   zone: str | None = None, precise: bool = False, limit: int = 100) -> dict[str, Any]:
+                   zone: str | None = None, precise: bool = False, limit: int = 100,
+                   viewer: Entity | None = None) -> dict[str, Any]:
     names = _names(db, c.id)
     q = select(Signal).where(Signal.crisis_id == c.id)
+    if scope_of(viewer) is not None:
+        q = q.where(Signal.zone_id.in_(scope_of(viewer)))
     if modality:
         q = q.where(Signal.modality == modality)
     if noise is not None:
@@ -277,18 +400,19 @@ def contacts_screen(db: Session, c: Crisis, *, entity: str | None = None) -> dic
                        "no_answer": sum(1 for k in rows if k.status == "no_answer")}}
 
 
-def directory_screen(db: Session, c: Crisis) -> dict[str, Any]:
-    """Contactos = who we can communicate with. Each entity carries its communications, newest first."""
+def directory_screen(db: Session, c: Crisis, viewer: Entity | None = None) -> dict[str, Any]:
+    """Contactos = who we can communicate with. Each entity carries its communications, newest first.
+    A neighbour gets the directory of their own town, without what the agent and the authorities said to each other."""
     zones = {z.id: z.name for z in zones_of(db, c.id)}
     ents = entities_of(db, c.id)
     names = {e.id: e.name for e in ents}
+    civilian = is_civilian(viewer)
     comms: dict[str, list[Contact]] = {}
-    for k in db.scalars(select(Contact).where(Contact.crisis_id == c.id).order_by(Contact.seq.desc())):
-        comms.setdefault(k.entity_id, []).append(k)
+    if not civilian:
+        for k in db.scalars(select(Contact).where(Contact.crisis_id == c.id).order_by(Contact.seq.desc())):
+            comms.setdefault(k.entity_id, []).append(k)
     rows = []
-    for e in ents:
-        if not contactable(e):
-            continue
+    for e in visible_contacts(ents, viewer):
         mine = comms.get(e.id, [])
         live = next((k for k in mine if k.status in ("ringing", "in_progress")), None)
         rows.append({
@@ -303,6 +427,8 @@ def directory_screen(db: Session, c: Crisis) -> dict[str, Any]:
     # Whoever is on the line comes first, then whoever we talked to last, then by weight.
     rows.sort(key=lambda r: (r["comms"]["live"] is None, -(len(r["communications"]) and 1), -r["weight"], r["name"]))
     return {"contacts": rows,
+            "scope": {"civilian": civilian, "name": viewer.name if viewer else None,
+                      "zones": [zones.get(z, z) for z in (viewer.jurisdiction or [])] if civilian else []},
             "counts": {"all": len(rows), "authority": sum(1 for r in rows if r["kind"] == "authority"),
                        "responder": sum(1 for r in rows if r["kind"] == "responder"),
                        "unreachable": sum(1 for r in rows if r["status"] == "unreachable"),
@@ -374,9 +500,9 @@ def recent_changes(db: Session, c: Crisis, *, limit: int = 8, zone_ids: list[str
         elif e.type == "report.received":
             if zone_ids is not None and p.get("zone") not in zone_ids:
                 continue
-            sev = int(p.get("severity") or 0)
-            tone, glyph, href = ("critical" if sev >= 7 else "warning"), "⚑", "Senales.dc.html"
-            text = f"{p.get('by_name')} reporta · {p.get('label')}" + (f" en {p.get('zone_name')}" if p.get("zone_name") else "") \
+            sev, lead = int(p.get("severity") or 0), p.get("reliability") == "low"  # a neighbour's word: a lead, not an alarm
+            tone, glyph, href = ("info" if lead else "critical" if sev >= 7 else "warning"), "⚑", "Senales.dc.html"
+            text = f"{p.get('by_name')} reporta{' (sin verificar)' if lead else ''} · {p.get('label')}" + (f" en {p.get('zone_name')}" if p.get("zone_name") else "") \
                 + f": {(p.get('text') or '')[:90]}" + (f" → {p['effects'][0]}" if p.get("effects") else "")
         elif e.type == "tripwire.fired":
             cond = p.get("if") or {}
@@ -443,12 +569,13 @@ def overview(db: Session, c: Crisis, *, role: str = "coordination", entity_id: s
         ent = next((e for e in ents if e.kind == kind and e.role != "coordination"), None)
     scope = (ent.jurisdiction or None) if (ent and role != "coordination") else None
 
-    acts = list(db.scalars(select(Action).where(Action.crisis_id == c.id).order_by(Action.seq.desc()).limit(80)))
-    if role == "authority" and ent:
-        acts = [a for a in acts if a.actor == ent.id or (a.approval or {}).get("approver") == ent.id]
-    elif role == "responder" and ent:
-        acts = [a for a in acts if a.actor == ent.id]
-    acts.sort(key=lambda a: (a.status != "pending_approval", -a.seq))
+    acts = list(db.scalars(select(Action).where(Action.crisis_id == c.id).order_by(Action.seq.desc()).limit(400)))
+    if role != "coordination" and ent:
+        acts = [a for a in acts if concerns(a, ent)]
+    # what this entity must sign first, then what it does itself, then what others do in its territory
+    acts.sort(key=lambda a: (a.status != "pending_approval" or (ent is not None and (a.approval or {}).get("approver") != ent.id
+                                                                   and role != "coordination"),
+                             ent is not None and a.actor != ent.id and role != "coordination", -a.seq))
 
     sig_q = select(Signal).where(Signal.crisis_id == c.id)
     if scope:
@@ -464,6 +591,7 @@ def overview(db: Session, c: Crisis, *, role: str = "coordination", entity_id: s
         "zones": [zone_view(db, c, z, zones, ents) for z in zones if scope is None or z.id in scope],
         "actions": [action_item(c, a, names) for a in acts[:12]],
         "signals": [signal_item(c, s, names) for s in sigs[:12]],
+        "incidents": incidents_screen(db, c, state="open", zone_ids=scope, limit=12)["incidents"],
         "plan": _plan_es(plan_dict(active_plan(db, c.id))),
         "changes": recent_changes(db, c, limit=6, zone_ids=scope),
         "ringing": [contact_row(c, k) for k in db.scalars(select(Contact).where(

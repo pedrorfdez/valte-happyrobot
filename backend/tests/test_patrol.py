@@ -184,4 +184,7 @@ def test_the_workflow_is_provisioned_with_the_others():
     post = spec.nodes[2].config(ids, specs.Ctx(secret="s"))
     assert post["url"][0]["children"][-1]["text"].endswith("/hr/proactive") or "/hr/proactive" in str(post["url"])
     assert post["body"]["raw"] == "{{$var:<extract>.response#decisions_json}}"
-    assert set(spec.nodes[0].config(ids, specs.Ctx(secret="s"))["params"]) >= {"findings_json", "state_json", "callback_base"}
+    assert set(spec.nodes[0].config(ids, specs.Ctx(secret="s"))["params"]) >= {
+        "findings_json", "state_json", "callback_base", "environment"}
+    coord = next(s for s in specs.all_specs() if s.name == "PedroD-coordinator")
+    assert "environment" in coord.nodes[0].config({n.name: n.name for n in coord.nodes}, specs.Ctx(secret="s"))["params"]

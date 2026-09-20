@@ -1,16 +1,21 @@
 /* Contactos = the entities we can communicate with. Every communication (the agent's or a person's)
-   leaves through an entity's own channel and hangs from it here. */
+   leaves through an entity's own channel and hangs from it here.
+   It is also all the population gets of the dashboard: who answers for their town, and the incident channel
+   (no messages through the agent, no transcripts; what they report comes in with low reliability). */
 class Component extends DCLogic {
   componentDidMount() {
     const e = new URLSearchParams(location.search).get('e');
     if (e) this.setState({ sel: e });
-    ValteLive.bind(this, cid => Promise.all([ValteLive.get(`/crises/${cid}`), ValteLive.get(`/crises/${cid}/directory`)])
+    ValteLive.bind(this, cid => Promise.all([ValteLive.crisis(cid), ValteLive.get(ValteLive.asViewer(`/crises/${cid}/directory`))])
       .then(([header, directory]) => ({ header, directory })));
   }
   componentWillUnmount() { ValteLive.unbind(this); }
   renderVals() {
     const self = this, st = this.state || {}, d = st.data || {}, cid = ValteLive.crisisId(), filter = st.filter || 'all';
     const dir = d.directory || { contacts: [], counts: {} }, all = dir.contacts, c = dir.counts;
+    const acc = (d.header || {}).access || {}, viewer = (d.header || {}).viewer, civil = acc.role === 'civilian';
+    const me = civil && viewer ? { id: viewer.entity_id, name: viewer.name, role: 'civilian' } : {};
+    const kindOf = x => civil ? x.kind_label : `${x.kind_label} · peso ${x.weight}`;  // how much an entity weighs is the kernel's business
     const COMM = { in_progress: ['agent', '●', 'En curso'], ringing: ['warning-solid', '◐', 'Llamando'], delivered: ['info', '✓', 'Entregado'],
       completed: ['success', '✓', 'Completada'], no_answer: ['critical', '✕', 'Sin respuesta'], failed: ['critical', '!', 'Fallido'],
       queued: ['neutral', '○', 'En cola'], sending: ['neutral', '○', 'Enviando'], superseded: ['neutral', '–', 'Resuelto por otra vía'] };
@@ -48,22 +53,24 @@ class Component extends DCLogic {
       const text = (st.msg || '').trim();
       if (!text || !e || st.sending) return;
       self.setState({ sending: true });
-      ValteLive.post(`/crises/${cid}/entities/${e.id}/contact`, { message: text, by: localStorage.getItem('valte.actingAs') || 'operador-cecopi' })
+      ValteLive.post(`/crises/${cid}/entities/${e.id}/contact`, { message: text, by: (viewer || {}).entity_id || localStorage.getItem('valte.actingAs') || 'operador-cecopi' })
         .then(() => { ValteLive.toast((e.channel.kind === 'voice' ? 'Llamando a ' : 'Email en camino a ') + e.name, 'ok'); self.setState({ msg: '', sending: false }); ValteLive.reload(self); })
         .catch(err => { ValteLive.toast(err.message, 'bad'); self.setState({ sending: false }); });
     };
 
-    return Object.assign(ValteLive.header(this, 'Contactos'), {
+    return Object.assign(ValteLive.header(this, 'Contactos'), ValteLive.reportVals(this, cid, me), {
       yes: true, msg: st.msg || '', setMsg: ev => self.setState({ msg: ev.target.value }),
-      dirCount: `${c.all || 0} entidades · ${c.communications || 0} comunicaciones`,
+      civil, canContact: !!d.header && acc.can_contact !== false, canReport: civil && !!acc.can_report,
+      dirTitle: civil ? 'A quién acudir' : 'Directorio',
+      dirCount: civil ? `${c.all || 0} entidades que responden por ${(dir.scope.zones || []).join(', ') || 'tu zona'}` : `${c.all || 0} entidades · ${c.communications || 0} comunicaciones`,
       tabs: TABS.map(([id, label, n]) => ({ label: `${label} · ${n || 0}`, cls: 'tab vl-tab' + (filter === id ? ' is-on' : ''),
         sel: filter === id ? 'true' : 'false', pick: () => self.setState({ filter: id }) })),
-      rows: rows.map(x => ({ name: x.name, kind: `${x.kind_label} · peso ${x.weight}`, ch: channel(x.channel.kind), address: x.channel.address || '—',
+      rows: rows.map(x => ({ name: x.name, kind: kindOf(x), ch: channel(x.channel.kind), address: x.channel.address || '—',
         st: x.comms.live ? badge(COMM, x.comms.live) : badge(ENT, x.status), n: x.comms.total || '—', last: x.comms.last || '—',
         cls: 'trow' + (x.id === selId ? ' is-on' : ''), pick: () => self.setState({ sel: x.id, msg: '' }) })),
       noRows: !!d.header && !rows.length, hasSel: !!e, noSel: !!d.header && !e,
-      selCount: e ? (e.comms.live === 'in_progress' ? 'llamada en curso' : e.comms.live === 'ringing' ? 'está sonando' : `${e.comms.total} comunicaciones`) : '',
-      sel: e ? { kind: `${e.kind_label} · peso ${e.weight}`, name: e.name, address: `${e.channel.address || '—'} · ${e.channel.kind === 'voice' ? 'voz' : 'email'}`,
+      selCount: !e || civil ? '' : (e.comms.live === 'in_progress' ? 'llamada en curso' : e.comms.live === 'ringing' ? 'está sonando' : `${e.comms.total} comunicaciones`),
+      sel: e ? { kind: kindOf(e), name: e.name, address: `${e.channel.address || '—'} · ${e.channel.kind === 'voice' ? 'voz' : 'email'}`,
         st: badge(ENT, e.status), zones: e.zones.length ? e.zones.join(', ') : 'Global', can: e.can.length ? e.can.join(' · ') : '—',
         escalates: e.escalates_to_name || 'nadie más en la cadena',
         sendLabel: e.channel.kind === 'voice' ? 'Nueva comunicación · llamada del agente' : 'Nueva comunicación · email',

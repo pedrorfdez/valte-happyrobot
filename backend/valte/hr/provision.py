@@ -12,6 +12,7 @@ from valte.db import session_scope
 from valte.hr.client import HRClient
 from valte.hr.specs import Ctx, NodeSpec, WorkflowSpec
 from valte.models import HrWorkflow, utcnow
+from valte.settings import settings
 
 log = logging.getLogger("valte.provision")
 
@@ -89,7 +90,8 @@ async def provision(client: HRClient, spec: WorkflowSpec, ctx: Ctx, *, force: bo
             await client.request("PUT", f"/versions/{version_id}/nodes/{ids[node.name]}/custom-output",
                                  json={"data": node.custom_output})
 
-    pub = await client.request("POST", f"/versions/{version_id}/publish", json={"force": True, "environment": "production"})
+    pub = await client.request("POST", f"/versions/{version_id}/publish",
+                               json={"force": True, "environment": settings.hr_environment})
     pub = pub.get("data", pub)
 
     # Runs report node outputs by persistent id; on a fresh node it equals the id, after a fork it does not.

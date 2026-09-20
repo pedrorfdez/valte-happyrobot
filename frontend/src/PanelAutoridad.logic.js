@@ -12,7 +12,7 @@ class Component extends DCLogic {
     const zones = (d.zones || []).map(ValteLive.zoneRow);
     // An authority with several zones (or all of them) sees the one that is worst off.
     const z = zones.slice().sort((a, b) => b.severity - a.severity || (a.eta_min ?? 999) - (b.eta_min ?? 999))[0];
-    const acts = d.actions || [], sigs = d.signals || [];
+    const acts = d.actions || [], incs = d.incidents || [];
     const run = verb => () => ValteLive.post(`/crises/${cid}/actions`, {
       actor: me.id, verb, target_zones: z ? [z.id] : [], by: me.id,
       reasoning: `Decisión directa de ${me.name} desde su panel.`
@@ -30,7 +30,8 @@ class Component extends DCLogic {
       escalatesTo: d.escalates_to || 'nadie: eres el último escalón',
       acts: ValteLive.actionRows(this, cid, acts, me.id), noActs: !!d.header && !acts.length,
       actsCount: `${acts.filter(a => a.action.status === 'pending_approval').length} por aprobar`,
-      sigs, noSigs: !!d.header && !sigs.length, sigsCount: z ? `en ${zones.length > 1 ? 'tus zonas' : z.name} · ${k ? k.signals.total : sigs.length}` : ''
+      incs: ValteLive.incidentRows(incs), noIncs: !!d.header && !incs.length,
+      incCount: k ? `${k.incidents.open} abiertas · ${k.incidents.unattended} sin atender` : ''
     });
   }
 }

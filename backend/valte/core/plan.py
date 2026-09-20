@@ -89,12 +89,33 @@ def replace_plan(db: Session, c: Crisis, payload: dict[str, Any], *, expected_pl
     if old is not None:
         old.active = False
 
+    from valte.core import incidents as inc_core
+
     c.plan_version += 1
     keep: set[str] = set()
+    for pair in payload.get("merge") or []:  # [["inc-0003", "inc-0007"]]: the same event seen twice
+        found = [db.get(Incident, (c.id, str(i))) for i in (pair if isinstance(pair, list) else [])]
+        if len(found) >= 2 and all(i is not None and i.origin == "kernel" for i in found):
+            for other in found[1:]:
+                inc_core.merge(db, c, found[0], other, by=origin)
     for raw in payload.get("incidents") or []:
         iid = str(raw.get("incident_id") or raw.get("id") or f"inc-{len(keep) + 1}")
         keep.add(iid)
-        inc = db.get(Incident, (c.id, iid)) or Incident(crisis_id=c.id, id=iid)
+        known = db.get(Incident, (c.id, iid))
+        if known is not None and known.origin == "kernel":
+            # Formed from signals: the strategist may re-prioritise it, say why, set a revisit and close it. Nothing else.
+            if raw.get("priority") in ("P0", "P1", "P2", "P3") and known.state != "candidate":
+                known.priority = raw["priority"]
+            known.note = str(raw.get("summary") or raw.get("note") or known.note or "")[:400]
+            if raw.get("state") in ("closed", "resolved") and known.state in inc_core.OPEN:
+                known.state, known.closed_reason = "resolved", f"cerrada por el plan v{c.plan_version}"
+            try:
+                known.revisit_at = datetime.fromisoformat(str(raw["revisit_at"]).replace("Z", "+00:00")) if raw.get("revisit_at") else None
+            except ValueError:
+                known.revisit_at = None
+            known.plan_version = c.plan_version
+            continue
+        inc = known or Incident(crisis_id=c.id, id=iid)
         inc.state = raw.get("state", "active")
         inc.priority = raw.get("priority", "P2")
         inc.confidence = raw.get("confidence", "unknown")
@@ -109,9 +130,10 @@ def replace_plan(db: Session, c: Crisis, payload: dict[str, Any], *, expected_pl
             inc.revisit_at = None
         inc.plan_version = c.plan_version
         db.merge(inc)
-    for inc in db.scalars(select(Incident).where(Incident.crisis_id == c.id, Incident.state.in_(("candidate", "active")))):
+    for inc in db.scalars(select(Incident).where(Incident.crisis_id == c.id, Incident.origin != "kernel",
+                                                 Incident.state.in_(("candidate", "active")))):
         if inc.id not in keep and payload.get("incidents") is not None:
-            inc.state = "closed"
+            inc.state = "closed"  # only what a strategist wrote dies by omission; the kernel's follow the world
 
     body = payload.get("plan") or {}
     fp, material = material_fingerprint(db, c)
@@ -119,11 +141,15 @@ def replace_plan(db: Session, c: Crisis, payload: dict[str, Any], *, expected_pl
                 objectives=body.get("objectives") or [], material_fp=fp, material=material, origin=origin)
     db.add(plan)
     db.flush()
+    from valte.core import learning
+
+    plan.lessons = learning.cite(db, c, body.get("lessons") or payload.get("applied_lesson_ids"), by=origin, ref=f"plan-v{plan.version}")
 
     # Pending work for incidents that no longer exist is withdrawn, visibly.
     superseded = []
     for act in db.scalars(select(Action).where(Action.crisis_id == c.id, Action.status == "pending_approval")):
-        if act.incident_id and act.incident_id not in keep:
+        dropped = db.get(Incident, (c.id, act.incident_id)) if act.incident_id else None
+        if dropped is not None and dropped.origin != "kernel" and act.incident_id not in keep:
             act.status, act.error = "rejected", f"plan v{c.plan_version} sustituye al anterior"
             superseded.append(act.id)
     append_event(db, c, "plan.replaced", {**plan_dict(plan), "replaced": old.version if old else None,

@@ -1,8 +1,8 @@
 class Component extends DCLogic {
   componentDidMount() {
     const ZONE = new URLSearchParams(location.search).get('zone');
-    ValteLive.bind(this, cid => Promise.all([ValteLive.crisis(cid), ValteLive.get(`/crises/${cid}/actions` + (ZONE ? `?zone=${ZONE}` : '')),
-      ValteLive.get(`/crises/${cid}/zones`)]).then(([header, actions, zones]) => ({ header, actions, zones: zones.zones })));
+    ValteLive.bind(this, cid => Promise.all([ValteLive.crisis(cid), ValteLive.get(ValteLive.asViewer(`/crises/${cid}/actions` + (ZONE ? `?zone=${ZONE}` : ''))),
+      ValteLive.get(ValteLive.asViewer(`/crises/${cid}/zones`))]).then(([header, actions, zones]) => ({ header, actions, zones: zones.zones })));
   }
   componentWillUnmount() { ValteLive.unbind(this); }
   renderVals() {
@@ -24,6 +24,8 @@ class Component extends DCLogic {
         return { time: x.time, id: x.action.id, label: x.verbLabel, actor: x.actorName, status: x.action.state,
           zones: (x.action.target_zones || []).map(z => zoneName[z] || z).join(', ') || '—',
           real: !!ri, noReal: !ri, realStatus: ri ? 'real_' + ri.kind : '',
+          hasInc: !!x.action.incident_id, incId: x.action.incident_id,
+          gotoInc: () => { location.href = 'Incidencias.dc.html?open=' + x.action.incident_id; },
           cls: 'trow' + (st.sel === x.action.id ? ' is-on' : ''), pick: () => self.setState({ sel: st.sel === x.action.id ? null : x.action.id }) };
       }),
       noRows: !!d.header && !log.length,

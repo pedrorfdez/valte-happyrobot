@@ -12,7 +12,8 @@ curl -s localhost:8010/meta        # 11 workflows, callbacks_authenticated: true
 ```
 
 - Dos ventanas: **Mundo exterior** (http://localhost:8030) a la izquierda, **dashboard** (http://localhost:8010/app/) a la derecha.
-- Ninguna crisis activa de ensayos anteriores: `backend/scripts/delete_crisis.py <código>`.
+- Ninguna crisis activa de ensayos anteriores: `backend/scripts/reset_demo.sh` (borra todas y reinicia kernel + mundo)
+  o `backend/scripts/delete_crisis.py <código>` si solo quieres quitar una.
 - Micrófono permitido en el navegador (para atender la llamada). Si la wifi bloquea WebRTC, usa el móvil como punto de acceso.
 - Una crisis de riada ya **cerrada** de un ensayo anterior: así el bloque «Aprendido» no sale vacío.
 
@@ -24,7 +25,7 @@ HappyRobot en vivo: llegan unos segundos después y pueden variar de un pase a o
 | Reloj real | Qué pasa (solo) | Qué dices / qué enseñas | Pregunta del reto |
 |---|---|---|---|
 | 0:00 | Pulsas **Start** en Mundo exterior. Llega el aviso rojo de AEMET. | «Esto es el mundo: llamadas al 112, redes, medios, sensores. El sistema no sabe qué viene.» Abre la crisis en el dashboard. | — |
-| 0:15 | «Qué día más gris…» aparece **tachado: ruido descartado**. | Pantalla **Señales**: HappyRobot (`PedroD-ingest-*`) percibe cada mensaje; el kernel calcula la fiabilidad con corroboración entre canales. «De cien mensajes, quédate con tres.» | 1 · Qué información importa |
+| 0:15 | «Qué día más gris…» aparece **tachado: ruido descartado**. | Pantalla **Incidencias** (abajo, «avisos descartados como ruido»): HappyRobot (`PedroD-ingest-*`) percibe cada mensaje y el kernel los agrupa: varias llamadas sobre la misma residencia son **una** incidencia, con sus fuentes independientes contadas (veinte reenvíos de un bulo siguen siendo una sola voz «sin confirmar»). «De cien mensajes, quédate con tres incidencias.» | 1 · Qué información importa |
 | 1:00–1:15 | 112 en Chiva (sev. 6) y aforo a 1.150 m³/s (sev. 7). El agente activa nivel, envía **ES-Alert a Chiva y a todo lo que tiene aguas abajo** y pide la UME. | Panel **Coordinación**: lee en voz alta un razonamiento. Pantalla **Zonas**: «Paiporta está seca, pero tiene una cuenta atrás de 38 minutos: decide sobre el grafo, no sobre el tiempo local.» | 2 · Qué va primero · 3 · A quién se avisa y cuándo |
 | 1:15 | «Ordenar evacuación» queda **pendiente de aprobación** con temporizador; suena una **llamada entrante** para la Alcaldía de Paiporta. | Pulsa **Atender como Alcaldía de Paiporta** y habla con el agente: pregunta qué zonas, di «adelante». La acción pasa a ejecutada; `PedroD-crisis-response-coordination` registra lo que dijiste. | Interacción real · Control humano |
 | 1:55–2:55 | El aforo **enmudece**. A los 20 min de escenario salta el reflejo de silencio. | **Últimos cambios**: «Aforos CHJ lleva 20 min en silencio, se asume escalada». «El silencio es una señal.» Abre **Ver plan, reflejos y lo aprendido**. | 6 · Cuándo tirar el plan |
@@ -51,7 +52,12 @@ escala y replanifica. Todo lo que decide queda con su evidencia y su porqué.»
 
 ## Variantes
 
-- **Otra catástrofe en 30 s**: dashboard → *Iniciar catástrofe* → Incendio/Apagón, cambia dos zonas → en Mundo exterior elige
-  *Alimentar · …* → Start. El guion se genera a partir de esas zonas y sus retardos.
+- **Otra catástrofe en 30 s**: dashboard → *Iniciar catástrofe* → díctala (micrófono) o pulsa un ejemplo (Incendio/Apagón) →
+  *Interpretar* → revisa lo que ha entendido → *Iniciar catástrofe* → en Mundo exterior escribe su código y elige Riada o Incendio → Start. El guion se genera a partir de esas zonas y sus retardos.
+- **El plan va por detrás de la calle**: en cualquier panel de rol, *⚑ Reportar incidencia* → «Qué ha cambiado». Una línea
+  basta: «se inunda Sedaví, 10.500 habitantes» mete la zona en el mapa con su cuenta atrás y su ayuntamiento; «nos llegan
+  200 mantas» las suma al inventario; «se suma Cruz Roja con 12 voluntarios y 2 embarcaciones» da de alta a quien aparece;
+  «ya hemos cortado el puente de la CV-36» queda como acción tuya y el agente deja de pedirla. Todo en el acto, y el
+  coordinador despierta con el mundo nuevo.
 - **Dos crisis a la vez**: otro Start. Cada una con su reloj y sus recursos.
 - **Cada entidad ve lo suyo**: en un panel de rol, pulsa el segmento activo para cambiar de entidad; Recursos solo muestra lo propio.

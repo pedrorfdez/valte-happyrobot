@@ -43,12 +43,13 @@
   var KEY = localStorage.getItem('valte.key') || '';
 
   function req(method, path, body) {
-    var headers = body ? { 'content-type': 'application/json' } : {};
+    var raw = typeof Blob !== 'undefined' && body instanceof Blob;  // a recording goes as it is (dictation)
+    var headers = body && !raw ? { 'content-type': 'application/json' } : {};
     if (KEY) headers['X-Valte-Key'] = KEY;
     return fetch(API + path, {
       method: method,
       headers: headers,
-      body: body ? JSON.stringify(body) : undefined
+      body: raw ? body : body ? JSON.stringify(body) : undefined
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (data) {
         if (!r.ok) throw new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail || data));
@@ -88,7 +89,11 @@
     function run() {
       if (busy) { again = true; return; }
       busy = true;
-      load(cid).then(function (data) { logic.setState({ data: data, error: null, loaded: true }); })
+      load(cid).then(function (data) {
+        if (denied(data && data.header)) { location.replace(homeOf(data.header.access.role)); return; }
+        if (PAGE === 'Zonas' && oneZone(data && data.header)) { location.replace(homeOf(view().role)); return; }
+        logic.setState({ data: data, error: null, loaded: true });
+      })
         .catch(function (e) { logic.setState({ error: String(e.message || e) }); })
         .then(function () { busy = false; if (again) { again = false; run(); } });
     }
@@ -103,6 +108,7 @@
         clearTimeout(timer); timer = setTimeout(run, 250);
       };
       ['clock.tick', 'clock.changed', 'crisis.updated', 'crisis.started', 'crisis.closed', 'signal.created', 'signal.updated',
+        'incident.opened', 'incident.updated', 'incident.dismissed', 'incident.merged',
         'zone.updated', 'entity.updated', 'resource.updated', 'action.created', 'action.updated', 'approval.requested',
         'approval.decided', 'approval.escalated', 'approval.stalled', 'contact.created', 'contact.updated',
         'contact.transcript', 'contact.unanswered', 'tripwire.armed', 'tripwire.fired', 'plan.replaced',
@@ -117,9 +123,22 @@
   function reload(logic) { if (logic.__valte) logic.__valte.reload(); }
 
   /* ── header shared by every screen ─────────────────────────────────── */
-  var TITLES = { Zonas: 'Zonas', Acciones: 'Acciones', Senales: 'Señales', Recursos: 'Recursos', Contactos: 'Contactos' };
+  var TITLES = { Zonas: 'Zonas', Acciones: 'Acciones', Incidencias: 'Incidencias', Recursos: 'Recursos', Contactos: 'Contactos' };
   var PANELS = { coordination: 'PanelCoordinacion.dc.html', authority: 'PanelAutoridad.dc.html', responder: 'PanelRespuesta.dc.html' };
-  var KIND = { coordination: 'Coordinación', authority: 'Autoridad', responder: 'Respuesta' };
+  var KIND = { coordination: 'Coordinación', authority: 'Autoridad', responder: 'Respuesta', civilian: 'Población' };
+
+  /* What each entity gets of the dashboard comes from the kernel (header.access): every screen for coordination,
+     authorities and responders; for the population only the directory and the incident channel. */
+  var SCREEN = { Zonas: 'zones', Acciones: 'actions', Incidencias: 'signals', Recursos: 'resources', Contactos: 'contacts' };
+  function homeOf(role) { return PANELS[role] || 'Contactos.dc.html'; }
+  function allowed(h, page) { return !SCREEN[page] || !h || !h.access || h.access.screens.indexOf(SCREEN[page]) >= 0; }
+  function denied(h) { return !allowed(h, PAGE); }
+  /* A map of one zone says nothing the panel does not: with a single zone in sight there is no Zonas screen. */
+  function oneZone(h) { return !!(h && h.kpis && h.kpis.zones && h.kpis.zones.total <= 1); }
+  function entityHref(r) {
+    return PANELS[r.role] ? PANELS[r.role] + '?e=' + encodeURIComponent(r.entity_id)
+      : 'Contactos.dc.html?as=' + encodeURIComponent(r.entity_id) + '&asrole=' + r.role;
+  }
 
   function roleEntity(h, role) {
     var saved = localStorage.getItem('valte.' + role);
@@ -129,43 +148,59 @@
       options.filter(function (r) { return r.entity_id === prefer; })[0] || options[0] || null;
   }
 
+  /* The entity dropdown is a <details>: a click anywhere else, or Esc, closes it. */
+  function closeEnts(except) {
+    [].forEach.call(document.querySelectorAll('details.vl-ent[open]'), function (el) { if (el !== except) el.removeAttribute('open'); });
+  }
+  document.addEventListener('click', function (ev) { closeEnts(ev.target.closest ? ev.target.closest('details.vl-ent') : null); });
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeEnts(null); });
+
   function header(logic, page, kpisOverride) {
     var st = logic.state || {}, d = st.data || {}, h = d.header;
-    if (!h) return { hd: { title: 'Valte', sub: st.error || 'cargando…', sev: 0, trend: 'stable', segs: [], kpis: [], ringing: [], backHref: 'Main.dc.html' } };
+    if (!h) return { hd: { title: 'Valte', sub: st.error || 'cargando…', sev: 0, trend: 'stable', ents: [], kpis: [], ringing: [], backHref: 'Main.dc.html' } };
     var clock = st.clock || h.clock, k = kpisOverride || h.kpis, isPanel = page.indexOf('Panel') === 0;
     var pace = clock.paused ? 'en pausa' : clock.slowmo ? '1× · llamada en curso' : clock.speed + '×';
     var line = h.code + ' · ' + clock.clock + ' · ' + clock.elapsed + ' · ' + pace + (h.status !== 'active' ? ' · CERRADA' : '');
-    if (!isPanel && h.viewer && !h.viewer.sees_everything) line += ' · viendo como ' + h.viewer.name;
     var pageRole = { PanelCoordinacion: 'coordination', PanelAutoridad: 'authority', PanelRespuesta: 'responder' }[page];
-    var segs = !isPanel ? [] : ['coordination', 'authority', 'responder'].map(function (role) {
-      var e = roleEntity(h, role), href = PANELS[role];
-      var options = (h.roles || []).filter(function (r) { return r.role === role; });
-      if (role === pageRole && options.length > 1) {  // clicking the active segment switches to the next entity of that role
-        var next = options[(options.indexOf(e) + 1) % options.length];
-        href += '?e=' + next.entity_id;
-      }
-      return { href: href, cls: 'seg' + (role === pageRole ? ' is-on' : ''), name: e ? e.label : '—',
-        kind: KIND[role] + (role === pageRole && options.length > 1 ? ' · ' + (options.indexOf(e) + 1) + '/' + options.length + ' ⟳' : '') };
-    });
-    function kpi(href, label, num, rest, color, first) {
-      return { href: href, label: label, num: num, rest: rest, color: color,
-        cls: 'kpi-link' + (href.indexOf(page + '.') === 0 ? ' is-on' : ''),
+    var acc = h.access || { role: view().role, screens: Object.keys(SCREEN).map(function (p) { return SCREEN[p]; }) };
+    var homeScreen = !isPanel && !PANELS[acc.role] && homeOf(acc.role).indexOf(page + '.') === 0;  // the population has no panel: its home is this screen
+    if (homeScreen) { isPanel = true; pageRole = acc.role; }
+    /* One dropdown, on every screen: it shows the entity you are looking as, and opens onto every entity of the crisis,
+       by role. The entity keeps mattering outside its panel: Zonas, Acciones, Incidencias… show what concerns IT.
+       Picking another entity always lands on THAT entity's main dashboard (its panel; the population's is Contactos):
+       the screen you are on may not even exist for it (a town hall with one zone has no map). */
+    var curRole = isPanel ? pageRole : view().role;
+    var cur = roleEntity(h, curRole);
+    var ents = [{ kind: KIND[curRole], name: cur ? cur.label : '—',
+      groups: ['coordination', 'authority', 'responder', 'civilian'].map(function (role) {
+        return { kind: KIND[role], items: (h.roles || []).filter(function (r) { return r.role === role; }).map(function (r) {
+          var on = r === cur;
+          return { href: entityHref(r), name: r.label,
+            cls: 'vl-ent__opt' + (on ? ' is-on' : ''), cur: on ? 'true' : 'false' };
+        }) };
+      }).filter(function (g) { return g.items.length; }) }];
+    var backHref = isPanel ? 'Main.dc.html' : homeOf(view().role);
+    function kpi(href, label, num, rest, color, first, off) {
+      var on = !homeScreen && href.indexOf(page + '.') === 0;  // pressing the open submenu again leaves it, back to the panel
+      return { page: href.split('.')[0], href: off ? '#' : on ? backHref : href, label: label, num: num, rest: rest, color: color,
+        cls: 'kpi-link' + (on ? ' is-on' : '') + (off ? ' is-off' : ''), off: off ? 'true' : 'false', tab: off ? '-1' : '0',
         style: 'flex-grow: 1; display: flex; flex-direction: column; gap: 4px;' + (first ? '' : ' border-left: 1px solid var(--line-strong); padding-left: 24px;') };
     }
     var me = localStorage.getItem('valte.actingAs') || '';
     return { hd: {
-      title: isPanel ? h.name : TITLES[page] || h.name, sub: isPanel ? line : h.name + ' · ' + line,
-      backHref: isPanel ? 'Main.dc.html' : PANELS[view().role] || 'PanelCoordinacion.dc.html',
-      sev: h.severity, trend: h.trend, level: h.emergency_level > 0, levelLabel: 'Nivel ' + h.emergency_level, segs: segs,
+      title: PANELS[pageRole] ? h.name : TITLES[page] || h.name, sub: PANELS[pageRole] ? line : h.name + ' · ' + line,
+      backHref: backHref,
+      sev: h.severity, trend: h.trend, level: h.emergency_level > 0, levelLabel: 'Nivel ' + h.emergency_level, ents: ents,
       kpis: [
-        kpi('Zonas.dc.html', 'Zonas', k.zones.warned, '/ ' + k.zones.total + ' avisadas', 'var(--ink)', true),
+        kpi('Zonas.dc.html', 'Zonas', k.zones.warned, '/ ' + k.zones.total + ' avisadas', 'var(--ink)', true, k.zones.total <= 1),
         kpi('Acciones.dc.html', 'Acciones', k.actions.pending_approval, 'por aprobar · ' + k.actions.total + ' en total', k.actions.pending_approval ? 'var(--warning-text)' : 'var(--ink)'),
-        kpi('Senales.dc.html', 'Señales', k.signals.total, '· ' + k.signals.noise + ' de ruido · ' + k.signals.per_min + '/min', 'var(--ink)'),
+        kpi('Incidencias.dc.html', 'Incidencias', k.incidents.open, '· ' + k.incidents.unattended + ' sin atender · ' + k.incidents.candidate + ' sin confirmar',
+          k.incidents.unattended ? 'var(--critical)' : 'var(--ink)'),
         kpi('Recursos.dc.html', 'Recursos', k.units.available, '/ ' + k.units.total + ' ' + (k.units.label || 'unidades libres'), k.units.total && k.units.available / k.units.total <= 0.2 ? 'var(--critical)' : 'var(--ink)'),
         kpi('Contactos.dc.html', 'Contactos', k.contacts.entities != null ? k.contacts.entities : k.contacts.total,
           '· ' + (k.contacts.unreachable != null ? k.contacts.unreachable : k.contacts.unanswered) + ' sin respuesta',
           (k.contacts.unreachable || k.contacts.unanswered) ? 'var(--critical)' : 'var(--ink)')
-      ],
+      ].filter(function (t) { return allowed(h, t.page); }).map(function (t, i) { return i ? t : Object.assign(t, { style: t.style.split(' border-left')[0] }); }),
       ringing: (h.ringing || []).filter(function (c) { return c.channel === 'voice'; }).map(function (c) {
         var live = c.status === 'in_progress';
         return { title: (live ? 'Llamada en curso · ' : 'Llamada entrante · ') + c.entity_name, ask: (c.brief || {}).ask || '',
@@ -175,9 +210,10 @@
     } };
   }
 
-  function zoneRow(z) {
+  function zoneRow(z, i, all) {
+    var alone = !!all && all.length <= 1;
     return Object.assign({}, z, {
-      href: 'Zonas.dc.html?z=' + z.id,
+      href: alone ? '#' : 'Zonas.dc.html?z=' + z.id, linkCls: alone ? 'is-still' : '',
       etaShort: z.is_origin ? (z.severity >= 5 ? 'origen · activo' : 'origen') : z.eta === 'Afectada' ? 'afectada'
         : z.eta_min != null ? (z.eta_min === 0 ? 'llegada ya' : '+' + z.eta_min + ' min') : 'sin amenaza',
       warnShort: z.warned ? 'Avisada' : 'Sin avisar',
@@ -198,17 +234,40 @@
   }
 
   /* ── incident channel: "se acaba de hundir la carretera X" ─────────── */
-  /* The form is a name and a kind; the kernel works the zone, the stock and the numbers out of the name. */
+  /* The form is a name and a kind; the kernel works the zone, the stock and the numbers out of the name.
+     From the population it is a lead, not a fact: low reliability, and nothing changes until someone else corroborates it. */
+  var CONF = { low: 'baja', medium: 'media', high: 'alta' };
+  /* One example per kind, so the free-text box is discoverable instead of a blank stare. Falls back to the
+     original placeholder for any kind this list has not caught up with yet. */
+  var RP_EX = {
+    road_cut: 'Se hunde el puente de la CV-36 en Paiporta',
+    people_trapped: 'Hay 6 personas atrapadas en un bajo de la calle Sant Josep',
+    building_damage: 'Se ha derrumbado parte del tejado de la residencia de Paiporta',
+    power_out: 'Se ha ido la luz en todo Paiporta',
+    resource_lost: 'Solo quedan 3 bombas de achique',
+    units_down: 'Se nos ha averiado una unidad de rescate',
+    shelter_full: 'El polideportivo de Paiporta ya no admite a nadie más',
+    other: 'Se hunde el puente de la CV-36 en Paiporta',
+    zone_new: 'Se ha roto la mota y ahora se inunda Sedaví, 10.500 habitantes, llega en 25 min',
+    resource_new: 'Nos llegan 200 mantas y 4 bombas de achique',
+    entity_new: 'Se suma Cruz Roja Valencia con 12 voluntarios para rescate y 2 embarcaciones',
+    action_done: 'Ya hemos cortado el puente de la CV-36 por nuestra cuenta'
+  };
+  var RP_GROUP_LABEL = { world: 'Qué ha cambiado' };
   function reportVals(logic, cid, me, supplies) {
     var st = logic.state || {}, f = st.rp || {}, data = st.rpData || { kinds: [], reports: [] };
     me = me || {}; supplies = supplies || [];
     function patch(p) { logic.setState({ rp: Object.assign({}, (logic.state || {}).rp, p) }); }
     function load() { get('/crises/' + cid + '/reports?by=' + me.id).then(function (d) { logic.setState({ rpData: d }); }).catch(function () {}); }
     var isOpen = f.open === undefined ? !!qs.get('report') : !!f.open;  // ?report=1 opens it (deep link, screenshots)
-    if (isOpen && me.id && !st.rpData && !logic.__rpLoading) { logic.__rpLoading = true; load(); }
-    var kind = data.kinds.filter(function (k) { return k.id === (f.kind || 'road_cut'); })[0] || { id: 'road_cut' };
-    var canUnits = !!me.units, canStock = supplies.length > 0 || me.role === 'coordination';  // only what this entity can lose
-    var kinds = data.kinds.filter(function (k) { return (k.id !== 'units_down' || canUnits) && (k.id !== 'resource_lost' || canStock); });
+    if ((isOpen || me.role === 'civilian') && me.id && !st.rpData && !logic.__rpLoading) { logic.__rpLoading = true; load(); }  // the population sees its own reports without opening the form
+    var kind = data.kinds.filter(function (k) { return k.id === (f.kind || 'other'); })[0] || { id: 'other' };
+    var worldKinds = data.kinds.filter(function (k) { return k.group === 'world'; });
+    function chip(k) {
+      var on = k.id === kind.id;
+      return { label: k.label, on: String(on), cls: 'vl-chipbtn' + (on ? ' is-on' : ''),
+        pick: function () { patch({ kind: on ? 'other' : k.id }); } };
+    }
     function send() {
       if (f.sending) return;
       if (!(f.name || '').trim()) { toast('Ponle un nombre a la incidencia', 'warn'); return; }
@@ -216,16 +275,26 @@
       post('/crises/' + cid + '/reports', { by: me.id, kind: kind.id, name: f.name })
         .then(function (r) {
           toast('Incidencia registrada' + (r.effects && r.effects.length ? ' · ' + r.effects[0] : ''), 'ok');
-          patch({ open: false, sending: false, name: '' }); load(); reload(logic);
-        }).catch(function (e) { toast(e.message, 'bad'); patch({ sending: false }); });
+          patch({ open: false, sending: false, name: '', kind: 'other' }); load(); reload(logic);
+        }).catch(function (e) { toast(e.message, 'bad'); patch({ sending: false }); });  // keeps f.name so the person can fix it
     }
+    var low = data.reliability === 'low';
     return { rp: {
-      open: isOpen, who: me.name || '', show: function () { patch({ open: true }); load(); }, close: function () { patch({ open: false }); },
-      kinds: kinds.map(function (k) { var on = k.id === kind.id; return { label: k.label, on: String(on), cls: 'vl-chipbtn' + (on ? ' is-on' : ''), pick: function () { patch({ kind: k.id }); } }; }),
-      name: f.name || '', setName: function (e) { patch({ name: e.target.value }); },
+      low: low, open: isOpen, who: (me.name || '') + (low ? ' · fiabilidad baja' : ''), show: function () { patch({ open: true }); load(); }, close: function () { patch({ open: false }); },
+      hasWorld: worldKinds.length > 0, worldGroupLabel: RP_GROUP_LABEL.world,
+      worldKinds: worldKinds.map(chip),
+      hint: kind.hint || '',
+      name: f.name || '', namePh: RP_EX[kind.id] || RP_EX.other, setName: function (e) { patch({ name: e.target.value }); },
       send: send, sendLabel: f.sending ? 'Enviando…' : 'Reportar',
-      hasMine: data.reports.length > 0, mine: data.reports.slice(0, 3).map(function (m) {
-        return { time: m.time, title: m.label + (m.zone_name ? ' · ' + m.zone_name : '') + ': ' + m.text, effects: (m.effects || []).join(' · ') || 'Registrada como aviso fiable para el agente' }; })
+      hasMine: data.reports.length > 0, mine: data.reports.slice(0, 3).map(function (m, i) {
+        var effects = m.reliability === 'low'
+          ? ['Fiabilidad ' + (CONF[m.confidence] || 'baja') + (m.confidence === 'low' || !m.confidence ? ' · sin corroborar todavía: no ha cambiado nada' : ' · corroborado por otras fuentes')]
+          : (m.effects && m.effects.length ? m.effects : ['Registrada como aviso fiable para el agente']);
+        var hasLines = i === 0 && effects.length > 1;
+        return { time: m.time, title: m.label + (m.zone_name ? ' · ' + m.zone_name : '') + ': ' + m.text,
+          hasLines: hasLines, singleLine: !hasLines, lines: effects.map(function (e) { return { text: e }; }),
+          effects: hasLines ? '' : effects.join(' · ') };
+      })
     } };
   }
 
@@ -247,7 +316,26 @@
     });
   }
 
+  function incidentRows(items) {
+    return (items || []).map(function (i) {
+      return { href: 'Incidencias.dc.html?open=' + i.id, prioCls: 'vl-prio ' + (i.priority || 'p3').toLowerCase(), title: i.title,
+        tone: i.tone, stateLabel: i.state_label, evidenceLabel: i.evidenceLabel,
+        attention: i.waitingLabel || i.attendedBy || '—', attColor: i.waitingLabel ? 'var(--critical)' : 'var(--ink-muted)' };
+    });
+  }
+
   /* ── voice: the human picks up a call the agent is making ──────────── */
+  /* Why the microphone would not open. Getting this wrong looks like a broken call, so it is said in plain words. */
+  function micProblem(e) {
+    var n = (e && e.name) || '';
+    if (typeof isSecureContext !== 'undefined' && !isSecureContext)
+      return 'sin micrófono: el navegador solo lo permite en localhost o por https, y has abierto el panel por otra dirección';
+    if (n === 'NotAllowedError' || n === 'SecurityError') return 'sin micrófono: permíteselo al navegador (el candado de la barra de direcciones) y vuelve a descolgar';
+    if (n === 'NotFoundError' || n === 'OverconstrainedError') return 'sin micrófono: este equipo no tiene ninguno';
+    if (n === 'NotReadableError') return 'sin micrófono: lo está usando otro programa';
+    return 'sin micrófono: ' + ((e && e.message) || n || 'no se pudo abrir');
+  }
+
   var voice = { room: null, contact: null,
     sdk: function () {
       if (window.LivekitClient) return Promise.resolve(window.LivekitClient);
@@ -263,12 +351,24 @@
       return voice.sdk().then(function (lk) {
         var room = new lk.Room();
         room.on(lk.RoomEvent.TrackSubscribed, function (track) {
-          if (track.kind === 'audio') { var el = track.attach(); el.autoplay = true; document.body.appendChild(el); }
+          if (track.kind !== 'audio') return;
+          var el = track.attach();
+          el.autoplay = true;
+          document.body.appendChild(el);
+          var played = el.play();
+          if (played && played.catch) played.catch(function () {  // connected but silent: it looks exactly like a call that failed
+            toast('Pulsa en cualquier sitio de la página para oír al agente', 'warn');
+            var go = function () { el.play(); document.removeEventListener('click', go); };
+            document.addEventListener('click', go);
+          });
         });
         room.on(lk.RoomEvent.Disconnected, function () { voice.room = null; voice.contact = null; });
         return room.connect(token.url, token.token).then(function () {
           voice.room = room;
-          return mic ? room.localParticipant.setMicrophoneEnabled(true) : null;
+          if (!mic) return { muted: '' };
+          // Connected is connected: a microphone that will not open leaves you listening, it does not drop the call.
+          return room.localParticipant.setMicrophoneEnabled(true).then(
+            function () { return { muted: '' }; }, function (e) { return { muted: micProblem(e) }; });
         });
       });
     },
@@ -277,14 +377,22 @@
       post('/crises/' + cid + '/contacts/' + contact.id + '/answer').then(function (token) {
         voice.contact = contact.id;
         return voice.join(token, true);
-      }).then(function () { toast('En llamada con el agente', 'ok'); reload(logic); })
-        .catch(function (e) { toast('No se pudo atender: ' + e.message, 'bad'); });
+      }).then(function (r) {
+        toast(r && r.muted ? 'En llamada con el agente, ' + r.muted : 'En llamada con el agente', r && r.muted ? 'warn' : 'ok');
+        reload(logic);
+      }).catch(function (e) {
+        voice.contact = null;  // it never got in: do not leave the card thinking it is live
+        toast('No se pudo atender: ' + ((e && e.message) || e), 'bad');
+        reload(logic);
+      });
     },
     listen: function (cid, id, takeover) {
       post('/crises/' + cid + '/contacts/' + id + '/' + (takeover ? 'takeover' : 'listen')).then(function (token) {
         voice.contact = id; return voice.join(token, !!takeover);
-      }).then(function () { toast(takeover ? 'Has tomado la llamada' : 'Escuchando la llamada', 'ok'); })
-        .catch(function (e) { toast(e.message, 'bad'); });
+      }).then(function (r) {
+        var base = takeover ? 'Has tomado la llamada' : 'Escuchando la llamada';
+        toast(r && r.muted ? base + ', ' + r.muted : base, r && r.muted ? 'warn' : 'ok');
+      }).catch(function (e) { voice.contact = null; toast((e && e.message) || e, 'bad'); });
     },
     hangup: function (cid, id, logic) {
       if (voice.room) voice.room.disconnect();
@@ -294,5 +402,6 @@
   };
 
   window.ValteLive = { API: API, crisisId: crisisId, view: view, asViewer: asViewer, crisis: crisis, get: get, post: post, bind: bind, unbind: unbind, reload: reload,
-    header: header, zoneRow: zoneRow, reportVals: reportVals, zoneChip: zoneChip, actionRows: actionRows, roleEntity: roleEntity, voice: voice, toast: toast, fit: fit };
+    header: header, zoneRow: zoneRow, reportVals: reportVals, zoneChip: zoneChip, actionRows: actionRows, incidentRows: incidentRows,
+    roleEntity: roleEntity, voice: voice, toast: toast, fit: fit };
 })();

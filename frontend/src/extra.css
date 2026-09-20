@@ -1,6 +1,24 @@
 /* Additions for the live app (everything else is the design's own CSS). */
 html{background:var(--surface-000);}
 .vt-sev__num{display:none;} /* severity reads from the bars alone: no number beside them */
+.kpi-link.is-on .kpi-go,.kpi-link.is-on:hover .kpi-go{transform:rotate(180deg);} /* the open submenu's arrow points back: pressing it again leaves */
+/* entity dropdown in the panel header: the selected entity, opening onto every entity by role */
+.vl-ent{position:relative;}
+.vl-ent__btn{flex-direction:row;align-items:center;gap:14px;min-width:220px;cursor:pointer;list-style:none;user-select:none;}
+.vl-ent__btn::-webkit-details-marker{display:none;}
+.vl-ent__btn.seg.is-on:hover{background:var(--ink);color:var(--on-ink);opacity:.92;}
+.vl-ent__txt{display:flex;flex-direction:column;gap:2px;flex-grow:1;min-width:0;}
+.vl-ent__chev{flex-shrink:0;transition:transform .15s ease;}
+.vl-ent[open] .vl-ent__chev{transform:rotate(180deg);}
+.vl-ent:not([open]) .vl-ent__menu{display:none;}
+.vl-ent__menu{position:absolute;right:0;top:calc(100% + 8px);z-index:50;display:flex;gap:8px;padding:12px;max-height:640px;overflow:auto;
+  background:var(--surface-100);border:1px solid var(--line-strong);border-radius:var(--radius-md);box-shadow:var(--shadow-pop);}
+.vl-ent__group{display:flex;flex-direction:column;gap:2px;min-width:200px;}
+.vl-ent__group>.seg-kind{padding:4px 10px 6px;}
+.vl-ent__opt{display:block;padding:7px 10px;border-radius:var(--radius-sm);font-size:14px;line-height:20px;font-weight:500;color:var(--ink);text-decoration:none;white-space:nowrap;}
+.vl-ent__opt:hover{background:var(--surface-200);color:var(--ink);}
+.vl-ent__opt.is-on,.vl-ent__opt.is-on:hover{background:var(--ink);color:var(--on-ink);}
+.vl-ent__opt:focus-visible{outline:2px solid var(--focus);outline-offset:1px;}
 .vl-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:9999;background:var(--ink);color:var(--on-ink);
   font:500 14px/20px var(--font-sans);padding:10px 18px;border-radius:var(--radius-md);box-shadow:var(--shadow-pop);max-width:720px;}
 .vl-toast.is-ok{background:var(--success);color:#fff}.vl-toast.is-warn{background:var(--warning);color:var(--on-warning)}
@@ -35,3 +53,15 @@ html{background:var(--surface-000);}
 .vl-fl{display:flex;flex-direction:column;gap:6px;}
 .vl-in{font:400 15px/22px var(--font-sans);color:var(--ink);background:var(--surface-100);border:1px solid var(--line-strong);border-radius:var(--radius-md);padding:9px 12px;width:100%;box-sizing:border-box;resize:none;}
 .vl-in:focus{outline:2px solid var(--focus);outline-offset:1px;}
+/* what the population gets: a note on how much its word weighs */
+.vl-note{padding:12px 14px;border-radius:var(--radius-md);background:var(--info-soft);border:1px solid var(--info);color:var(--ink);font-size:13px;line-height:20px;}
+
+/* lessons in the "plan, reflejos y lo aprendido" dialog */
+.vl-used{color:var(--agent);}
+.vl-teach{border:0;background:none;padding:0;color:var(--agent);font:inherit;font-size:12px;letter-spacing:0;text-transform:none;cursor:pointer;}
+.vl-teach:hover{text-decoration:underline;}
+
+/* with a single zone there is no Zonas screen: its tile (and the zone row that would open it) is not a button */
+.kpi-link.is-off{pointer-events:none;cursor:default;}
+.kpi-link.is-off .kpi-go{display:none;}
+.is-still{pointer-events:none;cursor:default;}

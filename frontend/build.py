@@ -8,6 +8,7 @@ in src/<Page>.logic.js (data from the API instead of hard-coded values).
   python3 frontend/build.py
 """
 
+import hashlib
 import re
 import shutil
 from pathlib import Path
@@ -23,7 +24,7 @@ PAGES = {  # page -> (title, design page whose CSS it uses)
     "PanelRespuesta": ("Panel · Respuesta", "PanelRespuesta"),
     "Zonas": ("Zonas", "Zonas"),
     "Acciones": ("Acciones", "Acciones"),
-    "Senales": ("Señales", "Senales"),
+    "Incidencias": ("Incidencias", "Senales"),
     "Recursos": ("Recursos", "Recursos"),
     "Contactos": ("Contactos", "Contactos"),
 }
@@ -56,7 +57,20 @@ SHELL = """<!DOCTYPE html>
 """
 
 
+def _stamp(path: Path) -> str:
+    """A page and its scripts must come from the same build: a cached valte-live.js under a new page breaks it."""
+    return hashlib.sha1(path.read_bytes()).hexdigest()[:10] if path.exists() else "0"
+
+
+# Vendored at runtime by a page, so a missing one only shows up when somebody presses a button: check it at build time.
+RUNTIME_ASSETS = {"livekit-client.umd.min.js": "la voz (atender una llamada del agente)",
+                  "vendor/leaflet.js": "el mapa de Zonas"}
+
+
 def main() -> None:
+    for name, what in RUNTIME_ASSETS.items():
+        if not (ASSETS / name).exists():
+            print(f"AVISO: falta frontend/assets/{name} — {what} no funcionará")
     if DIST.exists():
         shutil.rmtree(DIST)
     shutil.copytree(ASSETS, DIST / "assets")
@@ -75,6 +89,7 @@ def main() -> None:
         if page_css.exists():
             css += "\n" + page_css.read_text(encoding="utf-8")
         html = SHELL.format(title=title, css=css, body=body, logic=logic_file.read_text(encoding="utf-8"))
+        html = re.sub(r'(src|href)="(assets/[^"?]+)"', lambda m: f'{m.group(1)}="{m.group(2)}?v={_stamp(DIST / m.group(2))}"', html)
         (DIST / f"{page}.dc.html").write_text(html, encoding="utf-8")
         built.append(page)
     (DIST / "index.html").write_text(

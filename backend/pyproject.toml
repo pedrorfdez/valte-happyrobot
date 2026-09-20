@@ -13,6 +13,11 @@ dependencies = [
 
 [dependency-groups]
 dev = ["pytest>=8"]
+# Local dictation for the "declare a crisis" text box (POST /stt). Optional at runtime: without it the endpoint answers 501.
+stt = ["faster-whisper>=1.0"]
+
+[tool.uv]
+default-groups = ["dev", "stt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -64,7 +64,7 @@
 <sc-for list="{{sel.ents}}" as="e" hint-placeholder-count="3"><div style="display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line);"><span style="flex-grow: 1; font-size: 14px; line-height: 20px;">{{e.name}}<span class="muted" style="font-size: 12px;"> · {{e.kind}}</span></span><x-import component-from-global-scope="Valte.StatusBadge" status="{{e.status}}"></x-import></div></sc-for>
 </div>
 <p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">{{sel.note}}</p>
-<div style="display: flex; gap: 8px;"><a class="lnk" href="{{sel.actionsHref}}">Acciones en la zona</a><a class="lnk" href="{{sel.signalsHref}}">Señales de la zona</a></div>
+<div style="display: flex; gap: 8px;"><a class="lnk" href="{{sel.actionsHref}}">Acciones en la zona</a><a class="lnk" href="{{sel.signalsHref}}">Incidencias de la zona</a></div>
 </div>
 </div>
 </sc-if>

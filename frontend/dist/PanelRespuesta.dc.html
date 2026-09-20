@@ -3,13 +3,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Panel · Respuesta · Valte</title>
-<script src="assets/react.production.min.js"></script>
-<script src="assets/react-dom.production.min.js"></script>
-<script src="assets/dc-runtime.js"></script>
-<link rel="stylesheet" href="assets/valte-tokens.css">
-<link rel="stylesheet" href="assets/valte-ds.css">
-<script src="assets/valte-ds.js"></script>
-<script src="assets/valte-live.js"></script>
+<script src="assets/react.production.min.js?v=aa77ae4c49"></script>
+<script src="assets/react-dom.production.min.js?v=feb8ddc9d0"></script>
+<script src="assets/dc-runtime.js?v=456daad1f0"></script>
+<link rel="stylesheet" href="assets/valte-tokens.css?v=697650bac1">
+<link rel="stylesheet" href="assets/valte-ds.css?v=a5589c0d7c">
+<script src="assets/valte-ds.js?v=7d7a8f99df"></script>
+<script src="assets/valte-live.js?v=62c5a53b0a"></script>
 </head>
 <body>
 <x-dc><helmet>
@@ -42,6 +42,24 @@ a{color:var(--info);}a:hover{color:var(--ink);}
 /* Additions for the live app (everything else is the design's own CSS). */
 html{background:var(--surface-000);}
 .vt-sev__num{display:none;} /* severity reads from the bars alone: no number beside them */
+.kpi-link.is-on .kpi-go,.kpi-link.is-on:hover .kpi-go{transform:rotate(180deg);} /* the open submenu's arrow points back: pressing it again leaves */
+/* entity dropdown in the panel header: the selected entity, opening onto every entity by role */
+.vl-ent{position:relative;}
+.vl-ent__btn{flex-direction:row;align-items:center;gap:14px;min-width:220px;cursor:pointer;list-style:none;user-select:none;}
+.vl-ent__btn::-webkit-details-marker{display:none;}
+.vl-ent__btn.seg.is-on:hover{background:var(--ink);color:var(--on-ink);opacity:.92;}
+.vl-ent__txt{display:flex;flex-direction:column;gap:2px;flex-grow:1;min-width:0;}
+.vl-ent__chev{flex-shrink:0;transition:transform .15s ease;}
+.vl-ent[open] .vl-ent__chev{transform:rotate(180deg);}
+.vl-ent:not([open]) .vl-ent__menu{display:none;}
+.vl-ent__menu{position:absolute;right:0;top:calc(100% + 8px);z-index:50;display:flex;gap:8px;padding:12px;max-height:640px;overflow:auto;
+  background:var(--surface-100);border:1px solid var(--line-strong);border-radius:var(--radius-md);box-shadow:var(--shadow-pop);}
+.vl-ent__group{display:flex;flex-direction:column;gap:2px;min-width:200px;}
+.vl-ent__group>.seg-kind{padding:4px 10px 6px;}
+.vl-ent__opt{display:block;padding:7px 10px;border-radius:var(--radius-sm);font-size:14px;line-height:20px;font-weight:500;color:var(--ink);text-decoration:none;white-space:nowrap;}
+.vl-ent__opt:hover{background:var(--surface-200);color:var(--ink);}
+.vl-ent__opt.is-on,.vl-ent__opt.is-on:hover{background:var(--ink);color:var(--on-ink);}
+.vl-ent__opt:focus-visible{outline:2px solid var(--focus);outline-offset:1px;}
 .vl-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:9999;background:var(--ink);color:var(--on-ink);
   font:500 14px/20px var(--font-sans);padding:10px 18px;border-radius:var(--radius-md);box-shadow:var(--shadow-pop);max-width:720px;}
 .vl-toast.is-ok{background:var(--success);color:#fff}.vl-toast.is-warn{background:var(--warning);color:var(--on-warning)}
@@ -76,12 +94,24 @@ html{background:var(--surface-000);}
 .vl-fl{display:flex;flex-direction:column;gap:6px;}
 .vl-in{font:400 15px/22px var(--font-sans);color:var(--ink);background:var(--surface-100);border:1px solid var(--line-strong);border-radius:var(--radius-md);padding:9px 12px;width:100%;box-sizing:border-box;resize:none;}
 .vl-in:focus{outline:2px solid var(--focus);outline-offset:1px;}
+/* what the population gets: a note on how much its word weighs */
+.vl-note{padding:12px 14px;border-radius:var(--radius-md);background:var(--info-soft);border:1px solid var(--info);color:var(--ink);font-size:13px;line-height:20px;}
+
+/* lessons in the "plan, reflejos y lo aprendido" dialog */
+.vl-used{color:var(--agent);}
+.vl-teach{border:0;background:none;padding:0;color:var(--agent);font:inherit;font-size:12px;letter-spacing:0;text-transform:none;cursor:pointer;}
+.vl-teach:hover{text-decoration:underline;}
+
+/* with a single zone there is no Zonas screen: its tile (and the zone row that would open it) is not a button */
+.kpi-link.is-off{pointer-events:none;cursor:default;}
+.kpi-link.is-off .kpi-go{display:none;}
+.is-still{pointer-events:none;cursor:default;}
 
 </style>
 </helmet>
 <div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 24px; background: var(--surface-000); color: var(--ink); font-family: var(--font-sans); overflow: hidden; position: relative;">
-<header data-theme="dark" style="position: relative; flex-shrink: 0; box-sizing: border-box; padding: 20px 28px 24px; display: flex; flex-direction: column; gap: 20px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden;">
-<svg width="640" height="640" sc-camel-view-box="0 0 640 640" aria-hidden="true" style="position: absolute; right: -120px; top: -420px;"><circle class="wave" cx="320" cy="320" r="40"></circle><circle class="wave" cx="320" cy="320" r="80"></circle><circle class="wave" cx="320" cy="320" r="120"></circle><circle class="wave" cx="320" cy="320" r="160"></circle><circle class="wave" cx="320" cy="320" r="200"></circle><circle class="wave" cx="320" cy="320" r="240"></circle><circle class="wave" cx="320" cy="320" r="280"></circle><circle class="wave" cx="320" cy="320" r="320"></circle></svg>
+<header data-theme="dark" style="position: relative; flex-shrink: 0; box-sizing: border-box; padding: 20px 28px 24px; display: flex; flex-direction: column; gap: 20px; background: var(--surface-000); color: var(--ink); border-radius: var(--radius-lg);">
+<div aria-hidden="true" style="position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none;"><svg width="640" height="640" sc-camel-view-box="0 0 640 640" aria-hidden="true" style="position: absolute; right: -120px; top: -420px;"><circle class="wave" cx="320" cy="320" r="40"></circle><circle class="wave" cx="320" cy="320" r="80"></circle><circle class="wave" cx="320" cy="320" r="120"></circle><circle class="wave" cx="320" cy="320" r="160"></circle><circle class="wave" cx="320" cy="320" r="200"></circle><circle class="wave" cx="320" cy="320" r="240"></circle><circle class="wave" cx="320" cy="320" r="280"></circle><circle class="wave" cx="320" cy="320" r="320"></circle></svg></div>
 <div style="position: relative; display: flex; align-items: center; gap: 20px;">
 <a href="{{hd.backHref}}" class="back" aria-label="Volver"><svg width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="M11 6l-6 6 6 6"></path></svg></a>
 <div style="display: flex; flex-direction: column; gap: 2px;">
@@ -91,9 +121,9 @@ html{background:var(--surface-000);}
 <div style="margin-left: 16px;"><x-import component-from-global-scope="Valte.SeverityMeter" value="{{hd.sev}}" trend="{{hd.trend}}"></x-import></div>
 <sc-if value="{{hd.level}}" hint-placeholder-val="{{false}}"><x-import component-from-global-scope="Valte.StatusBadge" tone="critical" glyph="▲" label="{{hd.levelLabel}}"></x-import></sc-if>
 <div style="flex-grow: 1;"></div>
-<nav aria-label="Entidad" style="display: flex; gap: 8px;"><sc-for list="{{hd.segs}}" as="s" hint-placeholder-count="3"><a href="{{s.href}}" class="{{s.cls}}"><span class="seg-kind">{{s.kind}}</span><span class="seg-name">{{s.name}}</span></a></sc-for></nav>
+<sc-for list="{{hd.ents}}" as="n" hint-placeholder-count="1"><details class="vl-ent"><summary class="seg is-on vl-ent__btn"><span class="vl-ent__txt"><span class="seg-kind">{{n.kind}}</span><span class="seg-name">{{n.name}}</span></span><svg class="vl-ent__chev" width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></summary><nav class="vl-ent__menu" aria-label="Entidad"><sc-for list="{{n.groups}}" as="g" hint-placeholder-count="3"><div class="vl-ent__group"><span class="seg-kind">{{g.kind}}</span><sc-for list="{{g.items}}" as="o" hint-placeholder-count="4"><a href="{{o.href}}" class="{{o.cls}}" aria-current="{{o.cur}}">{{o.name}}</a></sc-for></div></sc-for></nav></details></sc-for>
 </div>
-<div style="position: relative; display: flex; gap: 24px; padding-top: 16px; border-top: 1px solid var(--line-strong);"><sc-for list="{{hd.kpis}}" as="k" hint-placeholder-count="5"><a href="{{k.href}}" class="{{k.cls}}" style="{{k.style}}"><span class="lbl">{{k.label}}</span><span style="font-family: var(--font-mono); font-size: 28px; line-height: 32px; letter-spacing: -0.02em; color: {{k.color}};">{{k.num}}<span style="font-size: 14px; color: var(--ink-muted);"> {{k.rest}}</span></span><svg class="kpi-go" width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg></a></sc-for></div>
+<div style="position: relative; display: flex; gap: 24px; padding-top: 16px; border-top: 1px solid var(--line-strong);"><sc-for list="{{hd.kpis}}" as="k" hint-placeholder-count="5"><a href="{{k.href}}" class="{{k.cls}}" style="{{k.style}}" aria-disabled="{{k.off}}" tabindex="{{k.tab}}"><span class="lbl">{{k.label}}</span><span style="font-family: var(--font-mono); font-size: 28px; line-height: 32px; letter-spacing: -0.02em; color: {{k.color}};">{{k.num}}<span style="font-size: 14px; color: var(--ink-muted);"> {{k.rest}}</span></span><svg class="kpi-go" width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg></a></sc-for></div>
 <sc-for list="{{hd.ringing}}" as="r" hint-placeholder-count="0">
 <div class="ringbar"><span class="ringdot"></span><span style="flex-grow: 1;"><b>{{r.title}}</b> · {{r.ask}}</span><span class="count">{{r.meta}}</span>
 <sc-if value="{{r.canAnswer}}" hint-placeholder-val="{{false}}"><x-import component-from-global-scope="Valte.Button" size="sm" sc-camel-on-click="{{r.answer}}">Atender como {{r.entity}}</x-import></sc-if>
@@ -105,7 +135,10 @@ html{background:var(--surface-000);}
 <div style="flex-grow: 1; min-height: 0; display: flex; gap: 32px; padding: 0 12px;">
 <section class="col" style="width: 360px; flex-shrink: 0;"><div class="col-head"><h2 class="col-title">Recursos</h2><span class="count">{{entityName}}</span></div><div class="col-body"><div style="padding-bottom: 8px; border-bottom: 1px solid var(--line);"><x-import component-from-global-scope="Valte.ResourceMeter" label="Unidades libres" available="{{uAvail}}" total="{{uTotal}}"></x-import></div>
 <div style="display: flex; flex-direction: column;"><span class="lbl" style="padding: 8px 0 4px;">Desplegadas</span><sc-for list="{{deployed}}" as="p" hint-placeholder-count="2"><div style="display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; line-height: 22px;"><span style="flex-grow: 1;">{{p.zone}}</span><span style="font-family: var(--font-mono); font-size: 13px;">{{p.units}} ud.</span></div></sc-for><sc-if value="{{noDeployed}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Ninguna unidad desplegada.</div></sc-if></div>
-<div style="display: flex; flex-direction: column;"><span class="lbl" style="padding: 8px 0 0;">Material</span><sc-for list="{{res}}" as="r" hint-placeholder-count="3"><div style="padding: 12px 0; border-bottom: 1px solid var(--line);"><x-import component-from-global-scope="Valte.ResourceMeter" label="{{r.label}}" available="{{r.available}}" total="{{r.total}}" unit="{{r.unit}}"></x-import></div></sc-for></div><div style="padding-top: 12px;"><x-import component-from-global-scope="Valte.Button" variant="secondary" block="{{yes}}" sc-camel-on-click="{{rp.show}}">⚑ Reportar incidencia</x-import></div></div></section><section class="col" style="flex-grow: 1;"><div class="col-head"><h2 class="col-title">Tareas</h2><span class="count">{{actsCount}}</span></div><div class="col-body"><sc-if value="{{noActs}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Sin tareas asignadas todavía.</div></sc-if><sc-for list="{{acts}}" as="a" hint-placeholder-count="2"><x-import component-from-global-scope="Valte.ActionItem" action="{{a.action}}" time="{{a.time}}" verb-label="{{a.verbLabel}}" actor-name="{{a.actorName}}" deadline="{{a.deadline}}" sc-camel-on-approve="{{a.approve}}" sc-camel-on-reject="{{a.reject}}"></x-import></sc-for></div></section><section class="col" style="width: 400px; flex-shrink: 0;"><div class="col-head"><h2 class="col-title">Señales</h2><span class="count">{{sigsCount}}</span></div><div class="col-body"><sc-for list="{{sigs}}" as="s" hint-placeholder-count="3"><x-import component-from-global-scope="Valte.SignalItem" signal="{{s.signal}}" time="{{s.time}}" source-name="{{s.sourceName}}" noise="{{s.noise}}"></x-import></sc-for></div></section>
+<div style="display: flex; flex-direction: column;"><span class="lbl" style="padding: 8px 0 0;">Material</span><sc-for list="{{res}}" as="r" hint-placeholder-count="3"><div style="padding: 12px 0; border-bottom: 1px solid var(--line);"><x-import component-from-global-scope="Valte.ResourceMeter" label="{{r.label}}" available="{{r.available}}" total="{{r.total}}" unit="{{r.unit}}"></x-import></div></sc-for></div><div style="padding-top: 12px;"><x-import component-from-global-scope="Valte.Button" variant="secondary" block="{{yes}}" sc-camel-on-click="{{rp.show}}">⚑ Reportar incidencia</x-import></div></div></section><section class="col" style="flex-grow: 1;"><div class="col-head"><h2 class="col-title">Tareas</h2><span class="count">{{actsCount}}</span></div><div class="col-body"><sc-if value="{{noActs}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Sin tareas asignadas todavía.</div></sc-if><sc-for list="{{acts}}" as="a" hint-placeholder-count="2"><x-import component-from-global-scope="Valte.ActionItem" action="{{a.action}}" time="{{a.time}}" verb-label="{{a.verbLabel}}" actor-name="{{a.actorName}}" deadline="{{a.deadline}}" sc-camel-on-approve="{{a.approve}}" sc-camel-on-reject="{{a.reject}}"></x-import></sc-for></div></section><section class="col" style="width: 400px; flex-shrink: 0;"><div class="col-head"><h2 class="col-title">Incidencias</h2><span class="count">{{incCount}}</span></div><div class="col-body"><sc-if value="{{noIncs}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Sin incidencias en tu zona.</div></sc-if><sc-for list="{{incs}}" as="i" hint-placeholder-count="3"><a href="{{i.href}}" style="text-decoration: none; color: var(--ink); display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--line);">
+<div style="display: flex; align-items: center; gap: 10px;"><span class="{{i.prioCls}}">{{i.priority}}</span><span class="ell" style="flex-grow: 1; font-weight: 500; font-size: 14px;">{{i.title}}</span><x-import component-from-global-scope="Valte.StatusBadge" tone="{{i.tone}}" label="{{i.stateLabel}}"></x-import></div>
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ink-muted);"><span class="ell">{{i.evidenceLabel}}</span><span class="ell" style="color: {{i.attColor}};">{{i.attention}}</span></div>
+</a></sc-for></div></section>
 </div>
 <sc-if value="{{rp.open}}" hint-placeholder-val="{{false}}">
 <div style="position: absolute; inset: 0; z-index: 12;">
@@ -113,19 +146,21 @@ html{background:var(--surface-000);}
 <div class="vl-dlg" role="dialog" aria-modal="true" aria-labelledby="rp-title" style="width: 760px;">
 <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
 <div style="display: flex; flex-direction: column; gap: 4px;"><span class="lbl">Canal de incidencias · {{rp.who}}</span>
-<h2 id="rp-title" style="margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 44px;">Reportar incidencia</h2></div>
+<h2 id="rp-title" style="margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 44px;">Reportar al sistema</h2></div>
 <button type="button" class="vl-x" aria-label="Cerrar" sc-camel-on-click="{{rp.close}}">✕</button>
 </div>
+<sc-if value="{{rp.low}}" hint-placeholder-val="{{false}}"><div class="vl-note">Como vecino, tu aviso entra con <b>fiabilidad baja</b>: el agente lo tiene en cuenta, pero no mueve recursos ni cambia nada hasta que otra fuente (112, sensores, tu ayuntamiento) lo corrobore. Si hay vidas en peligro, llama al 112.</div></sc-if>
 <label class="vl-fl"><span class="lbl">Nombre</span>
-<input class="vl-in" type="text" placeholder="Se hunde el puente de la CV-36 en Paiporta" value="{{rp.name}}" sc-camel-on-change="{{rp.setName}}"></label>
-<div style="display: flex; flex-direction: column; gap: 8px;"><span class="lbl">Tipo</span>
-<div class="vl-chips"><sc-for list="{{rp.kinds}}" as="k" hint-placeholder-count="6"><button type="button" class="{{k.cls}}" aria-pressed="{{k.on}}" sc-camel-on-click="{{k.pick}}">{{k.label}}</button></sc-for></div></div>
+<input class="vl-in" type="text" placeholder="{{rp.namePh}}" value="{{rp.name}}" sc-camel-on-change="{{rp.setName}}"></label>
+<sc-if value="{{rp.hasWorld}}" hint-placeholder-val="{{false}}"><div style="display: flex; flex-direction: column; gap: 8px;"><span class="lbl">{{rp.worldGroupLabel}}</span>
+<div class="vl-chips"><sc-for list="{{rp.worldKinds}}" as="k" hint-placeholder-count="4"><button type="button" class="{{k.cls}}" aria-pressed="{{k.on}}" sc-camel-on-click="{{k.pick}}">{{k.label}}</button></sc-for></div></div></sc-if>
+<span class="vl-sub">{{rp.hint}}</span>
 <div style="display: flex; gap: 8px; justify-content: flex-end;">
 <x-import component-from-global-scope="Valte.Button" variant="secondary" sc-camel-on-click="{{rp.close}}">Cancelar</x-import>
 <x-import component-from-global-scope="Valte.Button" sc-camel-on-click="{{rp.send}}">{{rp.sendLabel}}</x-import>
 </div>
 <sc-if value="{{rp.hasMine}}" hint-placeholder-val="{{false}}"><div style="display: flex; flex-direction: column;"><span class="lbl">Tus últimas incidencias y lo que cambiaron</span>
-<sc-for list="{{rp.mine}}" as="m" hint-placeholder-count="2"><div class="vl-row"><span class="mono muted">{{m.time}}</span><span>{{m.title}}<span class="vl-sub" style="display: block;">{{m.effects}}</span></span></div></sc-for></div></sc-if>
+<sc-for list="{{rp.mine}}" as="m" hint-placeholder-count="2"><div class="vl-row"><span class="mono muted">{{m.time}}</span><span>{{m.title}}<sc-if value="{{m.hasLines}}" hint-placeholder-val="{{false}}"><sc-for list="{{m.lines}}" as="l" hint-placeholder-count="3"><span class="vl-sub" style="display: block;">{{l.text}}</span></sc-for></sc-if><sc-if value="{{m.singleLine}}" hint-placeholder-val="{{true}}"><span class="vl-sub" style="display: block;">{{m.effects}}</span></sc-if></span></div></sc-for></div></sc-if>
 </div>
 </div>
 </sc-if>
@@ -145,7 +180,7 @@ class Component extends DCLogic {
   componentWillUnmount() { ValteLive.unbind(this); }
   renderVals() {
     const d = (this.state || {}).data || {}, cid = ValteLive.crisisId(), me = d.entity || {}, k = d.kpis;
-    const units = me.units || { available: 0, total: 0 }, acts = d.actions || [], sigs = d.signals || [];
+    const units = me.units || { available: 0, total: 0 }, acts = d.actions || [], incs = d.incidents || [];
     const names = Object.fromEntries((d.zones || []).map(z => [z.id, z.name]));
     const deployed = Object.entries(me.deployed || {}).map(([zone, n]) => ({ zone: names[zone] || zone, units: n }));
     const active = acts.filter(a => ['pending_approval', 'waiting', 'in_progress'].includes(a.action.state)).length;
@@ -156,7 +191,8 @@ class Component extends DCLogic {
       res: (d.supplies || []).map(r => ({ label: r.name, available: r.available, total: r.total, unit: r.unit })),
       acts: ValteLive.actionRows(this, cid, acts, me.id), noActs: !!d.header && !acts.length,
       actsCount: `${active} activas · ${acts.length} en total`,
-      sigs, sigsCount: 'con ubicación precisa'
+      incs: ValteLive.incidentRows(incs), noIncs: !!d.header && !incs.length,
+      incCount: k ? `${k.incidents.open} abiertas · ${k.incidents.unattended} sin atender` : ''
     });
   }
 }

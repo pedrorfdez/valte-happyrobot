@@ -15,6 +15,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from valte.core.events import append_event
+from valte.core.playbook import doctrine as hazard_doctrine
+from valte.core.playbook import environment_brief as _environment_brief
 from valte.models import (
     Action,
     Contact,
@@ -322,7 +324,7 @@ def create_crisis(db: Session, spec: dict[str, Any]) -> Crisis:
         config={
             "tz": pack.get("tz") or spec.get("tz") or "Europe/Madrid",
             "approval_verbs": pack.get("approval_verbs") or DEFAULT_APPROVAL_VERBS,
-            "doctrine": pack.get("doctrine") or [],
+            "doctrine": pack.get("doctrine") or hazard_doctrine(hazard),
             "coordination_entity": pack.get("coordination_entity") or "cecopi",
             # True: the outside-world app feeds this crisis; the kernel does not play the pack timeline itself.
             "external_feed": bool(spec.get("external_feed")),
@@ -392,6 +394,11 @@ def start_crisis(db: Session, c: Crisis) -> None:
                  digest=f"Crisis declared: {c.name} ({c.hazard_type}) in {c.region}.")
 
 
+def environment_of(db: Session, c: Crisis) -> str:
+    """Plain-language card every HappyRobot brain reads before the world JSON."""
+    return _environment_brief(c, zones_of(db, c.id), doctrine_lines=(c.config or {}).get("doctrine") or [])
+
+
 # ── serializers (v1 schema shapes) ───────────────────────────────────────
 
 
@@ -455,7 +462,7 @@ def action_dict(a: Action) -> dict[str, Any]:
         "params": a.params, "status": a.status, "state": action_state(a), "evidence": a.evidence, "reasoning": a.reasoning,
         "real_interaction": a.real_interaction, "origin": a.origin, "approval": a.approval,
         "escalated_from": a.escalated_from, "error": a.error, "plan_version": a.plan_version,
-        "incident_id": a.incident_id,
+        "incident_id": a.incident_id, "lessons": a.lessons or [],
     }
 
 
@@ -491,7 +498,7 @@ def plan_dict(p: Plan | None) -> dict[str, Any] | None:
         return None
     return {"version": p.version, "t": p.t.isoformat(), "summary": p.summary, "objectives": p.objectives,
             "origin": p.origin, "active": p.active, "invalidated_reason": p.invalidated_reason,
-            "material": p.material}
+            "material": p.material, "lessons": p.lessons or []}
 
 
 def active_plan(db: Session, cid: str) -> Plan | None:
@@ -549,11 +556,10 @@ def build_state(db: Session, c: Crisis, *, compact: bool = True) -> dict[str, An
         Contact.crisis_id == cid, Contact.status.in_(("queued", "sending", "ringing", "in_progress")))))
     all_sig = list(db.execute(select(Signal.source, Signal.is_noise).where(Signal.crisis_id == cid)))
     plan = active_plan(db, cid)
-    incidents = list(db.scalars(select(Incident).where(Incident.crisis_id == cid,
-                                                         Incident.state.in_(("candidate", "active")))))
-    lessons = list(db.scalars(select(Lesson).where(Lesson.hazard_type == c.hazard_type,
-                                                   Lesson.source_crisis_id != cid)
-                              .order_by(Lesson.id.desc()).limit(8)))
+    from valte.core.incidents import brain_view  # lazy: incidents imports this module
+
+    incidents = brain_view(db, c)
+    from valte.core.learning import brain_view as lessons_view
     manuals = list(db.scalars(select(Manual).where(Manual.crisis_id == cid).limit(3)))
 
     def slim_action(a: Action) -> dict[str, Any]:
@@ -568,12 +574,16 @@ def build_state(db: Session, c: Crisis, *, compact: bool = True) -> dict[str, An
                 "corroborated_by": (s.confidence_inputs or {}).get("corroborating_channels", [])}
 
     return {
+        "environment": environment_of(db, c),
         "crisis": {"id": cid, "code": c.code, "name": c.name, "hazard_type": c.hazard_type, "region": c.region,
                    **{k: v for k, v in clock_dict(c).items() if k in ("scenario_now", "clock", "elapsed_min")},
-                   "severity": c.severity, "trend": c.trend},
+                   "severity": c.severity, "trend": c.trend,
+                   # what the person who declared it said, in their own words: context no signal carries
+                   **({"declared_by_human_as": c.transcript[:700]} if c.source == "text" and c.transcript else {})},
         "doctrine": ((c.config or {}).get("doctrine") or [])
         + [f"Official protocol — {m.title}: {' '.join(m.highlights)[:400]}" for m in manuals],
-        "lessons": [l.text for l in lessons],
+        # learned in this crisis (apply at once) and in earlier ones of its kind; cite the id in what they shape
+        "lessons": lessons_view(db, c),
         "verbs": verb_catalog(c),
         "zones": [zone_dict(z) for z in zones_of(db, cid)],
         "entities": [
@@ -584,7 +594,7 @@ def build_state(db: Session, c: Crisis, *, compact: bool = True) -> dict[str, An
                        "owner": r.owner_entity_id} for r in resources_of(db, cid)],
         "incoming_resupply": (c.wake or {}).get("deliveries") or [],  # ordered with request_resupply, not here yet
         "situation": {"emergency_level": c.emergency_level, "notes": c.situation_note,
-                      "plan": plan_dict(plan), "incidents": [incident_dict(i) for i in incidents]},
+                      "plan": plan_dict(plan), "incidents": incidents},
         # Demand vs supply, recomputed on every wake-up: what is waiting for help and who still has units.
         "open_needs": open_needs(db, c),
         "resource_board": resource_board(db, c),
@@ -607,6 +617,7 @@ def build_snapshot(db: Session, c: Crisis) -> dict[str, Any]:
                              .order_by(Event.seq.desc()).limit(25)))
     outbox = list(db.scalars(select(Outbox).where(Outbox.crisis_id == cid, Outbox.status == "pending").limit(20)))
     return {
+        "environment": state["environment"],
         "run": {"run_id": cid, "code": c.code, "name": c.name, "hazard_type": c.hazard_type, "region": c.region,
                 "state_version": c.state_version, "plan_version": c.plan_version,
                 "scenario_now": scenario_now(c).isoformat(), "updated_at": utcnow().isoformat(),

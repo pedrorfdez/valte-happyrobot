@@ -1,0 +1,55 @@
+<div style="position: relative; width: 1440px; height: 900px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 24px; background: var(--surface-000); color: var(--ink); font-family: var(--font-sans); overflow: hidden;">
+<!-- include: header -->
+<div style="flex-grow: 1; min-height: 0; display: flex; gap: 32px; padding: 0 12px;">
+<section class="col" style="flex-grow: 1;"><div class="col-head"><h2 class="col-title">Incidencias</h2><span class="count">{{incCount}}</span></div><div class="col-body"><div class="tabs" role="tablist"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="5"><button type="button" role="tab" class="{{t.cls}}" aria-selected="{{t.sel}}" sc-camel-on-click="{{t.pick}}">{{t.label}}</button></sc-for></div>
+<div style="display: flex; flex-direction: column;"><div class="thead" style="grid-template-columns: 34px minmax(0,1fr) 118px 150px 96px 90px 170px;"><span>Prio.</span><span>Incidencia</span><span>Estado</span><span>Evidencia</span><span>Confianza</span><span>Personas</span><span>Atención</span></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="6"><button type="button" class="{{r.cls}}" style="grid-template-columns: 34px minmax(0,1fr) 118px 150px 96px 90px 170px;" sc-camel-on-click="{{r.open}}">
+<span class="{{r.prioCls}}">{{r.priority}}</span>
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span class="ell" style="font-weight: 500;">{{r.title}}</span><span class="ell muted" style="font-size: 12px;">{{r.timeRange}}</span></span>
+<span><x-import component-from-global-scope="Valte.StatusBadge" tone="{{r.tone}}" label="{{r.stateLabel}}"></x-import></span>
+<span class="ell" style="font-size: 13px;">{{r.evidenceLabel}}</span>
+<span class="ell" style="font-size: 13px;">{{r.confidenceLabel}}</span>
+<span class="mono">{{r.peopleLabel}}</span>
+<span class="ell" style="font-size: 13px; color: {{r.waitColor}};">{{r.attention}}</span>
+</button></sc-for>
+<sc-if value="{{noRows}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Sin incidencias todavía. Pulsa Start en «Mundo exterior».</div></sc-if>
+</div>
+<div style="padding-top: 8px; border-top: 1px solid var(--line);">
+<button type="button" class="vl-more" sc-camel-on-click="{{toggleNoise}}">{{noiseToggleLabel}}</button>
+<sc-if value="{{noiseOpen}}" hint-placeholder-val="{{false}}"><sc-for list="{{noise}}" as="n" hint-placeholder-count="0"><div style="display: flex; align-items: baseline; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line);"><span class="mono muted" style="flex-shrink: 0;">{{n.time}}</span><span class="muted" style="flex-shrink: 0;">{{n.sourceName}}</span><span class="ell" style="text-decoration: line-through; color: var(--ink-muted);">{{n.text}}</span></div></sc-for></sc-if>
+</div>
+</div></section>
+</div>
+<sc-if value="{{hasSel}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10;">
+<button type="button" class="vl-scrim" aria-label="Cerrar" sc-camel-on-click="{{close}}"></button>
+<div class="vl-dlg" role="dialog" aria-modal="true" aria-labelledby="inc-title">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<span class="lbl">{{sel.kicker}}</span>
+<h2 id="inc-title" style="margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 34px; line-height: 38px;">{{sel.title}}</h2>
+</div>
+<button type="button" class="vl-x" aria-label="Cerrar" sc-camel-on-click="{{close}}">✕</button>
+</div>
+<div style="display: flex; align-items: center; gap: 12px;"><x-import component-from-global-scope="Valte.StatusBadge" tone="{{sel.tone}}" label="{{sel.stateLabel}}"></x-import><span class="{{sel.prioCls}}">{{sel.priority}}</span><span class="mono muted">{{sel.evidenceLabel}}</span><span class="mono muted">{{sel.confidenceLabel}}</span></div>
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink);">{{sel.summary}}</p>
+<sc-if value="{{sel.hasNote}}" hint-placeholder-val="{{false}}"><p class="vt-reason" style="margin: 0;"><span class="vt-reason__who">Estratega</span>{{sel.note}}</p></sc-if>
+<div class="vl-cols">
+<div style="display: flex; flex-direction: column;"><span class="lbl">Evidencia</span>
+<sc-for list="{{sel.signals}}" as="s" hint-placeholder-count="2"><div style="display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--line);"><span class="mono muted" style="font-size: 12px;">{{s.time}} · {{s.sourceName}} · {{s.confidence}}</span><span style="font-size: 13px; line-height: 18px; {{s.style}}">{{s.content}}</span></div></sc-for>
+<sc-if value="{{sel.noSignals}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Sin señales asociadas.</div></sc-if>
+</div>
+<div style="display: flex; flex-direction: column;"><span class="lbl">Quién está en ello</span>
+<sc-for list="{{sel.actions}}" as="a" hint-placeholder-count="2"><div style="display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--line);"><span style="font-size: 13px; line-height: 18px;">{{a.verbLabel}} · {{a.actorName}}</span><span class="mono muted" style="font-size: 12px;">{{a.deadline}}</span></div></sc-for>
+<sc-if value="{{sel.noActions}}" hint-placeholder-val="{{false}}"><div class="vl-empty">Nadie atendiéndola todavía.</div></sc-if>
+</div>
+</div>
+<span class="muted" style="font-size: 13px;">{{sel.attendedByLine}}</span>
+<sc-if value="{{sel.canAct}}" hint-placeholder-val="{{false}}"><div style="display: flex; gap: 8px;">
+<x-import component-from-global-scope="Valte.Button" variant="secondary" sc-camel-on-click="{{sel.dismiss}}">Descartar (falsa alarma)</x-import>
+<x-import component-from-global-scope="Valte.Button" variant="secondary" sc-camel-on-click="{{sel.merge}}">Es la misma que…</x-import>
+</div></sc-if>
+</div>
+</div>
+</sc-if>
+</div>

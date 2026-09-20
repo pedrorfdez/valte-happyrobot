@@ -97,7 +97,7 @@ def build_brief(db: Session, c: Crisis, entity: Entity, act: Action, purpose: st
         "notify": f"Aviso: {act.verb_label} en {', '.join(zones) or 'la zona afectada'}.",
     }[purpose]
     return {
-        "crisis": c.name, "crisis_code": c.code, "clock": hhmm(c, scenario_now(c)), "entity": entity.name,
+        "crisis": c.name, "crisis_code": c.code, "hazard": c.hazard_type, "clock": hhmm(c, scenario_now(c)), "entity": entity.name,
         "purpose": purpose, "action_id": act.id, "verb": act.verb, "verb_label": act.verb_label,
         "zones": zones, "params": act.params, "reasoning": act.reasoning, "evidence": evidence, "ask": ask,
         "escalates_to": esc.name if esc else None,
@@ -112,7 +112,7 @@ def contactable(entity: Entity) -> bool:
 def message_brief(c: Crisis, entity: Entity, message: str, by: str) -> dict[str, Any]:
     """A communication a person starts from the directory, not tied to an agent action."""
     return {
-        "crisis": c.name, "crisis_code": c.code, "clock": hhmm(c, scenario_now(c)), "entity": entity.name,
+        "crisis": c.name, "crisis_code": c.code, "hazard": c.hazard_type, "clock": hhmm(c, scenario_now(c)), "entity": entity.name,
         "purpose": "notify", "action_id": "", "verb": "", "verb_label": "Mensaje directo", "zones": [], "params": {},
         "reasoning": f"Mensaje enviado por {by or 'el operador'} desde el directorio de contactos.", "evidence": [],
         "ask": message, "escalates_to": None, "from": by or "operador",
@@ -167,6 +167,7 @@ def queue_contact(db: Session, c: Crisis, *, entity: Entity, action: Action | No
     db.add(Outbox(crisis_id=c.id, kind="hr_run", workflow="PedroD-outreach", purpose="outreach", ref_id=k.id, payload={
         "contact_id": k.id, "crisis_id": c.id, "callback_base": base, "to": settings.demo_email_to,
         "entity_name": entity.name, "purpose": purpose, "brief_json": k.brief,
+        "environment": f"{c.hazard_type} crisis '{c.name}' ({c.code}). Write for THIS hazard, not a flood by default.",
         "approve_url": f"{base}/a/{k.token}?d=approve" if purpose == "approval" else "",
         "reject_url": f"{base}/a/{k.token}?d=reject" if purpose == "approval" else "",
     }))

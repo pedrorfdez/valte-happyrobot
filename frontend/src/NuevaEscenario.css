@@ -1,0 +1,43 @@
+/* Declaring a crisis: one text box + dictation on the left, what Valte understood on the right. */
+.decl{flex-grow:1;min-height:0;display:flex;flex-direction:column;background:var(--surface-100);border:1px solid var(--line-strong);border-radius:var(--radius-lg);overflow:hidden;transition:border-color .15s ease, box-shadow .15s ease;}
+.decl:focus-within{border-color:var(--ink);}
+.decl.is-live{border-color:var(--critical);box-shadow:0 0 0 3px var(--critical-soft);}
+.decl-ta{flex-grow:1;min-height:0;box-sizing:border-box;width:100%;padding:24px 28px;border:0;outline:0;resize:none;background:none;color:var(--ink);font:inherit;font-size:20px;line-height:32px;}
+.decl-ta::placeholder{color:var(--ink-muted);opacity:.8;}
+.decl-bar{display:flex;align-items:center;gap:16px;padding:14px 20px 14px 16px;border-top:1px solid var(--line);background:var(--surface-000);}
+.mic{position:relative;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;border:1px solid var(--line-strong);background:var(--surface-100);color:var(--ink);cursor:pointer;}
+.mic:hover{background:var(--surface-200);}
+.mic:focus-visible{outline:2px solid var(--focus);outline-offset:3px;}
+.mic.is-live{background:var(--critical);border-color:var(--critical);color:var(--on-critical);}
+.mic.is-off{opacity:.45;cursor:not-allowed;}
+.mic svg{position:relative;}
+.mic-lvl{position:absolute;inset:-1px;border-radius:50%;background:var(--critical);opacity:0;transform:scale(1);transition:transform .1s linear;pointer-events:none;}
+.mic.is-live .mic-lvl{opacity:.22;}
+.ask{display:grid;grid-template-columns:28px 1fr;column-gap:16px;align-items:baseline;padding:16px 0;border-bottom:1px solid var(--line-strong);}
+.ask-name{font-family:var(--font-display);font-size:28px;line-height:32px;letter-spacing:-.01em;}
+.draft{position:relative;flex-grow:1;min-height:0;display:flex;flex-direction:column;gap:20px;overflow:auto;padding-right:4px;transition:opacity .15s ease;}
+.draft.is-stale{opacity:.45;}
+.sec{display:flex;flex-direction:column;gap:8px;}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;padding-bottom:6px;border-bottom:1px solid var(--line-strong);}
+.zr{display:grid;grid-template-columns:10px minmax(0,1fr) 84px;column-gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:15px;line-height:22px;}
+.zr-to{grid-column:2 / 4;font-family:var(--font-mono);font-size:12px;line-height:16px;color:var(--ink-muted);}
+.zr-to:empty{display:none;}
+.dot{width:8px;height:8px;border-radius:50%;border:1px solid var(--line-strong);box-sizing:border-box;}
+.dot.is-origin{background:var(--critical);border-color:var(--critical);}
+.tag{display:inline-flex;align-items:baseline;gap:6px;padding:4px 10px;border-radius:var(--radius-sm);background:var(--surface-200);font-size:13px;line-height:20px;}
+.tag b{font-family:var(--font-mono);font-weight:500;}
+.tag i{font-style:normal;font-family:var(--font-mono);font-size:11px;color:var(--ink-muted);}
+.note{display:grid;grid-template-columns:16px 1fr;column-gap:8px;font-size:13px;line-height:19px;color:var(--ink-muted);}
+.note.is-miss{color:var(--warning-text);}
+.note.is-block{color:var(--critical);}
+.nav.is-wait{opacity:.6;cursor:progress;}
+/* what follows from the description: risk per zone and the facts that become the first reports */
+.zr-risk{grid-column:2 / 4;font-family:var(--font-mono);font-size:12px;line-height:16px;color:var(--ink-muted);}
+.zr-risk:empty{display:none;}
+.zr-risk.is-critical{color:var(--critical);}
+.zr-risk.is-warning{color:var(--warning-text);}
+.fact{display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px;line-height:19px;}
+.fact-sev{font-family:var(--font-mono);font-size:12px;color:var(--ink-muted);}
+.fact-sev.is-warn{color:var(--warning-text);}
+.fact-sev.is-crit{color:var(--critical);}
+.sec-foot{font-size:12px;line-height:17px;color:var(--ink-muted);}

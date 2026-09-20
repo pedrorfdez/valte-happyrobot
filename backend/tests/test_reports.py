@@ -116,3 +116,148 @@ def test_reports_over_http():
         listing = client.get(f"/crises/{cid}/reports?by=ayto-cheste").json()
         assert [x["kind"] for x in listing["reports"]] == ["power_out"] and {k["id"] for k in listing["kinds"]} >= {"road_cut", "units_down"}
         assert any(s["signal"]["channel"] == "report" for s in client.get(f"/crises/{cid}/signals").json()["signals"])
+
+
+def test_a_neighbour_reports_with_low_reliability_and_nothing_is_applied(crisis_id):
+    with session_scope() as db:
+        c = db.get(Crisis, crisis_id)
+        needs.add_default_reflexes(db, c)
+        db.flush()
+        before = sum(e.units_available or 0 for e in db.scalars(select(Entity).where(Entity.crisis_id == crisis_id)))
+        r = reports.file_report(db, c, by="vecinos-paiporta", kind="road_cut", text="Se ha hundido el puente de la CV-36")
+        sig = db.get(Signal, (crisis_id, r["signal_id"]))
+        assert r["zone"] == "paiporta" and r["reliability"] == "low"  # a neighbour talks about their own town
+        assert sig.source_trust == "low" and sig.confidence == "low" and sig.channel == "report"
+        assert "access_penalty_min" not in (db.get(Zone, (crisis_id, "paiporta")).extra or {})  # a lead, not a fact
+        assert "fiabilidad baja" in r["effects"][0]
+
+        # people trapped, street-level, severity 9: from an authority two units leave at once; on a neighbour's word alone, none
+        r = reports.file_report(db, c, by="vecinos-picanya", kind="people_trapped", text="Tres personas atrapadas en la calle Mayor 12")
+        assert not list(db.scalars(select(Action).where(Action.crisis_id == crisis_id, Action.verb == "rescue")))
+        assert before == sum(e.units_available or 0 for e in db.scalars(select(Entity).where(Entity.crisis_id == crisis_id)))
+
+        # what is not a neighbour's to tell, and other towns, are refused
+        with pytest.raises(reports.BadReport):
+            reports.file_report(db, c, by="vecinos-paiporta", kind="units_down", text="Tres dotaciones aisladas")
+        with pytest.raises(reports.BadReport):
+            reports.file_report(db, c, by="vecinos-paiporta", kind="road_cut", zone="chiva", text="puente caído")
+        assert {k["id"] for k in reports.kinds(db.get(Entity, (crisis_id, "vecinos-paiporta")))} == set(reports.CIVILIAN_KINDS)
+
+        # another source saying the same in the same town lifts it: the listing follows the signal
+        reports.file_report(db, c, by="alcaldia-paiporta", kind="road_cut", text="Puente de la CV-36 hundido")
+        mine = reports.list_reports(db, c, by="vecinos-paiporta")
+        assert mine[0]["reliability"] == "low" and mine[0]["confidence"] == "low"  # same channel: not corroboration yet
+        lines = [x["text"] for x in views.recent_changes(db, c, limit=10)]
+        assert any("Vecinos · Paiporta reporta (sin verificar)" in x for x in lines)
+
+
+def test_the_dashboard_a_neighbour_gets():
+    from valte.main import app
+
+    with TestClient(app) as client:
+        cid = client.post("/crises", json={"pack": "riada-paiporta", "start": False}).json()["id"]
+        h = client.get(f"/crises/{cid}").json()
+        assert h["access"]["role"] == "coordination" and len(h["access"]["screens"]) == 5
+        assert {"role": "civilian", "entity_id": "vecinos-paiporta", "label": "Vecinos · Paiporta"} in h["roles"]
+        assert client.get(f"/crises/{cid}?entity_id=bomberos-vlc").json()["access"]["role"] == "responder"
+
+        h = client.get(f"/crises/{cid}?entity_id=vecinos-paiporta").json()
+        assert h["access"] == {"role": "civilian", "screens": ["contacts"], "can_report": True, "report_reliability": "low",
+                               "can_contact": False, "can_decide": False}
+        assert h["ringing"] == []
+
+        everyone = client.get(f"/crises/{cid}/directory").json()
+        mine = client.get(f"/crises/{cid}/directory?entity_id=vecinos-paiporta").json()
+        ids = {x["id"] for x in mine["contacts"]}
+        assert "alcaldia-paiporta" in ids and "delegacion-gobierno" in ids and "ayto-chiva" not in ids  # their town, and who answers for all
+        assert len(ids) < len(everyone["contacts"]) and h["kpis"]["contacts"]["entities"] == len(ids)
+        assert all(x["communications"] == [] for x in mine["contacts"]) and mine["scope"]["zones"] == ["Paiporta"]
+
+        r = client.post(f"/crises/{cid}/entities/alcaldia-paiporta/contact", json={"message": "hola", "by": "vecinos-paiporta"})
+        assert r.status_code == 403
+        r = client.post(f"/crises/{cid}/reports", json={"by": "vecinos-paiporta", "kind": "power_out", "name": "Sin luz en toda la calle"})
+        assert r.status_code == 201 and r.json()["reliability"] == "low" and r.json()["confidence"] == "low"
+        listing = client.get(f"/crises/{cid}/reports?by=vecinos-paiporta").json()
+        assert listing["reliability"] == "low" and "units_down" not in {k["id"] for k in listing["kinds"]}
+
+
+def test_a_situation_typed_in_the_outside_world_always_has_a_consequence():
+    from valte.main import app
+
+    with TestClient(app) as client:
+        cid = client.post("/crises", json={"pack": "riada-paiporta", "start": False}).json()["id"]
+        r = client.post(f"/crises/{cid}/sim/inject", json={
+            "kind": "situation", "content": "Hay 50 personas atrapadas en el colegio de Massanassa"})
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["injected"] == "situation" and body["kind"] == "people_trapped"
+        assert body["zone"] == "massanassa" and body["reliability"] == "high"
+        assert body["signal_id"] and body["effects"]
+        sig = client.get(f"/crises/{cid}/signals").json()["signals"]
+        assert any(s["signal"]["id"] == body["signal_id"] and s["signal"]["confidence"] == "high" for s in sig)
+
+
+def test_a_trusted_other_report_is_read_into_the_kind_that_has_effects():
+    from valte.main import app
+
+    with TestClient(app) as client:
+        cid = client.post("/crises", json={"pack": "riada-paiporta", "start": False}).json()["id"]
+        r = client.post(f"/crises/{cid}/reports", json={
+            "by": "ayto-picanya", "kind": "other", "name": "Hay dos personas atrapadas en un bajo de la calle Mayor"})
+        assert r.status_code == 201, r.text
+        assert r.json()["kind"] == "people_trapped" and r.json()["zone"] == "picanya"
+        assert r.json()["reliability"] == "high"
+
+
+def test_an_unknown_town_typed_as_cut_off_enters_the_map_isolated():
+    from types import SimpleNamespace
+
+    from valte.core.world_parse import parse_local
+    from valte.main import app
+
+    zones = [SimpleNamespace(id="paiporta", name="Paiporta")]
+    out = parse_local("Begís está aislada", zones=zones)
+    assert out["kind"] == "zone_new" and out["place"] == "Begís" and not out["zone"]
+    assert parse_local("begís está aislada", zones=zones)["kind"] == "zone_new"
+    assert parse_local("he añadido begís y está aislada", zones=zones)["kind"] == "zone_new"
+    already = zones + [SimpleNamespace(id="begis", name="Begís")]
+    cut = parse_local("Begís está aislada", zones=already)
+    assert cut["kind"] == "road_cut" and cut["zone"] == "begis"
+    assert parse_local("Cinco dotaciones aisladas por el agua", zones=already)["kind"] == "units_down"
+    from valte.core.world_parse import combine
+    shrugged = combine({"kind": "other", "zone": "", "severity": 6}, cut)
+    assert shrugged["kind"] == "road_cut" and shrugged["zone"] == "begis"
+
+    with TestClient(app) as client:
+        cid = client.post("/crises", json={"pack": "riada-paiporta", "start": False}).json()["id"]
+        r = client.post(f"/crises/{cid}/sim/inject", json={"kind": "situation", "content": "Begís está aislada"})
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["injected"] == "situation" and body["kind"] == "zone_new" and body["zone"] == "begis"
+        assert any("Acceso a Begís" in e for e in body["effects"])
+        z = next(x for x in client.get(f"/crises/{cid}/zones").json()["zones"] if x["id"] == "begis")
+        assert z["access_penalty_min"] == 15 and z["road_cut"]
+
+        cid2 = client.post("/crises", json={"pack": "riada-paiporta", "start": False}).json()["id"]
+        added = client.post(f"/crises/{cid2}/sim/inject", json={"kind": "situation", "content": "añado Begís"})
+        assert added.status_code == 200, added.text
+        assert added.json()["kind"] == "zone_new" and added.json()["zone"] == "begis"
+        z = next(x for x in client.get(f"/crises/{cid2}/zones").json()["zones"] if x["id"] == "begis")
+        assert z["access_penalty_min"] == 0
+        isolated = client.post(f"/crises/{cid2}/sim/inject", json={"kind": "situation", "content": "está aislada"})
+        assert isolated.status_code == 200, isolated.text
+        assert isolated.json()["kind"] == "road_cut" and isolated.json()["zone"] == "begis"
+        z = next(x for x in client.get(f"/crises/{cid2}/zones").json()["zones"] if x["id"] == "begis")
+        assert z["access_penalty_min"] == 15
+
+
+def test_world_parse_is_a_small_fast_extract():
+    from valte.hr import specs
+
+    spec = next(s for s in specs.all_specs() if s.name == "PedroD-world-parse")
+    ids = {n.name: n.name for n in spec.nodes}
+    cfg = spec.nodes[1].config(ids, specs.Ctx(secret="s"))
+    assert cfg["model"]["static"]["id"] == "gpt-4.1-mini"
+    assert spec.nodes[0].config(ids, specs.Ctx(secret="s"))["params"] == [
+        "text", "environment", "zones", "hint_kind", "reporter"]
+    assert "aislada" in specs.WORLD_PARSE_PROMPT and "Do not invent" in specs.WORLD_PARSE_PROMPT

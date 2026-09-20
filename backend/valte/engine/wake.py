@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from valte.core import plan as plan_core
 from valte.core.events import append_event
-from valte.core.world import active_plan, build_snapshot, build_state, scenario_now
+from valte.core.world import active_plan, build_snapshot, build_state, environment_of, scenario_now
 from valte.engine import local_brain
 from valte.hr import registry
 from valte.models import Crisis, Event, Incident, Outbox, Zone, utcnow
@@ -90,7 +90,7 @@ def maybe_wake_coordinator(db: Session, c: Crisis) -> None:
                       ref_id=dispatch_id, payload={
                           "crisis_id": c.id, "dispatch_id": dispatch_id, "callback_base": public_base_url(),
                           "kind": "wakeup", "pending_events": len(digest), "digest": digest,
-                          "instruction": _instruction(db, c),
+                          "instruction": _instruction(db, c), "environment": environment_of(db, c),
                           "state_json": json.dumps(build_state(db, c), ensure_ascii=False)}))
         _save(c, w)
     else:
@@ -139,7 +139,7 @@ def maybe_wake_command(db: Session, c: Crisis) -> None:
         db.add(Outbox(crisis_id=c.id, kind="hr_run", workflow=registry.COMMAND, purpose="command",
                       ref_id=dispatch_id, payload={
                           "dispatch_id": dispatch_id, "run_id": c.id, "callback_base": public_base_url(),
-                          "expected_plan_version": c.plan_version,
+                          "expected_plan_version": c.plan_version, "environment": environment_of(db, c),
                           "event": {"event_id": dispatch_id, "type": "replan", "reason": reason},
                           "snapshot_json": json.dumps(build_snapshot(db, c), ensure_ascii=False)}))
     else:

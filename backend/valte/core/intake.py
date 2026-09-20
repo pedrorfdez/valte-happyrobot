@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from valte.core.events import append_event
+from valte.core.playbook import perception_context
 from valte.core.signals import ingest_perception, raw_text, upsert_signal
 from valte.core.world import next_id, scenario_now, zone_catalog_text
 from valte.hr import registry
@@ -31,11 +32,11 @@ def submit_raw_input(db: Session, c: Crisis, *, channel: str, source: str, paylo
 
     base = {"crisis_id": c.id, "callback_base": public_base_url(), "id": raw.id, "t": t.isoformat(),
             "channel": channel, "source": source,
-            "hazard_context": f"{c.hazard_type} crisis '{c.name}' in {c.region}",
+            "hazard_context": perception_context(c),
             "zone_catalog": zone_catalog_text(db, c.id)}
     if workflow == registry.INTAKE:
         body = {"dispatch_id": raw.id, "run_id": c.id, "callback_base": base["callback_base"],
-                "event": {**base, "source_input": payload}}
+                "environment": base["hazard_context"], "event": {**base, "source_input": payload}}
     else:
         body = {**base, **payload}
     db.add(Outbox(crisis_id=c.id, kind="hr_run", workflow=workflow,

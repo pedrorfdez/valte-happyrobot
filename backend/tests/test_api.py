@@ -41,7 +41,7 @@ def test_wizard_payload_as_the_design_sends_it(client):
     assert client.get(f"/crises/{cid}/resources").json()["supplies"][0]["total"] == 12
 
     roles = {x["role"] for x in client.get(f"/crises/{cid}").json()["roles"]}
-    assert roles == {"coordination", "authority", "responder"}
+    assert roles == {"coordination", "authority", "responder", "civilian"}  # the neighbours of each zone can look in too
 
 
 def test_callbacks_need_the_bearer_and_accept_query_strings(client):
@@ -224,3 +224,44 @@ def test_pack_zones_come_with_their_place_on_the_map(client):
     assert zones["paiporta"]["centroid"] == {"lat": 39.4278, "lng": -0.4172}
     assert all(z["centroid"] for z in zones.values())
     assert client.post(f"/crises/{cid}/locate").json() == {"locating": []}  # nothing left to find
+
+
+def test_every_screen_shows_what_concerns_the_entity_looking_at_it(client):
+    """The header buttons (Zonas, Acciones, Incidencias…) keep the entity: same scope and same counters as its panel."""
+    from valte.core import actions as core_actions, signals as core_signals
+    from valte.db import session_scope
+    from valte.models import Crisis
+
+    # external_feed: the kernel does not play the pack's script, so only what this test reports exists
+    cid = client.post("/crises", json={"pack": "riada-paiporta", "start": True, "external_feed": True}).json()["id"]
+    with session_scope() as db:
+        c = db.get(Crisis, cid)
+        for sid, zone in (("s-pai", "paiporta"), ("s-chi", "chiva")):
+            core_signals.ingest_perception(db, c, {"id": sid, "source": "112", "channel": "call", "zone": zone, "precision": "street",
+                                                   "location_text": f"plaza mayor de {zone}", "is_noise": "false", "content": "el agua entra en las casas",
+                                                   "claims": '[{"hazard_type":"flood","severity_hint":7}]'})
+        for actor, zone, ev in (("alcaldia-paiporta", "paiporta", "s-pai"), ("ayto-chiva", "chiva", "s-chi")):
+            assert core_actions.propose_action(db, c, {"actor": actor, "verb": "order_evacuation", "target_zones": [zone], "params": {},
+                                                       "evidence": [ev], "reasoning": "x"}, origin="coordinator").get("id")
+        assert core_actions.propose_action(db, c, {"actor": "bomberos-vlc", "verb": "pump_water", "target_zones": ["paiporta"],
+                                                   "params": {"units": 1}, "evidence": ["s-pai"], "reasoning": "x"}, origin="coordinator").get("id")
+
+    def seen(entity):
+        q = f"?entity_id={entity}" if entity else ""
+        zones = [z["id"] for z in client.get(f"/crises/{cid}/zones{q}").json()["zones"]]
+        log = client.get(f"/crises/{cid}/actions{q}").json()["log"]
+        kpis = client.get(f"/crises/{cid}{q}").json()["kpis"]
+        panel = client.get(f"/crises/{cid}/overview?role=authority&entity_id={entity}").json()["kpis"] if entity else kpis
+        return zones, {(a["action"]["actor"], a["action"]["verb"]) for a in log}, kpis, panel
+
+    zones, acts, kpis, panel = seen("alcaldia-paiporta")
+    assert zones == ["paiporta"]
+    assert acts == {("alcaldia-paiporta", "order_evacuation"), ("bomberos-vlc", "pump_water")}  # hers, and what others do in her town
+    assert kpis["zones"]["total"] == 1 and kpis["actions"]["total"] == 2 and kpis["incidents"]["open"] == 1
+    assert {k: kpis[k] for k in ("zones", "actions", "incidents")} == {k: panel[k] for k in ("zones", "actions", "incidents")}
+
+    zones, acts, kpis, _ = seen("bomberos-vlc")  # a responder: its own jobs, in the zones it covers
+    assert acts == {("bomberos-vlc", "pump_water")} and kpis["actions"]["total"] == 1 and "paiporta" in zones
+
+    zones, acts, kpis, _ = seen(None)  # coordination sees all of it
+    assert len(zones) == 6 and len(acts) == 3 and kpis["actions"]["total"] == 3 and kpis["incidents"]["open"] == 2

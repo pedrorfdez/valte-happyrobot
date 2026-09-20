@@ -1,9 +1,10 @@
 """Valte · Mundo exterior — the light app that plays the outside world.
 
-Press Start and it begins sending data to the kernel (one crisis or several
-at once: each Start adds a crisis to the stack, nothing is replaced): 112 calls, social
-posts, news bulletins and gauge readings, plus the things that go wrong
-mid-run (a gauge dies, a bridge collapses, someone stops answering).
+You tell it WHICH crisis (its code, the one on the dashboard header: VLC-7691) and WHAT KIND of world to simulate
+(a flood or a wildfire), press Start and it begins sending data to the kernel: 112 calls, social posts, news
+bulletins and sensor readings, plus the things that go wrong mid-run (a gauge dies, a bridge collapses, someone
+stops answering). Several crises can be fed at once: each Start adds one to the stack, nothing is replaced.
+Without a code it declares a new crisis of that kind.
 It follows the kernel's scenario clock, so pause, speed and the automatic
 slow-motion during a live call are all respected.
 
@@ -27,11 +28,22 @@ DASHBOARD = os.environ.get("VALTE_DASHBOARD", f"{BACKEND}/app/")
 PAGE = Path(__file__).with_name("index.html")
 
 
+HAZARDS = {"flood": "riada", "fire": "incendio"}  # the two worlds this app plays
+# Declared when Start is pressed with no code. The flood is the hand-written pack; the fire gets its script from its zones.
+NEW = {"flood": {"pack": "riada-paiporta"},
+       "fire": {"name": "Incendio en la Calderona", "region": "Camp de Túria, Valencia", "scenario": "fire",
+                "zones": [{"name": "Serra", "population": 3300, "is_origin": True, "to": ["Náquera · 40 min"]},
+                          {"name": "Náquera", "population": 7500, "to": ["Bétera · 60 min"]},
+                          {"name": "Bétera", "population": 26000, "to": []}],
+                "resources": [{"name": "Autobombas", "qty": 8, "unit": "ud."}, {"name": "Helicópteros", "qty": 3, "unit": "ud."},
+                              {"name": "Mantas", "qty": 300, "unit": "ud."}, {"name": "Autobuses", "qty": 12, "unit": "ud."}]}}
+
+
 class Feed:
     """One crisis this app is feeding. Several run side by side: starting a new one never touches the others."""
 
-    def __init__(self, crisis_id: str, pack: str, timeline: list[dict[str, Any]], offset_min: float, header: dict[str, Any]) -> None:
-        self.crisis_id, self.pack, self.timeline = crisis_id, pack, timeline
+    def __init__(self, crisis_id: str, hazard: str, timeline: list[dict[str, Any]], offset_min: float, header: dict[str, Any]) -> None:
+        self.crisis_id, self.hazard, self.timeline = crisis_id, hazard, timeline
         self.offset_min = offset_min          # scenario minutes already elapsed when we attached
         self.sent: dict[int, str] = {}        # item index -> result
         self.running = True
@@ -49,7 +61,8 @@ class Feed:
     def summary(self) -> dict[str, Any]:
         h, clock = self.header, self.header.get("clock") or {}
         return {"id": self.crisis_id, "code": h.get("code"), "name": h.get("name"), "status": h.get("status"),
-                "severity": h.get("severity"), "clock": clock, "running": self.running, "pack": self.pack,
+                "severity": h.get("severity"), "clock": clock, "running": self.running, "hazard": self.hazard,
+                "kind": HAZARDS.get(self.hazard, self.hazard),
                 "sent": len(self.sent), "total": len(self.timeline)}
 
 
@@ -86,14 +99,17 @@ def icon(item: dict[str, Any]) -> str:
         {"sensor": "◉ Sensor", "world": "⚠ Mundo"}.get(item["kind"], item["kind"])
 
 
-async def send(cid: str, item: dict[str, Any]) -> str:
+CLAIM = {"flood": "flood", "fire": "wildfire"}  # what a sensor of that world measures, in the words the scripts use
+
+
+async def send(cid: str, item: dict[str, Any], hazard: str = "flood") -> str:
     if item["kind"] == "world":
         body = {k: v for k, v in item.items() if k not in ("at_min", "kind", "op")}
         r = await http.post(f"{BACKEND}/crises/{cid}/sim/inject", json={"kind": item["op"], **body})
     elif item["kind"] == "sensor":
         r = await http.post(f"{BACKEND}/crises/{cid}/inputs", json={
             "channel": "sensor", "source": item["source"], "zone": item.get("zone"),
-            "severity": item.get("severity"), "content": item["content"]})
+            "severity": item.get("severity"), "content": item["content"], "hazard": CLAIM.get(hazard)})
     else:
         r = await http.post(f"{BACKEND}/crises/{cid}/inputs", json={
             "channel": item["channel"], "source": item["source"], "payload": item["payload"],
@@ -120,7 +136,7 @@ async def tick(feed: Feed) -> None:
         if i in feed.sent or item["at_min"] > feed.now_min:
             continue
         try:
-            feed.sent[i] = await send(feed.crisis_id, item)
+            feed.sent[i] = await send(feed.crisis_id, item, feed.hazard)
             feed.say(f"{icon(item)} → {label(item)[:110]}", "sent")
         except Exception as e:  # keep the world turning; show what failed
             feed.sent[i] = "error"
@@ -158,9 +174,10 @@ app = FastAPI(title="Valte · Mundo exterior", lifespan=lifespan)
 
 
 class StartIn(BaseModel):
-    pack: str = "riada-paiporta"
+    code: str | None = None       # the crisis to feed, as written on the dashboard header (VLC-7691). Empty = declare a new one
+    hazard: str = "flood"         # what to simulate on it: flood (riada) | fire (incendio)
     speed: float = 20
-    crisis_id: str | None = None  # feed a crisis declared from the dashboard instead of creating one
+    crisis_id: str | None = None  # same as `code`, for whoever already holds the id
     resume: bool = True           # False: attach without touching its clock (it stays paused if it was)
     skip_elapsed: bool = False    # re-attaching to a crisis this script was already feeding: do not replay what is past
 
@@ -202,6 +219,8 @@ async def status(crisis_id: str | None = None) -> dict[str, Any]:
         "backend": BACKEND, "backend_ok": world.backend_ok, "dashboard": DASHBOARD, "packs": packs,
         "feeds": [f.summary() for f in reversed(world.feeds.values())],   # newest on top of the stack
         "crises": [c for c in crises if c["id"] not in world.feeds],       # active in the kernel, not fed by this app
+        # every active crisis, for the code box: what it is called and what kind of world suits it
+        "codes": [{"code": c["code"], "name": c["name"], "hazard": c.get("hazard"), "fed": c["id"] in world.feeds} for c in crises],
         "selected": sel.crisis_id if sel else None, "crisis": sel.header if sel else None,
         "running": sel.running if sel else False, "sent": len(sel.sent) if sel else 0,
         "total": len(sel.timeline) if sel else 0,
@@ -213,41 +232,63 @@ async def status(crisis_id: str | None = None) -> dict[str, Any]:
     }
 
 
+async def resolve(code: str) -> dict[str, Any]:
+    """The crisis behind a code typed by a person: VLC-7691, vlc-7691, or just 7691 when only one crisis ends like that."""
+    want = code.strip().upper()
+    crises = (await http.get(f"{BACKEND}/crises")).json()
+    hits = [c for c in crises if c["code"].upper() == want or c["id"] == code.strip()] or \
+           [c for c in crises if c["code"].upper().split("-")[-1] == want.split("-")[-1]]
+    live = [c for c in hits if c["status"] == "active"]
+    if len(live) == 1:
+        return live[0]
+    if hits and not live:
+        raise HTTPException(status_code=409, detail=f"La crisis {hits[0]['code']} está cerrada: no se le puede enviar nada.")
+    known = ", ".join(c["code"] for c in crises if c["status"] == "active") or "ninguna"
+    raise HTTPException(status_code=404, detail=f"No hay una crisis activa con el código «{code.strip()}». Activas ahora: {known}.")
+
+
 @app.post("/api/start")
 async def start(body: StartIn) -> dict[str, Any]:
     """Adds a crisis to the stack. Whatever was already being fed keeps running."""
+    if body.hazard not in HAZARDS:
+        raise HTTPException(status_code=422, detail="Tipo de simulación desconocido: usa flood (riada) o fire (incendio).")
+    kind = HAZARDS[body.hazard]
     async with world.lock:
-        if body.crisis_id and body.crisis_id in world.feeds:  # already ours: carry on where it was, do not resend
-            feed = world.feeds[body.crisis_id]
-            await http.post(f"{BACKEND}/crises/{feed.crisis_id}/clock", json={"speed": body.speed, "paused": False})
-            feed.running = True
-            feed.say("Reanudado.", "info")
-            return {"crisis_id": feed.crisis_id, "code": feed.header.get("code")}
         try:
-            if body.crisis_id:
-                h = (await http.get(f"{BACKEND}/crises/{body.crisis_id}")).json()
-                await http.post(f"{BACKEND}/crises/{body.crisis_id}/feed", json={"external": True})
+            cid = (await resolve(body.code))["id"] if (body.code or "").strip() else body.crisis_id
+            old = world.feeds.get(cid or "")
+            if old is not None and old.hazard == body.hazard:  # already ours: carry on where it was, do not resend
+                await http.post(f"{BACKEND}/crises/{cid}/clock", json={"speed": body.speed, "paused": False})
+                old.running = True
+                old.say("Reanudado.", "info")
+                return {"crisis_id": cid, "code": old.header.get("code"), "hazard": old.hazard}
+            if cid:
+                h = (await http.get(f"{BACKEND}/crises/{cid}")).json()
+                await http.post(f"{BACKEND}/crises/{cid}/feed", json={"external": True})
                 if body.resume:
-                    await http.post(f"{BACKEND}/crises/{body.crisis_id}/clock", json={"speed": body.speed, "paused": False})
+                    await http.post(f"{BACKEND}/crises/{cid}/clock", json={"speed": body.speed, "paused": False})
                 offset = float(h["clock"]["elapsed_min"])
-            else:
-                r = await http.post(f"{BACKEND}/crises", json={"pack": body.pack, "speed": body.speed,
+            else:  # no code: declare a new crisis of that kind
+                r = await http.post(f"{BACKEND}/crises", json={**NEW[body.hazard], "speed": body.speed,
                                                                 "external_feed": True, "start": True})
                 r.raise_for_status()
                 h, offset = r.json(), 0.0
-            # Each crisis gets its own script: the pack's when it fits, otherwise one generated from its zones and
-            # hazard (a wildfire declared from the wizard must not be told about a flood).
-            t = await http.get(f"{BACKEND}/crises/{h['id']}/timeline")
+            # The script of the kind of world we were asked for, over THIS crisis's zones: the hand-written pack when it
+            # fits (the flood of Paiporta), otherwise generated from its zone graph and its delays.
+            t = await http.get(f"{BACKEND}/crises/{h['id']}/timeline", params={"hazard": body.hazard})
             t.raise_for_status()
             timeline = t.json()
         except httpx.HTTPError as e:
             raise HTTPException(status_code=502, detail=f"backend: {e}")
-        feed = world.feeds[h["id"]] = Feed(h["id"], body.pack, timeline, 0.0 if body.skip_elapsed else offset, h)
+        feed = world.feeds[h["id"]] = Feed(h["id"], body.hazard, timeline, 0.0 if body.skip_elapsed else offset, h)
         if body.skip_elapsed:
             feed.sent = {i: "antes" for i, it in enumerate(timeline) if it["at_min"] <= offset}
-        feed.say(f"START · {h['name']} ({h['code']}) a {body.speed:g}×. {len(timeline)} eventos en el guion. "
+        if old is not None:
+            feed.log = old.log
+            feed.say(f"Cambio de mundo: de {HAZARDS.get(old.hazard, old.hazard)} a {kind}. El guion nuevo empieza ahora.", "warn")
+        feed.say(f"START · {kind.upper()} sobre {h['name']} ({h['code']}) a {body.speed:g}×. {len(timeline)} eventos en el guion. "
                  f"{len(world.feeds)} crisis en marcha.", "info")
-        return {"crisis_id": h["id"], "code": h["code"]}
+        return {"crisis_id": h["id"], "code": h["code"], "hazard": body.hazard}
 
 
 async def _clock(feed: Feed, **body: Any) -> None:
