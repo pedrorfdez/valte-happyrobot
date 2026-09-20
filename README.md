@@ -1,67 +1,113 @@
-# Valte - HackSpain 2026
+# Valte - Crisis Command
 
-Team Valte's entry for the HappyRobot track at HackSpain 2026 (September
-18-20 2026, UPM ETSIT, Madrid).
+Team Valte's entry for the HappyRobot track at HackSpain 2026.
 
-- Track page: https://hackspain2026.happyrobot.ai/
-- Full track brief: [docs/track.md](docs/track.md)
-- Our proposal: [PROPOSAL.md](PROPOSAL.md)
+Valte is an agentic crisis management system. It recreates the DANA
+flood of 2024-10-29 in Valencia and shows what an AI coordinator could
+have done that day: read thousands of noisy signals, alert every town
+before the wave, dispatch finite rescue crews, and keep a human in
+control. In 2024 the mass alert went out at 20:11, after the wave. Our
+system sends it hours earlier, and the dashboard shows the difference
+live.
 
-## The challenge in one line
+## Where to find it
 
-Build an agentic system that manages an evolving crisis (fire, blackout,
-flood, ...). The system must decide, act on the real world, and adapt as
-the situation changes.
+- Dashboard (live system): `https://kernel-production-c1a9.up.railway.app/dashboard?key=<WORLD_API_TOKEN>`.
+  The token is `WORLD_API_TOKEN` in the team `.env`.
+- The kernel API runs at the same host. Health check: `/healthz`.
+- The AI workflows run on the HappyRobot platform (EU):
+  `ingest-calls`, `ingest-social`, `ingest-news`, `coordinator`.
 
-## Hard requirements (from the track)
+## Run a demo
 
-All of these are mandatory:
+1. Open the dashboard URL in a browser.
+2. Pick a speed. `x60` runs the full crisis in about 5 minutes.
+3. Press `Start scenario`. The dashboard follows the new run.
+4. When a yellow card asks for approval (the military request), press
+   `Approve` or `Reject`. That is the human-in-the-loop moment.
+5. The run ends at scenario time 20:30. Press `Restart scenario` to
+   run it again.
 
-1. Agentic: the system decides and acts on its own. A chatbot that only
-   answers questions does not qualify.
-2. Dynamic scenario: the situation evolves while the system runs.
-3. Multi-step: chains of actions toward objectives, not isolated actions.
-4. Real interaction: actual calls, messages, tickets, or API calls. Not
-   proposals of actions.
-5. UI: a dashboard that shows the situation, the system's actions, and
-   lets a human intervene.
-6. Bonus: learning from past executions.
+What to watch: the alert time in the header against the real 20:11,
+the wave moving down the basin map, crews deploying and returning in
+the Zones table, the agent registering volunteer groups it discovers,
+and the reflex rules it arms for itself.
 
-## Evaluation (three equal blocks)
+## How it works
 
-- Decision-making: good decisions with incomplete data, prioritization,
-  adaptation to change.
-- Execution: coordination of people, information, and resources; real
-  external actions.
-- Supervision: transparency, human intervention, scenario originality.
-  Learning is a bonus.
+```
+Simulator            Perception              Crisis kernel            Coordinator
+(fake world)         (HappyRobot)            (FastAPI + Postgres)     (HappyRobot LLM)
+tweets, 112 calls,   3 ingest workflows      validates, scores        reads the state,
+sensor readings  ->  extract claims and  ->  confidence, enforces ->  decides actions,
+per channel          location per signal     rules, fires reflexes    doctrine-guided
+                                             in milliseconds          (the playbook)
+```
 
-The live demo counts as much as the system itself.
+- The simulator replays the historic timeline plus generated noise,
+  rumor cascades, and per-zone incident clusters. Every payload takes
+  the shape a real channel would deliver.
+- Perception is one HappyRobot workflow per channel. It filters noise
+  and produces normalized signals. Sensors skip perception and post
+  directly, so the fast path never waits for an LLM.
+- The kernel is the safety layer. It computes per-signal confidence
+  from cross-channel corroboration, enforces capabilities,
+  jurisdiction, and a transactional crew ledger, executes the standing
+  reflex rules (tripwires) the agent arms, and gates high-cost actions
+  behind human approval.
+- The coordinator is the deliberating agent. The kernel wakes it with
+  a digest of new events; it reads the full state and submits a batch
+  of actions with evidence and reasoning. The playbook it follows is
+  `scenarios/dana-valencia/playbook.md`.
+- Every run is stored in Postgres with full traceability: raw
+  payloads, signals, decisions, rejections, and the agent's assessment
+  history.
 
-## Platform
+## Repository layout
 
-We build on the HappyRobot platform (voice, chat, and email agent
-workflows). Docs at https://docs.happyrobot.ai/ are behind an access
-code; the organizers give access and on-site support during the event.
+- `schemas/`: JSON Schemas, the team contract. Every field has a
+  description written to feed agent prompts.
+- `scenarios/dana-valencia/`: the scenario pack: world, entities,
+  timeline, message pools, playbook. The core system is
+  scenario-agnostic; a new crisis is a new folder.
+- `backend/kernel/`: the crisis kernel (FastAPI).
+- `backend/sim/`: the world simulator.
+- `backend/dashboard/`: the single-file dashboard the kernel serves.
+- `backend/scripts/`: migrations, scenario loader, run scorecard
+  (`evaluate_run.py`), terminal watcher (`watch.py`).
+- `docs/`: design decisions, backend plan, HappyRobot API recipes,
+  phase plan.
 
-## Our proposal (draft, see PROPOSAL.md)
+## Run locally
 
-A crisis management system with:
+```bash
+set -a; . ./.env; set +a          # loads tokens and URLs
+cd backend
+uvicorn kernel.main:app --port 8100   # local kernel (uses Supabase)
+python3 -m sim run --scenario dana-valencia --speed 60 --emit live
+python3 scripts/watch.py              # terminal view
+python3 -m pytest tests/ -q           # invariant test suite
+```
 
-- Entities: actors that can execute actions and have a weight (mayor,
-  police, firefighters, civilians).
-- Data sources: social networks, emergency calls, sensors, news media.
-- HappyRobot workflows: one workflow per data source; incident and
-  disaster playbooks; persistence to a database or knowledge store.
-- Resources: human resources and basic supplies (medicine, food, water).
-- States: for example "fire active in zone X".
-- UI: dashboard for status, actions, and human intervention.
-- Integrations: the real external actions.
+`--emit live` sends channels to the URLs in `.env`. `--emit console`
+prints payloads instead and touches nothing.
 
-## Working agreements
+## Operating notes
 
-- Hackathon mode: prefer working code over polish. Cut scope, not the
-  demo.
-- Keep decisions in `docs/decisions.md`: what was decided, why, and what
-  was rejected.
-- Do not push without asking.
+- One simulation runs at a time. One demo equals one run; old runs
+  stay in the database and the dashboard can replay any of them with
+  `?run_id=<id>`.
+- The seed fixes the noise pattern. Seed 42 is the rehearsed demo run.
+- Deploys: `railway up --service kernel --ci` from the repo root. The
+  scenario pack and dashboard ship inside the container image.
+- HappyRobot workflow edits follow the fork, edit, force-publish
+  recipe in `docs/happyrobot-api.md`.
+
+## Documents
+
+- `docs/track.md`: the challenge brief.
+- `docs/schemas.md`: data model overview and design decisions.
+- `docs/backend.md`: kernel and simulator architecture.
+- `docs/happyrobot-api.md`: platform recipes learned by testing.
+- `docs/decisions.md`: decision log with reasons.
+- `scenarios/dana-valencia/playbook.md`: the response doctrine.

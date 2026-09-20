@@ -1,4 +1,8 @@
-# Backend implementation plan
+# Backend architecture
+
+Written as the implementation plan; the system described here is built
+and deployed (Railway service `kernel`). Deviations are recorded in
+`docs/decisions.md`.
 
 One Python process, two strictly separated components:
 
