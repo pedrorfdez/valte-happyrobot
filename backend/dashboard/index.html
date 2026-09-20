@@ -131,6 +131,7 @@ button:focus-visible { outline:2px solid var(--sev-3); outline-offset:2px; }
   border-radius:6px; padding:3px 11px; cursor:pointer;
   color:var(--text-secondary); background:transparent; }
 .fchip.on { border-color:var(--text-secondary); color:var(--text-primary); background:var(--surface-3); }
+.sigtext { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; cursor:default; }
 .conf { font-family:var(--mono); font-variant-numeric:tabular-nums; letter-spacing:1px; font-size:11px; flex:none; }
 .conf b { font-size:11px; letter-spacing:.3px; }
 </style>
@@ -394,7 +395,15 @@ function render(d){
 
   const hz = {}; d.hazards.forEach(h => { if(!hz[h.zone] || h.severity>hz[h.zone].severity) hz[h.zone]=h; });
   const zoneDocs = Object.fromEntries(d.zones.map(z=>[z.id,z]));
-  const pops = d.entities.filter(e=>e.kind==="population");
+  // basin order: upstream depth first, then name — stable across polls
+  const depth = {};
+  const depthOf = id => {
+    if (id in depth) return depth[id];
+    const ups = (zoneDocs[id]?.downstream_of) || [];
+    return depth[id] = ups.length ? 1 + Math.max(...ups.map(depthOf)) : 0;
+  };
+  const pops = d.entities.filter(e=>e.kind==="population")
+    .sort((a,b) => (depthOf(a.zone)-depthOf(b.zone)) || a.zone.localeCompare(b.zone));
   const deployed = {};   // zone -> [{units, entity}] from the live assignments ledger
   d.assignments.forEach(a => { if (a.zone) (deployed[a.zone] ??= []).push(a); });
   document.querySelector("#ztable tbody").innerHTML = pops.map(e=>{
@@ -412,7 +421,10 @@ function render(d){
 
   const asg = {}; d.assignments.forEach(a => (asg[a.entity_id] ??= []).push(a));
   document.getElementById("responders").innerHTML =
-    d.entities.filter(e=>e.kind==="responder").map(e=>{
+    d.entities.filter(e=>e.kind==="responder")
+      .sort((a,b) => (a.provenance==="discovered")-(b.provenance==="discovered")
+                     || a.name.localeCompare(b.name))
+      .map(e=>{
       const u=e.units||{}; const a=(asg[e.id]||[]).map(x=>`${x.units} crew → ${x.zone}`).join(", ");
       const st = e.status!=="available" ? ` <span class="badge b-rej">${e.status}</span>` : "";
       const disc = e.provenance==="discovered" ? ` <span class="badge b-reflex">volunteer</span>` : "";
@@ -492,8 +504,8 @@ function render(d){
     const offer = (s.claims||[]).length===0;
     return `<div class="row"><span class="dot" style="background:${ch.c}" title="${esc(ch.label)}"></span>
       <span class="mono muted small">${hm(s.t)}</span>
-      <span class="small" style="flex:1">${offer?'<span class="badge b-reflex">offer/info</span> ':""}${esc((s.content||"").slice(0,90))}
-        <span class="muted">· ${esc(s.location?.zone||"?")}</span></span>
+      <span class="small sigtext" style="flex:1" title="${esc(s.content||"")}">${offer?'<span class="badge b-reflex">offer/info</span> ':""}${esc(s.content||"")}
+        <span class="muted">(${esc(s.location?.zone||"?")})</span></span>
       ${confMark(s.confidence)}</div>`;
   }).join("") || `<div class="small muted">no signals for this filter yet</div>`;
 }

@@ -1141,9 +1141,48 @@
       "note": "By now the media confirm everything. Confirmation without anticipation is worth nothing: the score was decided two hours ago."
     },
     {
+      "t": "2024-10-29T19:45:00+01:00",
+      "type": "hazard",
+      "hazard": {
+        "id": "flood-poyo",
+        "type": "flood",
+        "zone": "chiva",
+        "severity": 5,
+        "trend": "falling",
+        "propagating": false
+      },
+      "note": "The rain stops upstream; Chiva's water level starts falling."
+    },
+    {
+      "t": "2024-10-29T20:05:00+01:00",
+      "type": "hazard",
+      "hazard": {
+        "id": "flood-poyo",
+        "type": "flood",
+        "zone": "chiva",
+        "severity": 3,
+        "trend": "falling",
+        "propagating": false
+      },
+      "note": "Chiva receding: supplies and wellness checks become viable (volunteer work)."
+    },
+    {
       "t": "2024-10-29T20:11:00+01:00",
       "type": "marker",
       "note": "HISTORIC MARKER: at this exact minute the real ES-Alert reached the phones, with the towns already under water. 224 deaths. Demo overlay: show this next to the timestamp of the alert our system sent."
+    },
+    {
+      "t": "2024-10-29T20:15:00+01:00",
+      "type": "hazard",
+      "hazard": {
+        "id": "flood-poyo-torrent",
+        "type": "flood",
+        "zone": "torrent",
+        "severity": 5,
+        "trend": "falling",
+        "propagating": false
+      },
+      "note": "Torrent begins to recede behind the wave."
     },
     {
       "t": "2024-10-29T20:20:00+01:00",

@@ -39,11 +39,11 @@ def dashboard_state(key: str = "", run_id: str = ""):
         raise HTTPException(409, "no runs yet")
 
     run = q("select id, scenario_id, notes, started_at, scenario_doc from runs where id=%s", (rid,), one=True)
-    zones = [r["doc"] for r in q("select doc from zones where run_id=%s", (rid,))]
+    zones = [r["doc"] for r in q("select doc from zones where run_id=%s order by id", (rid,))]
     hazards = [dict(r) for r in q(
         "select id, zone, severity, trend from hazards where run_id=%s", (rid,))]
     entities = []
-    for r in q("select doc, units_available, status from entities where run_id=%s", (rid,)):
+    for r in q("select doc, units_available, status from entities where run_id=%s order by id", (rid,)):
         d = dict(r["doc"])
         if d.get("units"):
             d["units"]["available"] = r["units_available"]
