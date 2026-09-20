@@ -1,0 +1,12 @@
+body{margin:0;background:var(--surface-000);color:var(--ink);font-family:var(--font-sans);}
+a{color:var(--info);}a:hover{color:var(--ink);}
+.wave{fill:none;stroke:var(--line-strong);stroke-width:1;opacity:.55;}
+.row{appearance:none;background:none;border:0;border-bottom:1px solid var(--line-strong);color:var(--ink);cursor:pointer;text-align:left;font:inherit;transition:padding .2s ease;}
+.row:hover{padding-left:12px;}
+.row:hover .row-name{font-style:italic;}
+.row .row-arrow{opacity:0;transform:translateX(-8px);transition:opacity .2s ease,transform .2s ease;}
+.row:hover .row-arrow{opacity:1;transform:none;}
+.row:focus-visible,.cta:focus-visible{outline:2px solid var(--focus);outline-offset:4px;}
+.cta:hover .cta-arrow{transform:translateX(4px);}
+.cta-arrow{transition:transform .2s ease;}
+.cta,.cta:hover{color:var(--on-ink);}
