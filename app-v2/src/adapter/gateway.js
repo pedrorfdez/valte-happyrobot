@@ -5,12 +5,33 @@
  * Spec: docs/superpowers/specs/2026-09-20-valte-v2-dashboard-integration-design.md §6, §12, §15
  */
 
+const STORAGE_GATEWAY = "valte:v2:gateway_url";
+
 function getGatewayBase() {
   if (typeof window !== "undefined" && window.location) {
     try {
       const params = new URLSearchParams(window.location.search);
       const override = params.get("gateway_url");
-      if (override) return override.replace(/\/$/, "");
+      if (override) {
+        const clean = override.replace(/\/$/, "");
+        try { if (typeof localStorage !== "undefined") localStorage.setItem(STORAGE_GATEWAY, clean); } catch {}
+        return clean;
+      }
+      // try stored gateway from previous dashboard URL
+      try {
+        if (typeof localStorage !== "undefined") {
+          const stored = localStorage.getItem(STORAGE_GATEWAY);
+          if (stored) return stored.replace(/\/$/, "");
+        }
+      } catch {}
+      // list screen without override: for local static server (localhost:4174) fallback to Supabase gateway
+      // This allows http://localhost:4174/ to work without ?gateway_url= param after first dashboard URL has stored it
+      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        // try stored first already checked; if still empty, use known Supabase project as dev fallback
+        // The dashboard-v2.sh prints the correct gateway_url; this fallback ensures list works on fresh open
+        // It is safe because Supabase gateway is public and CORS allows it
+        return "https://oeacmfpdhrqzinlhsmuj.supabase.co/functions/v1/gateway";
+      }
       return window.location.origin.replace(/\/$/, "");
     } catch {
       return "";
