@@ -376,6 +376,9 @@ The apply command requires `SUPABASE_ACCESS_TOKEN` with database write permissio
 - [Azure Static Web Apps dashboard](docs/superpowers/plans/2026-09-19-swa-dashboard.md)
 - [Controlled real interaction](docs/superpowers/plans/2026-09-19-real-interaction.md)
 - [Sequential E2E and demo runbook](docs/superpowers/plans/2026-09-19-crisis-e2e-demo.md)
+- [Valte Pantallas reference](docs/reference/mapping.md) — UI v2 pixel reference unpacked from `feat/valte-v2` (`docs/reference/valte-pantallas/`, regenerable via `scripts/unpack-valte-pantallas.mjs`)
+
+Visual reference: `Valte · Pantallas.html` and `frontend/design/*.body.html` are unpacked under `docs/reference/valte-pantallas/` and mapped to `app-v2` projections in `docs/reference/mapping.md`. Run `node tests/visual.test.js` to verify 1440×900 canvas, tokens and that `Senales` remains reference-only.
 
 ## Working agreements
 

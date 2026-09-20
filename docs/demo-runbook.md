@@ -86,6 +86,10 @@ PASS wildfire isolation: no dana lesson
 
 El Outcome de `dana1` contiene `observed_effects.interaction_mode=agent_simulation` y `simulated_transcript` (2-6 líneas, primera `SIMULACIÓN —`). El `crisis-review` crea una `Lesson` pack-scoped (`lessons` table, `source_run_id` único) y `dana2` la recibe en `GET /api/snapshot` (`lessons` array) y la aplica: `plan_lessons` registra el enlace y el nuevo `Plan` cambia `objectives` con la instrucción. `wildfire` nunca recibe la lección DANA.
 
+## 3c. Referencia visual
+
+La UI v2 toma como referencia `Valte · Pantallas.html` (bundle) y `frontend/design/*.body.html` de `feat/valte-v2` unpacked en `docs/reference/valte-pantallas/`. `scripts/unpack-valte-pantallas.mjs` regenera la referencia.
+
 ## 4. Activación live: modo exacto y doble barrera
 
 Hazlo solo después de comprobar visualmente que el destinatario está en whitelist y que todo mensaje empieza con `SIMULACIÓN`:
