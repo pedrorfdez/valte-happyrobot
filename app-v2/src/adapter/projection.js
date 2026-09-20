@@ -1,3 +1,6 @@
+// Reference: docs/reference/valte-pantallas/design/*.body.html + Valte · Pantallas.html
+// - Zones: Zonas.body.html uses display.x/y -> filterZones
+// - Actions: Acciones.body.html expects pending_approval with approver allowlist -> filterActions
 /**
  * Valte v2 Dashboard Projection Adapter
  * Pure jurisdiction filtering and redaction for dashboard view models.
